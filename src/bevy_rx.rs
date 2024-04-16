@@ -1,6 +1,6 @@
-use std::marker::PhantomData;
+use std::{ marker::PhantomData, ops::{ Deref, DerefMut } };
 
-use bevy_ecs::prelude::*;
+use bevy_ecs::{ prelude::*, system::SystemParam };
 use bevy_utils::all_tuples_with_size;
 
 /// Derived from bevy_rx:
@@ -80,7 +80,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Mutable<T> {
         Self::update_value(world, &mut stack, signal_target, value);
 
         while let Some(sub) = stack.pop() {
-            if let Some(mut calculation) = world.entity_mut(sub).take::<crate::memo::RxMemo>() {
+            if let Some(mut calculation) = world.entity_mut(sub).take::<RxMemo>() {
                 calculation.execute(world, &mut stack);
                 world.entity_mut(sub).insert(calculation);
             }
@@ -202,10 +202,10 @@ macro_rules! impl_CalcQuery {
                 // harder-to-debug errors down the line.
                 let [$(mut $I,)*] = world.get_many_entities_mut(entities).unwrap();
 
-                $($I.get_mut::<RxObservableData<$T::DataType>>()?.subscribe(reader);)*
+                $($I.get_mut::<Mutable<$T::DataType>>()?.subscribe(reader);)*
 
                 Some(derive_fn((
-                    $($I.get::<RxObservableData<$T::DataType>>()?.data(),)*
+                    $($I.get::<Mutable<$T::DataType>>()?.data(),)*
                 )))
             }
         }
@@ -282,6 +282,7 @@ pub struct ReactiveContext<S> {
     outside_state: PhantomData<S>,
 }
 
+#[allow(unused_mut)]
 impl<S> Default for ReactiveContext<S> {
     fn default() -> Self {
         let mut world = World::default();
