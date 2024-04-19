@@ -1,4 +1,4 @@
-use std::{ marker::PhantomData, ops::{ Deref, DerefMut } };
+use std::marker::PhantomData;
 
 use bevy_ecs::prelude::*;
 
@@ -182,7 +182,7 @@ impl<T: Send + Sync + PartialEq> Clone for Signal<T> {
 impl<T: Send + Sync + PartialEq> Copy for Signal<T> {}
 
 impl<T: Clone + Send + Sync + PartialEq> Signal<T> {
-    pub(crate) fn new<S>(rctx: &mut ReactiveContext<S>, initial_value: T) -> Self {
+    pub fn new<S>(rctx: &mut ReactiveContext<S>, initial_value: T) -> Self {
         Self {
             reactive_entity: Mutable::new(rctx, initial_value),
             p: PhantomData,
