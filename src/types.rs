@@ -15,7 +15,7 @@ pub struct ReactiveContext<S> {
 /// The core reactive primitive that holds data, and a list of subscribers that are invoked when the
 /// data changes.
 #[derive(Component)]
-pub(crate) struct Mutable<T> {
+pub struct Mutable<T> {
     pub data: T,
     pub subscribers: Vec<Entity>,
 }
@@ -31,8 +31,6 @@ pub struct Signal<T: Send + Sync + 'static> {
     pub reactive_entity: Entity,
     pub p: PhantomData<T>,
 }
-
-pub trait DeriveFn: Send + Sync + FnMut(&mut World, &mut Vec<Entity>) {}
 
 /// A reactive calculation that is run on observable data, and memoized (cached).
 ///
@@ -62,6 +60,8 @@ pub trait MemoQuery<T>: Copy + Send + Sync + 'static {
         input_deps: Self
     ) -> Option<T>;
 }
+
+pub trait DeriveFn: Send + Sync + FnMut(&mut World, &mut Vec<Entity>) {}
 
 #[derive(Component)]
 pub struct RxMemo {

@@ -4,6 +4,8 @@ use bevy_ecs::prelude::*;
 
 use crate::types::*;
 
+/// Based on bevy_rx:
+/// Lazy signal propagation
 impl<T: Send + Sync + 'static> Mutable<T> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new<S>(rctx: &mut ReactiveContext<S>, data: T) -> Entity {
@@ -240,11 +242,11 @@ impl Effect {
 }
 
 impl EffectSystem {
-    pub(crate) fn new<M>(system: impl IntoSystem<(), (), M>) -> Self {
+    pub fn new<M>(system: impl IntoSystem<(), (), M>) -> Self {
         Self::New(Box::new(IntoSystem::into_system(system)))
     }
 
-    pub(crate) fn run(&mut self, world: &mut World) {
+    pub fn run(&mut self, world: &mut World) {
         let mut system = match std::mem::take(self) {
             EffectSystem::Empty => {
                 return;
