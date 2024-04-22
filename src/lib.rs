@@ -16,7 +16,7 @@ pub mod prelude {
     // bevy_rx::{ Memo, Signal, ReactiveContext, Reactor },
 
     // core impl from local
-    pub use crate::types::{ ReactiveContext };
+    pub use crate::types::ReactiveContext;
 
     pub use crate::ReactiveExtensionsPlugin;
 }
@@ -25,8 +25,10 @@ pub mod prelude {
 pub struct ReactiveExtensionsPlugin;
 
 impl ReactiveExtensionsPlugin {
+    // TODO add deferred Signal and Memo update systems
+    // apply next values, recalculate memos
+
     fn apply_deferred_effects(world: &mut World) {
-        // TODO add deferred Signal and Memo update systems
         world.resource_scope::<ReactiveContext<World>, _>(|world, mut rctx| {
             let mut effects: Vec<_> = std::mem::take(
                 rctx.reactive_state.resource_mut::<DeferredEffects>().stack.as_mut()
