@@ -12,8 +12,38 @@ pub mod prelude {
 }
 
 #[derive(Resource)]
-struct ReactiveContext {
-    // sparse sets we will need: running, executed, changed
+struct SignalsResource {
+    // sparse sets we will need: running, next_running, completed, changed
+}
+
+impl Signal for SignalsResource {
+    fn computed(
+        propagator: Box<dyn PropagatorFn>,
+        sources: Vec<Entity>,
+        world: &mut World
+    ) -> Entity {
+        todo!()
+    }
+
+    fn effect(
+        propagator: Box<dyn PropagatorFn>,
+        triggers: Vec<Entity>,
+        world: &mut World
+    ) -> Entity {
+        todo!()
+    }
+
+    fn send<T>(next_value: T, world: &mut World) {
+        todo!()
+    }
+
+    fn state<T>(value: T, world: &mut World) -> Entity {
+        todo!()
+    }
+
+    fn value<T>(immutable: Entity, world: &mut World) -> T {
+        todo!()
+    }
 }
 
 pub struct SignalsPlugin;
@@ -45,11 +75,10 @@ impl SignalsPlugin {
         // a) item is an effect, so schedule the effect by adding an Effect component
 
         // b1) item is a memo, so mark it for recalculation
-        // --- or maybe just recalculate immediately so we don't need memos_system ---
 
-        // b2) item has its own subscribers, so add those to the running set
+        // b2) item has its own subscribers, so add those to a new running set
 
-        // loop through the running set until it is empty
+        // loop through the running set until it is empty, then loop through the new running set, and so on
     }
 
     pub fn memos_system(query_memos: Query<Entity, With<ComputeMemo>>, world: &mut World) {
@@ -70,36 +99,6 @@ impl SignalsPlugin {
         // *** spawn a thread for each effect
 
         // remove the Effect component
-    }
-}
-
-impl Signal for SignalsPlugin {
-    fn computed(
-        propagator: Box<dyn PropagatorFn>,
-        sources: Vec<Entity>,
-        world: &mut World
-    ) -> Entity {
-        todo!()
-    }
-
-    fn effect(
-        propagator: Box<dyn PropagatorFn>,
-        triggers: Vec<Entity>,
-        world: &mut World
-    ) -> Entity {
-        todo!()
-    }
-
-    fn send<T>(next_value: T, world: &mut World) {
-        todo!()
-    }
-
-    fn state<T>(value: T, world: &mut World) -> Entity {
-        todo!()
-    }
-
-    fn value<T>(immutable: Entity, world: &mut World) -> T {
-        todo!()
     }
 }
 

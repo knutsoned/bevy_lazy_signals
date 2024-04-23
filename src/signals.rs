@@ -22,16 +22,16 @@ use bevy_ecs::{ prelude::*, storage::SparseSet };
 /// During processing, a (brief) write lock for the world is obtained. A Signal is an Immutable
 /// with no Propagator on the same entity. There is no Signal type per se. If the value is
 /// unchanged, the SendSignal is discarded. Otherwise, each Signal's data field is replaced with
-/// next_value. The Signal is added to a changed set. Subscribers are added to a running set and
+/// next_value. The Signal is added to a "changed" set. Subscribers are added to a running set and
 /// removed from the Immutable subscribers. Finally the SendSignal component is removed.
 ///
-/// The initial running set is iterated. If the item is a Memo (Propagator with Immutable), then
+/// The initial "running" set is iterated. If the item is a Memo (Propagator with Immutable), then
 /// add a ComputeMemo component to mark it for update. If it is an Effect (Propagator without
 /// Immutable), add a DeferredEffect component to mark it for scheduling. Walk the subscriber tree,
-/// adding each item's subscribers to a new running set and removing them from its own subscribers.
-/// As each item is processed, add it to a completed set and do not add any item to a new running
-/// set if it exists in the completed set. When the current running set is exhausted, run the new
-/// one. The system exits when each item in each running set finishes. This system should be a
+/// adding each item's subscribers to the "running" set and removing them from its own subscribers.
+/// As each item processes, add it to a "completed" set and do not add any item to a new "running"
+/// set if it exists in the "completed" set. When the current "running" set is exhausted, run the
+/// new one. The system exits when each item in each running set finishes. This system should be a
 /// while loop and not recursive.
 ///
 /// ### Memo Processing
@@ -39,46 +39,46 @@ use bevy_ecs::{ prelude::*, storage::SparseSet };
 /// stored in the Immutable. As each value is read, the Memo is added to the next_subscribers of
 /// the value. If the value is itself a Memo, it will recompute if its ComputeMemo component is
 /// present. Otherwise it simply returns its value. If the value is different, it will be added
-/// to the changed set which will be used to limit which effects are scheduled.
+/// to the "changed" set which will be used to limit which effects are scheduled.
 ///
 /// This is the only part of the system that is recursive. As each member of the running set will
-/// have its own stack when computation begins, it should be resistant to overflows.
-///
-/// Each element in the running set is added to an executed set and removed from the running set.
-/// Any Immutable in the executed set will have its next_subscribers merged into its empty
-/// subscribers set at the end of this system. The system exits when each item in the running set
-/// finishes.
+/// have its own stack when computation begins, it should be resistant to overflows. Each element
+/// in the running set is added to an "completed" set and removed from the "running" set.
 ///
 /// ### Effect Processing
 /// The effects system compares the dependencies for each entity with a DeferredEffect component
-/// against the changed set. If any dependency of an Effect is changed, the Propagator function is
-/// called.
+/// against a "changed" set. If any dependency of an Effect is changed, the Propagator function is
+/// called after placing the Effect into the "running" set.
+///
+/// Any Immutable in the "completed" set will have its next_subscribers merged into its empty
+/// subscribers set at the end of this system. The system exits when each item in the "running" set
+/// finishes.
 ///
 /// ## Traits
 /// A user API patterned after the [TC39 proposal](https://github.com/tc39/proposal-signals)
 /// up to and including _Introducing Signals_.
 pub trait Signal {
-    /// Return a new computed entity (Immutable + Propagator)
+    /// Create a new computed entity (Immutable + Propagator)
     fn computed(
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
         world: &mut World
     ) -> Entity;
 
-    /// Return a new effect entity (Propagator)
+    /// Create a new effect entity (Propagator)
     fn effect(
         propagator: Box<dyn PropagatorFn>,
         triggers: Vec<Entity>,
         world: &mut World
     ) -> Entity;
 
-    // Mark an Immutable (Signal) for update
+    /// Mark an Immutable (Signal) for update
     fn send<T>(next_value: T, world: &mut World);
 
-    /// Return a new Immutable state entity (Signal)
+    /// Create a new Immutable state entity (Signal)
     fn state<T>(value: T, world: &mut World) -> Entity;
 
-    /// Return an Immutable's value
+    /// Borrow an Immutable's value
     fn value<T>(immutable: Entity, world: &mut World) -> T;
 }
 
@@ -128,6 +128,7 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Observable for Immutable<T> {
         if let Some(next) = self.next_value {
             self.data = next;
         }
+        self.next_value = None;
     }
 
     fn merge_subscribers(&mut self) {
