@@ -1,33 +1,38 @@
+/* 
 use bevy_app::PostUpdate;
 use bevy_ecs::prelude::World;
 
-/* 
 // vendored code
 pub mod bevy_rx;
 use bevy_rx::*;
-*/
 
 pub mod reference;
 pub mod types;
 use types::*;
+*/
+
+pub mod signals;
+//use signals::*;
 
 pub mod prelude {
     // core impl from vendored code
     // bevy_rx::{ Memo, Signal, ReactiveContext, Reactor },
 
     // core impl from local
+    /*
     pub use crate::types::ReactiveContext;
 
     pub use crate::ReactiveExtensionsPlugin;
+    */
 }
 
-/// Derived from bevy_rx:
+// Derived from bevy_rx:
+/*
 pub struct ReactiveExtensionsPlugin;
 
 impl ReactiveExtensionsPlugin {
     // TODO add deferred Signal and Memo update systems
     // apply next values, recalculate memos
-
     fn apply_deferred_effects(world: &mut World) {
         world.resource_scope::<ReactiveContext<World>, _>(|world, mut rctx| {
             let mut effects: Vec<_> = std::mem::take(
@@ -48,3 +53,4 @@ impl bevy_app::Plugin for ReactiveExtensionsPlugin {
         );
     }
 }
+*/
