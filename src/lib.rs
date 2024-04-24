@@ -20,7 +20,7 @@ impl Signal for SignalsResource {
     fn computed(
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
-        world: &mut World
+        commands: Commands
     ) -> Entity {
         todo!()
     }
@@ -28,20 +28,20 @@ impl Signal for SignalsResource {
     fn effect(
         propagator: Box<dyn PropagatorFn>,
         triggers: Vec<Entity>,
-        world: &mut World
+        commands: Commands
     ) -> Entity {
         todo!()
     }
 
-    fn send<T>(next_value: T, world: &mut World) {
+    fn send<T>(signal: Entity, next_value: T, commands: Commands) {
         todo!()
     }
 
-    fn state<T>(value: T, world: &mut World) -> Entity {
+    fn state<T>(value: T, commands: Commands) -> Entity {
         todo!()
     }
 
-    fn value<T>(immutable: Entity, world: &mut World) -> T {
+    fn value<T>(immutable: Entity, commands: Commands) -> T {
         todo!()
     }
 }
