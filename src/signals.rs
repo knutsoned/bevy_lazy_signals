@@ -85,10 +85,21 @@ pub trait Signal {
 /// An item of data backed by a Bevy entity with a set of subscribers.
 pub trait Observable: Send + Sync + 'static {
     type DataType: Copy + PartialEq + Send + Sync + 'static;
+
+    /// Called by an update system to apply the new value of a signal
     fn merge(&mut self);
+
+    /// Called by an update system to refresh the subscribers.
     fn merge_subscribers(&mut self);
+
+    /// Called by an Effect or Memo indirectly by reading the current value.
     fn subscribe(&mut self, entity: Entity);
-    fn value(&mut self, caller: Option<Entity>) -> Self::DataType;
+
+    /// Get the current value.
+    fn read(&self) -> Self::DataType;
+
+    /// Get the current value, subscribing an entity if provided (mostly used internally).
+    fn value(&mut self, caller: Entity) -> Self::DataType;
 }
 
 /// A propagator function aggregates (merges) data from multiple cells for storage in a bound cell.
@@ -142,11 +153,13 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Observable for Immutable<T> {
         self.next_subscribers.insert(entity, ());
     }
 
-    fn value(&mut self, caller: Option<Entity>) -> Self::DataType {
-        if let Some(caller) = caller {
-            self.subscribe(caller);
-        }
+    fn read(&self) -> Self::DataType {
         self.data
+    }
+
+    fn value(&mut self, caller: Entity) -> Self::DataType {
+        self.subscribe(caller);
+        self.read()
     }
 }
 

@@ -14,6 +14,7 @@ Primitives and examples for integrating bevy_ecs with signals
   it is much cheaper to recalculate memos once unnecessarily versus avoiding those recalculations
   with a more complicated processing routine.
 - Should we use macros or reflection or something else?
+- Can the recursive part be made iterative?
 
 TODO: examples
 
