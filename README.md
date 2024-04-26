@@ -5,7 +5,7 @@ Primitives and examples for integrating bevy_ecs with signals.
 ## Rationale
 
 Some of the authors of popular reactive frameworks for JavaScript have been participating in an
-effort to create a Signal built-in that will provide a common API that can support a range of uses.
+effort to create a Signal built-in that will provide a common API to support a range of uses.
 For Bevy, such a library could help efforts to integrate UI frameworks, enable networking, support
 scripting, scene editing, and file operations.
 

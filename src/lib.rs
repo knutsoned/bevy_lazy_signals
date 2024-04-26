@@ -106,6 +106,7 @@ impl Signal for SignalsResource {
 
 /// ## Systems
 /// These systems are meant to be run in tight sequence, preferably like the plugin demonstrates.
+/// The commands in the first system must be applied before proceeding to the other two.
 pub fn send_signals(query_signals: Query<Entity, With<SendSignal>>, commands: Commands) {
     // Phase One:
 
