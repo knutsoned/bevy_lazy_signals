@@ -4,6 +4,11 @@ Primitives and examples for integrating bevy_ecs with signals.
 
 ## Rationale
 
+Some of the authors of popular reactive frameworks for JavaScript have been participating in an
+effort to create a Signal built-in that will provide a common API that can support a range of uses.
+For Bevy, such a library could help efforts to integrate UI frameworks, enable networking, support
+scripting, scene editing, and file operations.
+
 See also: [Architecture](ARCHITECTURE.md)
 
 ## Design Questions
@@ -12,7 +17,7 @@ See also: [Architecture](ARCHITECTURE.md)
 - Is the effects system generic enough for consumers to be able to use their own?
 - Can the recursive part be made iterative?
 - Should a non-lazy version of Immutable be provided?
-- Should we panic more?
+- Should we panic more? (Maybe use Result)
 - Should we use macros or reflection or something else? (Mostly answered).
 - (The rest is basically "can this be even lazier?")
 - The current system eagerly adds all subscribers up the tree. Is it better to do this in a more
