@@ -1,6 +1,6 @@
-use bevy_ecs::prelude::*;
+use bevy_ecs::{ component::ComponentId, prelude::*, storage::SparseSet };
 
-use crate::utilities::*;
+use thiserror::Error;
 
 /// # Signals framework
 ///
@@ -14,9 +14,10 @@ use crate::utilities::*;
 /// minimum in the User Code.
 pub trait Signal {
     /// Create a new computed entity (Immutable + Propagator).
-    fn computed<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
+        init_value: T,
         commands: Commands
     ) -> Entity;
 
@@ -31,28 +32,31 @@ pub trait Signal {
     /// Typically an effect would be triggered instead of using this method.
     /// However, if using an immediate mode UI or reading additional values while running an effect
     /// (saving to a file or sending over a network) then it may be useful to read values directly.
-    fn read<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn read<T: Copy + PartialEq + Send + Sync + 'static, Error>(
         immutable: Entity,
         world: &World
-    ) -> T;
+    ) -> Result<T, SignalsError>;
 
     /// Mark an Immutable (Signal) for update.
-    fn send<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn send<T: Copy + PartialEq + Send + Sync + 'static>(
         signal: Entity,
         data: T,
         commands: Commands
     );
 
     /// Create a new Immutable state entity (Signal).
-    fn state<T: Copy + Default + PartialEq + Send + Sync + 'static>(
-        value: T,
-        commands: Commands
-    ) -> Entity;
+    fn state<T: Copy + PartialEq + Send + Sync + 'static>(value: T, commands: Commands) -> Entity;
+}
+
+/// Read error.
+#[derive(Error, Debug)]
+pub enum SignalsError {
+    #[error("Error reading signal {}", .0)] ReadError(Entity),
 }
 
 /// An item of data backed by a Bevy entity with a set of subscribers.
 pub trait Observable: Send + Sync + 'static {
-    type DataType: Copy + Default + PartialEq + Send + Sync + 'static;
+    type DataType: Copy + PartialEq + Send + Sync + 'static;
 
     /// Called by an Effect or Memo indirectly by reading the current value.
     fn subscribe(&mut self, entity: Entity);
@@ -65,16 +69,17 @@ pub trait Observable: Send + Sync + 'static {
 }
 
 pub trait LazyObservable: Send + Sync + 'static {
-    type DataType: Copy + Default + PartialEq + Send + Sync + 'static;
-
-    /// Called by a lazy update system to apply the new value of a signal.
-    fn merge(&mut self);
+    type DataType: Copy + PartialEq + Send + Sync + 'static;
 
     /// Called by a consumer to provide an new value for the lazy update system to merge.
     fn merge_next(&mut self, next: Self::DataType);
 
     /// Called by a lazy update system to refresh the subscribers.
     fn merge_subscribers(&mut self);
+}
+pub trait LazyMergeable {
+    /// Called by a lazy update system to apply the new value of a signal.
+    fn merge(&mut self);
 }
 
 /// A propagator function aggregates (merges) data from multiple cells for storage in a bound cell.
@@ -93,20 +98,20 @@ pub trait PropagatorFn: Send + Sync + FnMut(&mut World, &mut Vec<Entity>, Option
 ///
 /// This Immutable is lazy. Other forms are left as an exercise for the reader.
 #[derive(Component)]
-pub struct LazyImmutable<T: Copy + Default + PartialEq + Send + Sync + 'static> {
+pub struct LazyImmutable<T: Copy + PartialEq + Send + Sync + 'static> {
     data: T,
     next_value: Option<T>,
     subscribers: EntitySet,
     next_subscribers: EntitySet,
 }
 
-impl<T: Copy + Default + PartialEq + Send + Sync + 'static> LazyImmutable<T> {
+impl<T: Copy + PartialEq + Send + Sync + 'static> LazyImmutable<T> {
     pub fn new(data: T) -> Self {
         Self { data, next_value: None, subscribers: empty_set(), next_subscribers: empty_set() }
     }
 }
 
-impl<T: Copy + Default + PartialEq + Send + Sync + 'static> Observable for LazyImmutable<T> {
+impl<T: Copy + PartialEq + Send + Sync + 'static> Observable for LazyImmutable<T> {
     type DataType = T;
 
     fn read(&self) -> Self::DataType {
@@ -123,15 +128,17 @@ impl<T: Copy + Default + PartialEq + Send + Sync + 'static> Observable for LazyI
     }
 }
 
-impl<T: Copy + Default + PartialEq + Send + Sync + 'static> LazyObservable for LazyImmutable<T> {
-    type DataType = T;
-
+impl<T: Copy + PartialEq + Send + Sync + 'static> LazyMergeable for LazyImmutable<T> {
     fn merge(&mut self) {
         if let Some(next) = self.next_value {
             self.data = next;
         }
         self.next_value = None;
     }
+}
+
+impl<T: Copy + PartialEq + Send + Sync + 'static> LazyObservable for LazyImmutable<T> {
+    type DataType = T;
 
     fn merge_next(&mut self, next: T) {
         self.next_value = Some(next);
@@ -143,6 +150,11 @@ impl<T: Copy + Default + PartialEq + Send + Sync + 'static> LazyObservable for L
         }
         self.next_subscribers.clear();
     }
+}
+
+#[derive(Component)]
+pub struct ImmutableComponentId {
+    pub component_id: ComponentId,
 }
 
 /// A SendSignal component marks an Immutable cell as having a next_value.
@@ -162,7 +174,18 @@ pub struct Propagator {
 #[component(storage = "SparseSet")]
 pub struct ComputeMemo;
 
-/// An Effect component marks a Propagator function that needs to run.
+/// A DeferredEffect component marks a Propagator function that needs to run.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct DeferredEffect;
+
+/// ## Utilities
+/// Type alias for SparseSet<Entity, ()>
+pub type EntitySet = SparseSet<Entity, ()>;
+
+/// Create an empty sparse set for storing Entities by ID
+pub fn empty_set() -> EntitySet {
+    EntitySet::new()
+}
+
+pub type ImmutableComponentSet = SparseSet<Entity, ComponentId>;

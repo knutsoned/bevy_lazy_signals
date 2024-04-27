@@ -1,14 +1,11 @@
 use bevy_app::PostUpdate;
-use bevy_ecs::prelude::*;
+use bevy_ecs::{ prelude::*, storage::ComponentSparseSet };
 
 pub mod commands;
 use commands::*;
 
 pub mod signals;
 use signals::*;
-
-mod utilities;
-use utilities::*;
 
 pub mod prelude {
     pub use crate::{
@@ -22,7 +19,7 @@ pub mod prelude {
     pub use crate::signals::*;
 }
 
-/// A reference implementation follows. A consumer can replace any or all and provide a new plugin.
+/// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.
 
 /// Shared reactive context resource.
 #[derive(Resource)]
@@ -40,6 +37,15 @@ pub struct SignalsResource {
     pub changed: EntitySet,
 }
 
+impl SignalsResource {
+    fn init(&mut self) {
+        self.running.clear();
+        self.next_running.clear();
+        self.processed.clear();
+        self.changed.clear();
+    }
+}
+
 impl Default for SignalsResource {
     fn default() -> Self {
         Self {
@@ -52,13 +58,14 @@ impl Default for SignalsResource {
 }
 
 impl Signal for SignalsResource {
-    fn computed<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
+        init_value: T,
         mut commands: Commands
     ) -> Entity {
         let computed = commands.spawn_empty().id();
-        commands.create_computed::<T>(computed, propagator, sources);
+        commands.create_computed::<T>(computed, propagator, sources, init_value);
         computed
     }
 
@@ -72,21 +79,23 @@ impl Signal for SignalsResource {
         effect
     }
 
-    fn read<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn read<T: Copy + PartialEq + Send + Sync + 'static, Error>(
         immutable: Entity,
         world: &World
-    ) -> T {
-        let mut value = T::default();
-        let immutable = world.entity(immutable);
+    ) -> Result<T, SignalsError> {
+        let entity = world.entity(immutable);
 
-        // TODO should this panic instead?
-        if let Some(observable) = immutable.get::<LazyImmutable<T>>() {
-            value = observable.read();
-        }
-        value
+        let observable = match entity.get::<LazyImmutable<T>>() {
+            Some(observable) => observable,
+            None => {
+                // TODO maybe add some kind of config option to ignore errors and return default
+                return Err(SignalsError::ReadError(immutable));
+            }
+        };
+        Ok(observable.read())
     }
 
-    fn send<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn send<T: Copy + PartialEq + Send + Sync + 'static>(
         signal: Entity,
         data: T,
         mut commands: Commands
@@ -94,7 +103,7 @@ impl Signal for SignalsResource {
         commands.send_signal::<T>(signal, data);
     }
 
-    fn state<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn state<T: Copy + PartialEq + Send + Sync + 'static>(
         data: T,
         mut commands: Commands
     ) -> Entity {
@@ -107,16 +116,39 @@ impl Signal for SignalsResource {
 /// ## Systems
 /// These systems are meant to be run in tight sequence, preferably like the plugin demonstrates.
 /// The commands in the first system must be applied before proceeding to the other two.
-pub fn send_signals(query_signals: Query<Entity, With<SendSignal>>, commands: Commands) {
+pub fn send_signals(
+    world: &mut World,
+    query_signals: &mut QueryState<(Entity, &ImmutableComponentId), With<SendSignal>>
+) {
     // Phase One:
 
-    // *** apply the next value to each Immutable
+    // initialize sets
+    //signal.init();
 
-    // add subscribers to the running set
+    let mut component_id_set = ImmutableComponentSet::new();
 
-    // clear subscribers from the current Immutable
+    for (entity, immutable) in query_signals.iter(world) {
+        component_id_set.insert(entity, immutable.component_id);
+    }
 
-    // remove the Signal component
+    for (entity, component_id) in component_id_set.iter() {
+        let mut signal_to_send = world.entity_mut(*entity);
+
+        // mut (apply the next value to) each Immutable
+        let mut mut_untyped = signal_to_send.get_mut_by_id(*component_id).unwrap();
+
+        // TODO here we need to access as a LazyMergeable and just run the merge method
+        //let lazy_mergeable = mut_untyped as Box<&dyn LazyMergeable>;
+        //lazy_mergeable.merge();
+        //mut_untyped.map_unchanged(|ptr| unsafe { ptr.deref_mut::<&dyn LazyMergeable>() }).merge();
+
+        // add subscribers to the running set
+
+        // clear subscribers from the current Immutable
+
+        // remove the Signal component
+        signal_to_send.remove::<SendSignal>();
+    }
 
     // Phase Two:
 
@@ -128,30 +160,41 @@ pub fn send_signals(query_signals: Query<Entity, With<SendSignal>>, commands: Co
 
     // add the item to the handled set
 
-    // a) item is an effect, so schedule the effect by adding an Effect component
+    // a) item is an effect, so schedule the effect by adding a DeferredEffect component
 
-    // b1) item is a memo, so mark it for recalculation
+    // b1) item is a memo, so mark it for recalculation by adding a ComputeMemo component
 
     // b2) item has its own subscribers, so add those to a new running set
 
     // loop through the running set until it is empty, then loop through the new running set, and so on
-
 }
 
 pub fn calculate_memos(world: &mut World, query_memos: &mut QueryState<Entity, With<ComputeMemo>>) {
-    // run each Propagator function to recalculate memo
+    // need exclusive world access here to update memos immediately and need to write to resource
+    world.resource_scope(
+        |world, mut signal: Mut<SignalsResource>| {
+            // run each Propagator function to recalculate memo, adding sources to the running set
 
-    // *** update the data in the cell
+            // *** update the data in the cell
 
-    // remove the Memo component
+            // add the Memo to the processed set
 
-    // merge all next_subscribers sets into subscribers
+            // add to the changed set if the value actually changed
+
+            // remove the Memo component
+
+            // merge all next_subscribers sets into subscribers
+        }
+    );
 }
 
 pub fn apply_deferred_effects(
-    world: &mut World,
-    query_effects: &mut QueryState<Entity, With<DeferredEffect>>
+    query_effects: Query<Entity, With<DeferredEffect>>,
+    mut signal: ResMut<SignalsResource>,
+    mut commands: Commands
 ) {
+    // only run an effect if one of its triggers is in the changed set
+
     // *** spawn a thread for each effect
 
     // remove the Effect component
@@ -163,10 +206,12 @@ pub struct SignalsPlugin;
 impl bevy_app::Plugin for SignalsPlugin {
     fn build(&self, app: &mut bevy_app::App) {
         // add the systems to process signals, memos, and effects
-        app.init_resource::<SignalsResource>().add_systems(
-            PostUpdate, // could be Preupdate or whatever else (probably not Update)
-            // this ensures each system's changes will be applied before the next is called
-            calculate_memos.before(apply_deferred_effects).after(send_signals)
-        );
+        app.init_resource::<SignalsResource>()
+            //.register_component_as::<dyn LazyMergeable, LazyImmutable<>>()
+            .add_systems(
+                PostUpdate, // could be Preupdate or whatever else (probably not Update)
+                // this ensures each system's changes will be applied before the next is called
+                calculate_memos.before(apply_deferred_effects).after(send_signals)
+            );
     }
 }

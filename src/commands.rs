@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use bevy_ecs::{ prelude::*, world::Command };
 
 use crate::signals::*;
@@ -7,11 +5,12 @@ use crate::signals::*;
 /// Convenience extension to use each Command directly from Commands instance.
 pub trait SignalsCommandsExt {
     /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
-    fn create_computed<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn create_computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &mut self,
         computed: Entity,
         propagator: Box<dyn PropagatorFn>,
-        sources: Vec<Entity>
+        sources: Vec<Entity>,
+        init_value: T
     );
 
     /// Command to create an effect (Propagator with no Immutable) from the given entity.
@@ -23,31 +22,24 @@ pub trait SignalsCommandsExt {
     );
 
     /// Command to create a state (Immutable with no Propagator) from the given entity.
-    fn create_state<T: Copy + Default + PartialEq + Send + Sync + 'static>(
-        &mut self,
-        state: Entity,
-        data: T
-    );
+    fn create_state<T: Copy + PartialEq + Send + Sync + 'static>(&mut self, state: Entity, data: T);
 
-    fn send_signal<T: Copy + Default + PartialEq + Send + Sync + 'static>(
-        &mut self,
-        signal: Entity,
-        data: T
-    );
+    fn send_signal<T: Copy + PartialEq + Send + Sync + 'static>(&mut self, signal: Entity, data: T);
 }
 
 impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
-    fn create_computed<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn create_computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &mut self,
         computed: Entity,
         propagator: Box<dyn PropagatorFn>,
-        sources: Vec<Entity>
+        sources: Vec<Entity>,
+        init_value: T
     ) {
         self.add(CreateComputedCommand::<T> {
             computed,
             propagator,
             sources,
-            phantom_zone: Default::default(),
+            init_value,
         });
     }
 
@@ -64,7 +56,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
         });
     }
 
-    fn create_state<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn create_state<T: Copy + PartialEq + Send + Sync + 'static>(
         &mut self,
         state: Entity,
         data: T
@@ -75,7 +67,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
         });
     }
 
-    fn send_signal<T: Copy + Default + PartialEq + Send + Sync + 'static>(
+    fn send_signal<T: Copy + PartialEq + Send + Sync + 'static>(
         &mut self,
         signal: Entity,
         data: T
@@ -88,20 +80,22 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
 }
 
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
-pub struct CreateComputedCommand<T: Copy + Default + PartialEq + Send + Sync + 'static> {
+pub struct CreateComputedCommand<T: Copy + PartialEq + Send + Sync + 'static> {
     computed: Entity,
     propagator: Box<dyn PropagatorFn>,
     sources: Vec<Entity>,
-    phantom_zone: PhantomData<T>,
+    init_value: T,
 }
 
-impl<T: Copy + Default + PartialEq + Send + Sync + 'static> Command for CreateComputedCommand<T> {
+impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateComputedCommand<T> {
     fn apply(self, world: &mut World) {
+        let component_id = world.init_component::<LazyImmutable<T>>();
         world
             .get_entity_mut(self.computed)
             .unwrap()
             .insert((
-                LazyImmutable::<T>::new(T::default()),
+                LazyImmutable::<T>::new(self.init_value),
+                ImmutableComponentId { component_id },
                 Propagator {
                     propagator: self.propagator,
                     sources: self.sources,
@@ -132,12 +126,12 @@ impl Command for CreateEffectCommand {
 }
 
 /// Command to create a state (Immutable) from the given entity.
-pub struct CreateStateCommand<T: Copy + Default + PartialEq + Send + Sync + 'static> {
+pub struct CreateStateCommand<T: Copy + PartialEq + Send + Sync + 'static> {
     state: Entity,
     data: T,
 }
 
-impl<T: Copy + Default + PartialEq + Send + Sync + 'static> Command for CreateStateCommand<T> {
+impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateStateCommand<T> {
     fn apply(self, world: &mut World) {
         world
             .get_entity_mut(self.state)
@@ -147,16 +141,15 @@ impl<T: Copy + Default + PartialEq + Send + Sync + 'static> Command for CreateSt
 }
 
 /// Command to send a signal (i.e. update an Immutable during the next tick) to the given entity.
-pub struct SendSignalCommand<T: Copy + Default + PartialEq + Send + Sync + 'static> {
+pub struct SendSignalCommand<T: Copy + PartialEq + Send + Sync + 'static> {
     signal: Entity,
     data: T,
 }
 
-impl<T: Copy + Default + PartialEq + Send + Sync + 'static> Command for SendSignalCommand<T> {
+impl<T: Copy + PartialEq + Send + Sync + 'static> Command for SendSignalCommand<T> {
     fn apply(self, world: &mut World) {
         // we're less sure the signal actually exists, but don't panic if not
         // (assume the caller removed it and we don't care about it anymore)
-        // TODO should this panic instead?
         if let Some(mut entity) = world.get_entity_mut(self.signal) {
             if let Some(mut immutable) = entity.get_mut::<LazyImmutable<T>>() {
                 immutable.merge_next(self.data);
