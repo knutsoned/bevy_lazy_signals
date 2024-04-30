@@ -19,10 +19,7 @@ See also: [Architecture](ARCHITECTURE.md)
 
 - How to best prevent infinite loops?
 - Is the effects system generic enough for consumers to be able to use their own?
-- Can the recursive part be made iterative?
 - Should a non-lazy version of Immutable be provided?
-- Should we panic more? (Maybe use Result)
-- Should we use macros, reflection, something else? Mostly answered by generics?
 - (The rest is basically "can this be even lazier?")
 - The current system eagerly adds all subscribers up the tree. Is it better to do this in a more
   deferred manner? Seems like it is more trouble to try to track all that than just note which ones

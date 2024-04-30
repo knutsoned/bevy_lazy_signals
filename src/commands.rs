@@ -8,8 +8,8 @@ pub trait SignalsCommandsExt {
     fn create_computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &mut self,
         computed: Entity,
-        propagator: Box<dyn PropagatorFn>,
-        sources: Vec<Entity>,
+        propagator: &'static PropagatorFn,
+        sources: Vec<Option<Entity>>,
         init_value: T
     );
 
@@ -17,8 +17,8 @@ pub trait SignalsCommandsExt {
     fn create_effect(
         &mut self,
         effect: Entity,
-        propagator: Box<dyn PropagatorFn>,
-        triggers: Vec<Entity>
+        propagator: &'static PropagatorFn,
+        triggers: Vec<Option<Entity>>
     );
 
     /// Command to create a state (Immutable with no Propagator) from the given entity.
@@ -31,8 +31,8 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
     fn create_computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &mut self,
         computed: Entity,
-        propagator: Box<dyn PropagatorFn>,
-        sources: Vec<Entity>,
+        propagator: &'static PropagatorFn,
+        sources: Vec<Option<Entity>>,
         init_value: T
     ) {
         self.add(CreateComputedCommand::<T> {
@@ -46,8 +46,8 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
     fn create_effect(
         &mut self,
         effect: Entity,
-        propagator: Box<dyn PropagatorFn>,
-        triggers: Vec<Entity>
+        propagator: &'static PropagatorFn,
+        triggers: Vec<Option<Entity>>
     ) {
         self.add(CreateEffectCommand {
             effect,
@@ -82,8 +82,8 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
 pub struct CreateComputedCommand<T: Copy + PartialEq + Send + Sync + 'static> {
     computed: Entity,
-    propagator: Box<dyn PropagatorFn>,
-    sources: Vec<Entity>,
+    propagator: &'static PropagatorFn,
+    sources: Vec<Option<Entity>>,
     init_value: T,
 }
 
@@ -107,8 +107,8 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateComputedComm
 /// Command to create an effect (Propagator with no memo) from the given entity.
 pub struct CreateEffectCommand {
     effect: Entity,
-    propagator: Box<dyn PropagatorFn>,
-    triggers: Vec<Entity>,
+    propagator: &'static PropagatorFn,
+    triggers: Vec<Option<Entity>>,
 }
 
 impl Command for CreateEffectCommand {
@@ -140,7 +140,7 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateStateCommand
     }
 }
 
-/// Command to send a signal (i.e. update an Immutable during the next tick) to the given entity.
+/// Command to send a Signal (i.e. update an Immutable during the next tick) to the given entity.
 pub struct SendSignalCommand<T: Copy + PartialEq + Send + Sync + 'static> {
     signal: Entity,
     data: T,
@@ -158,3 +158,17 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Command for SendSignalCommand<
         }
     }
 }
+
+// Command? to merge the Signal (i.e. update an Immutable) sent to the given entity.
+/*
+pub struct MergeSignalCommand {
+    signal: Entity,
+}
+
+impl Command for MergeSignalCommand {
+    fn apply(self, world: &mut World) {
+        let mut entity = world.get_entity_mut(self.signal).unwrap();
+        let mut immutable = entity.get_mut::<Box<&dyn LazyMergeable>>();
+    }
+}
+*/
