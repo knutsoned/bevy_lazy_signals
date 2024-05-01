@@ -1,4 +1,5 @@
 use bevy_ecs::{ prelude::*, world::Command };
+use bevy_utils::tracing::*;
 
 use crate::signals::*;
 
@@ -9,7 +10,7 @@ pub trait SignalsCommandsExt {
         &mut self,
         computed: Entity,
         propagator: &'static PropagatorFn,
-        sources: Vec<Option<Entity>>,
+        sources: Vec<Entity>,
         init_value: T
     );
 
@@ -18,7 +19,7 @@ pub trait SignalsCommandsExt {
         &mut self,
         effect: Entity,
         propagator: &'static PropagatorFn,
-        triggers: Vec<Option<Entity>>
+        triggers: Vec<Entity>
     );
 
     /// Command to create a state (Immutable with no Propagator) from the given entity.
@@ -32,7 +33,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
         &mut self,
         computed: Entity,
         propagator: &'static PropagatorFn,
-        sources: Vec<Option<Entity>>,
+        sources: Vec<Entity>,
         init_value: T
     ) {
         self.add(CreateComputedCommand::<T> {
@@ -47,7 +48,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
         &mut self,
         effect: Entity,
         propagator: &'static PropagatorFn,
-        triggers: Vec<Option<Entity>>
+        triggers: Vec<Entity>
     ) {
         self.add(CreateEffectCommand {
             effect,
@@ -83,7 +84,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
 pub struct CreateComputedCommand<T: Copy + PartialEq + Send + Sync + 'static> {
     computed: Entity,
     propagator: &'static PropagatorFn,
-    sources: Vec<Option<Entity>>,
+    sources: Vec<Entity>,
     init_value: T,
 }
 
@@ -108,7 +109,7 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateComputedComm
 pub struct CreateEffectCommand {
     effect: Entity,
     propagator: &'static PropagatorFn,
-    triggers: Vec<Option<Entity>>,
+    triggers: Vec<Entity>,
 }
 
 impl Command for CreateEffectCommand {
@@ -133,10 +134,11 @@ pub struct CreateStateCommand<T: Copy + PartialEq + Send + Sync + 'static> {
 
 impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateStateCommand<T> {
     fn apply(self, world: &mut World) {
+        let component_id = world.init_component::<LazyImmutable<T>>();
         world
             .get_entity_mut(self.state)
             .unwrap()
-            .insert((LazyImmutable::<T>::new(self.data),));
+            .insert((LazyImmutable::<T>::new(self.data), ImmutableComponentId { component_id }));
     }
 }
 
@@ -148,27 +150,19 @@ pub struct SendSignalCommand<T: Copy + PartialEq + Send + Sync + 'static> {
 
 impl<T: Copy + PartialEq + Send + Sync + 'static> Command for SendSignalCommand<T> {
     fn apply(self, world: &mut World) {
+        info!("SendSignalCommand {:?}", self.signal);
         // we're less sure the signal actually exists, but don't panic if not
         // (assume the caller removed it and we don't care about it anymore)
         if let Some(mut entity) = world.get_entity_mut(self.signal) {
             if let Some(mut immutable) = entity.get_mut::<LazyImmutable<T>>() {
                 immutable.merge_next(self.data);
                 entity.insert(SendSignal);
+                info!("merged next and inserted SendSignal");
+            } else {
+                error!("could not get Immutable");
             }
+        } else {
+            error!("could not get Signal");
         }
     }
 }
-
-// Command? to merge the Signal (i.e. update an Immutable) sent to the given entity.
-/*
-pub struct MergeSignalCommand {
-    signal: Entity,
-}
-
-impl Command for MergeSignalCommand {
-    fn apply(self, world: &mut World) {
-        let mut entity = world.get_entity_mut(self.signal).unwrap();
-        let mut immutable = entity.get_mut::<Box<&dyn LazyMergeable>>();
-    }
-}
-*/

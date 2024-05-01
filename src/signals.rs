@@ -1,6 +1,7 @@
-use bevy_ecs::{ component::ComponentId, prelude::*, storage::SparseSet };
-
+use bevy_ecs::{ component::{ ComponentId, ComponentInfo }, prelude::*, storage::SparseSet };
 use bevy_reflect::{ reflect_trait, Reflect };
+use bevy_utils::tracing::*;
+
 use thiserror::Error;
 
 /// # Signals framework
@@ -13,54 +14,8 @@ pub enum SignalsError {
 }
 
 // ## Traits
-// Can't have generics in trait objects, so...
-/*
-pub trait Signal {
-    /// Create a new computed entity (Immutable + Propagator).
-    fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        propagator: Box<PropagatorFn>,
-        sources: Vec<Entity>,
-        init_value: T,
-        commands: Commands
-    ) -> Entity;
-
-    /// Create a new effect entity (Propagator).
-    fn effect(
-        &self,
-        propagator: Box<PropagatorFn>,
-        triggers: Vec<Entity>,
-        commands: Commands
-    ) -> Entity;
-
-    /// Read an Immutable's value without subscribing to it.
-    /// Typically an effect would be triggered instead of using this method.
-    /// However, if using an immediate mode UI or reading additional values while running an effect
-    /// (saving to a file or sending over a network) then it may be useful to read values directly.
-    fn read<T: Copy + PartialEq + Send + Sync + 'static, Error>(
-        &self,
-        immutable: Entity,
-        world: &World
-    ) -> Result<T, SignalsError>;
-
-    /// Mark an Immutable (Signal) for update.
-    fn send<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        signal: Entity,
-        data: T,
-        commands: Commands
-    );
-
-    /// Create a new Immutable state entity (Signal).
-    fn state<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        value: T,
-        commands: Commands
-    ) -> Entity;
-}
-*/
-
 /// An item of data backed by a Bevy entity with a set of subscribers.
+/// Additional methods in UntypedObservable would be here but you can't have generic trait objects.
 pub trait Observable: Send + Sync + 'static {
     type DataType: Copy + PartialEq + Send + Sync + 'static;
 
@@ -71,14 +26,12 @@ pub trait Observable: Send + Sync + 'static {
     fn value(&mut self, caller: Entity) -> Self::DataType;
 }
 
+/// These methods support lazy operations. These are part of sending a Signal.
 pub trait LazyObservable: Send + Sync + 'static {
     type DataType: Copy + PartialEq + Send + Sync + 'static;
 
-    /// Called by a consumer to provide an new value for the lazy update system to merge.
+    /// Called by a consumer to provide a new value for the lazy update system to merge.
     fn merge_next(&mut self, next: Self::DataType);
-
-    /// Called by a lazy update system to refresh the subscribers.
-    fn merge_subscribers(&mut self);
 }
 
 #[reflect_trait]
@@ -86,9 +39,13 @@ pub trait UntypedObservable {
     /// Called by a lazy update system to apply the new value of a signal.
     /// This is a main thing to implement if you're trying to use reflection.
     /// The ref impl uses this to update the Immutable values without knowing the type.
+    /// These are also part of sending a Signal.
     ///
     /// This method returns a vector of subscriber Entities that may need notification.
     fn merge(&mut self) -> Vec<Entity>;
+
+    /// Called by a lazy update system to refresh the subscribers.
+    fn merge_subscribers(&mut self);
 
     /// Called by an Effect or Memo indirectly by reading the current value.
     fn subscribe(&mut self, entity: Entity);
@@ -146,22 +103,34 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Observable for LazyImmutable<T
 
 impl<T: Copy + PartialEq + Send + Sync + 'static> UntypedObservable for LazyImmutable<T> {
     fn merge(&mut self) -> Vec<Entity> {
+        let mut subs = Vec::<Entity>::new();
+
         // update the Immutable data value
         if let Some(next) = self.next_value {
-            self.data = next;
-            self.next_value = None;
+            info!("next exists");
+            if self.data != next {
+                info!("data != next");
+                self.data = next;
+
+                // copy the subscribers into the output vector
+                subs.extend(self.subscribers.indices());
+
+                // clear the local subscriber set which will be replenished by each subscriber if it calls
+                // the value method later
+                self.subscribers.clear();
+            }
         }
+        self.next_value = None;
 
-        // copy the subscribers into the output vector
-        let mut subs = Vec::<Entity>::with_capacity(self.subscribers.capacity());
-        subs.extend(self.subscribers.indices());
-
-        // clear the local subscriber set which will be replenished by each subscriber if it calls
-        // the value method later
-        self.subscribers.clear();
         subs
     }
 
+    fn merge_subscribers(&mut self) {
+        for subscriber in self.next_subscribers.iter() {
+            self.subscribers.insert(*subscriber.0, ());
+        }
+        self.next_subscribers.clear();
+    }
     fn subscribe(&mut self, entity: Entity) {
         self.next_subscribers.insert(entity, ());
     }
@@ -172,13 +141,6 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> LazyObservable for LazyImmutab
 
     fn merge_next(&mut self, next: T) {
         self.next_value = Some(next);
-    }
-
-    fn merge_subscribers(&mut self) {
-        for subscriber in self.next_subscribers.iter() {
-            self.subscribers.insert(*subscriber.0, ());
-        }
-        self.next_subscribers.clear();
     }
 }
 
@@ -196,7 +158,7 @@ pub struct SendSignal;
 #[derive(Component)]
 pub struct Propagator {
     pub propagator: &'static PropagatorFn,
-    pub sources: Vec<Option<Entity>>,
+    pub sources: Vec<Entity>,
 }
 
 /// A ComputeMemo component marks an Immutable that needs to be computed.
@@ -218,7 +180,8 @@ pub fn empty_set() -> EntitySet {
     EntitySet::new()
 }
 
-pub type ImmutableComponentSet = SparseSet<Entity, ComponentId>;
+pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
+pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
 
 pub type ImmutableBool = LazyImmutable<bool>;
 pub type ImmutableInt = LazyImmutable<u32>;

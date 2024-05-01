@@ -16,20 +16,43 @@ fn main() {
         .init_resource::<TestResource>()
         .add_systems(Startup, setup)
         .add_systems(Update, send_some_signals)
+        .add_systems(Last, status)
         .run();
 }
 
 fn setup(mut test: ResMut<TestResource>, mut commands: Commands) {
+    // simple effect
     let effect_propagator: &PropagatorFn = &(|_world, triggers, target| {
         info!("triggers: {:?}", triggers);
         if target.is_some() {
             error!("effects should not have targets!");
         }
     });
-    test.signal = Some(Signal.state(false, &mut commands));
-    test.effect = Some(Signal.effect(effect_propagator, vec![test.signal], &mut commands));
+
+    // create a signal
+    let test_signal = Signal.state(false, &mut commands);
+    test.signal = Some(test_signal);
+    info!("created test signal");
+
+    // trigger an effect from the signal
+    test.effect = Some(Signal.effect(effect_propagator, vec![test_signal], &mut commands));
+    info!("created test effect");
 }
 
 fn send_some_signals(test: ResMut<TestResource>, mut commands: Commands) {
+    info!("sending 'true' to {:?}", test.signal);
     Signal.send(test.signal.unwrap(), true, &mut commands);
+}
+
+fn status(world: &mut World) {
+    world.resource_scope(|world, test: Mut<TestResource>| {
+        match Signal.read::<bool>(test.signal, world) {
+            Ok(value) => {
+                info!("value: {}", value);
+            }
+            Err(error) => {
+                error!("error: {}", error);
+            }
+        }
+    });
 }
