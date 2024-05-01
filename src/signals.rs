@@ -26,7 +26,7 @@ pub trait Observable: Send + Sync + 'static {
     fn value(&mut self, caller: Entity) -> Self::DataType;
 }
 
-/// These methods support lazy operations. These are part of sending a Signal.
+/// This method supports lazy operation as the user side of sending a Signal.
 pub trait LazyObservable: Send + Sync + 'static {
     type DataType: Copy + PartialEq + Send + Sync + 'static;
 
@@ -121,7 +121,6 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> UntypedObservable for LazyImmu
             }
         }
         self.next_value = None;
-
         subs
     }
 
@@ -171,6 +170,12 @@ pub struct ComputeMemo;
 #[component(storage = "SparseSet")]
 pub struct DeferredEffect;
 
+/// Marks a Propagator as needing to subscribe to its dependencies.
+/// This normally only happens within the framework internals on create.
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct RebuildSubscribers;
+
 /// ## Utilities
 /// Type alias for SparseSet<Entity, ()>
 pub type EntitySet = SparseSet<Entity, ()>;
@@ -182,8 +187,3 @@ pub fn empty_set() -> EntitySet {
 
 pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
 pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
-
-pub type ImmutableBool = LazyImmutable<bool>;
-pub type ImmutableInt = LazyImmutable<u32>;
-pub type ImmutableFloat = LazyImmutable<f64>;
-pub type ImmutableStr = LazyImmutable<&'static str>;

@@ -101,6 +101,7 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateComputedComm
                     propagator: self.propagator,
                     sources: self.sources,
                 },
+                RebuildSubscribers,
             ));
     }
 }
@@ -122,6 +123,7 @@ impl Command for CreateEffectCommand {
                     propagator: self.propagator,
                     sources: self.triggers,
                 },
+                RebuildSubscribers,
             ));
     }
 }

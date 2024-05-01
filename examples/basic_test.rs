@@ -14,13 +14,13 @@ fn main() {
         // NOTE: the user application will need to register each custom Immutable<T> for reflection
         .add_plugins(SignalsPlugin)
         .init_resource::<TestResource>()
-        .add_systems(Startup, setup)
+        .add_systems(Startup, init)
         .add_systems(Update, send_some_signals)
         .add_systems(Last, status)
         .run();
 }
 
-fn setup(mut test: ResMut<TestResource>, mut commands: Commands) {
+fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
     // simple effect
     let effect_propagator: &PropagatorFn = &(|_world, triggers, target| {
         info!("triggers: {:?}", triggers);
@@ -32,15 +32,15 @@ fn setup(mut test: ResMut<TestResource>, mut commands: Commands) {
     // create a signal
     let test_signal = Signal.state(false, &mut commands);
     test.signal = Some(test_signal);
-    info!("created test signal");
+    trace!("created test signal");
 
     // trigger an effect from the signal
     test.effect = Some(Signal.effect(effect_propagator, vec![test_signal], &mut commands));
-    info!("created test effect");
+    trace!("created test effect");
 }
 
 fn send_some_signals(test: ResMut<TestResource>, mut commands: Commands) {
-    info!("sending 'true' to {:?}", test.signal);
+    trace!("sending 'true' to {:?}", test.signal);
     Signal.send(test.signal.unwrap(), true, &mut commands);
 }
 

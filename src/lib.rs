@@ -1,5 +1,7 @@
+use std::{ any::TypeId, sync::RwLockReadGuard };
+
 use bevy_app::PostUpdate;
-use bevy_ecs::prelude::*;
+use bevy_ecs::{ component::ComponentId, prelude::* };
 use bevy_reflect::*;
 use bevy_utils::tracing::*;
 
@@ -141,6 +143,15 @@ impl Signal {
 /// ## Systems
 /// These systems are meant to be run in tight sequence, preferably like the plugin demonstrates.
 /// Any commands in each system must be applied before proceeding to the next.
+
+pub fn init_subscribers(
+    query_propagators: Query<(Entity, &Propagator), With<RebuildSubscribers>>,
+    mut commands: Commands
+) {
+    // TODO this needs to run the subscribe method on each Propagator.sources, passing the Entity
+    todo!();
+}
+
 pub fn send_signals(
     world: &mut World,
     query_signals: &mut QueryState<(Entity, &ImmutableComponentId), With<SendSignal>>
@@ -172,33 +183,21 @@ pub fn send_signals(
         // build reflect types for merge operation on reflected UntypedObservable trait object
         world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
             for (entity, component_id) in component_id_set.iter() {
+                // here we need to access the Signal as an UntypedObservable & run the merge method
+                let component_id = *component_id;
                 let mut signal_to_send = world.entity_mut(*entity);
-
-                // here we need to access the Signal as an UntypedObservable and just run the merge method
                 let type_registry = type_registry.read();
 
                 // use the type_id from the component info, YOLO
-                if let Some(info) = component_info.get(*component_id) {
+                if let Some(info) = component_info.get(component_id) {
                     if let Some(type_id) = info.type_id() {
-                        let reflect_data = type_registry.get(type_id).unwrap();
-                        let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap();
-
-                        // mut (apply the next value to) each Immutable
-                        let mut mut_untyped = signal_to_send.get_mut_by_id(*component_id).unwrap();
-                        let ptr = mut_untyped.as_mut();
-
-                        // SAFE: `value` implements reflected trait `UntypedObservable`, which the `ReflectFromPtr` was created for
-                        let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr) };
-
-                        let reflect_merge = type_registry
-                            .get_type_data::<ReflectUntypedObservable>(value.type_id())
-                            .unwrap();
-                        let untyped_observable: &mut dyn UntypedObservable = reflect_merge
-                            .get_mut(value)
-                            .unwrap();
-
-                        let subs = untyped_observable.merge();
-                        info!("adding {:?} subs", subs);
+                        // insert arcane wizardry here
+                        let subs = the_abyss_gazes_into_you(
+                            &mut signal_to_send,
+                            component_id,
+                            type_registry,
+                            type_id
+                        );
 
                         // add subscribers to the running set
                         for subscriber in subs.into_iter() {
@@ -266,6 +265,52 @@ pub fn apply_deferred_effects(
     // remove the Effect component
 }
 
+// mut (apply the next value to) the Immutable
+fn the_abyss_gazes_into_you(
+    signal_to_send: &mut EntityWorldMut,
+    component_id: ComponentId,
+    type_registry: RwLockReadGuard<TypeRegistry>,
+    type_id: TypeId
+) -> Vec<Entity> {
+    // the type_id matches the concrete type of the Signal's generic Immutable component
+
+    // it comes from ComponentInfo which is retrieved from the ECS World Components
+
+    // the component_id is recorded when the command to make the concrete Immutable runs
+
+    // the reflect_data is used to build a strategy to dereference a pointer to the component
+    let reflect_data = type_registry.get(type_id).unwrap();
+
+    // we're going to get a pointer to the component, so we'll need this
+    let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap();
+
+    // get what is basically an ECS change detection handle for the component in question
+    let mut mut_untyped = signal_to_send.get_mut_by_id(component_id).unwrap();
+
+    // and convert that into a pointer
+    let ptr_mut = mut_untyped.as_mut();
+
+    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
+    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
+
+    // the sun grew dark and cold
+    let reflect_untyped_observable = type_registry
+        .get_type_data::<ReflectUntypedObservable>(value.type_id())
+        .unwrap();
+
+    // the seas boiled
+    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
+
+    // do the dang thing
+    untyped_observable.merge()
+}
+
+// convenience typedefs
+pub type ImmutableBool = LazyImmutable<bool>;
+pub type ImmutableInt = LazyImmutable<u32>;
+pub type ImmutableFloat = LazyImmutable<f64>;
+pub type ImmutableStr = LazyImmutable<&'static str>;
+
 /// Plugin to initialize the resource and system schedule.
 pub struct SignalsPlugin;
 
@@ -285,6 +330,7 @@ impl bevy_app::Plugin for SignalsPlugin {
                 PostUpdate, // could be Preupdate or whatever else (probably not Update)
                 // this ensures each system's changes will be applied before the next is called
                 (
+                    init_subscribers.before(send_signals),
                     send_signals.before(calculate_memos),
                     calculate_memos.before(apply_deferred_effects),
                     apply_deferred_effects,
