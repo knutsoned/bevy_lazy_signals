@@ -44,13 +44,14 @@ pub struct SignalsResource {
 }
 
 impl SignalsResource {
+    /// Call this at the start of each run to make sure everything is fresh.
     fn init(&mut self) {
         self.running.clear();
         self.next_running.clear();
         self.processed.clear();
         self.changed.clear();
         self.deferred.clear();
-        // self.effects.clear(); // don't clear this, it needs to remember what is going on
+        // self.effects.clear(); // don't clear this, need.. to remember... what is going on
     }
 }
 
@@ -71,7 +72,7 @@ pub type SignalsResult<T> = Result<T, SignalsError>;
 
 pub struct Signal;
 
-/// This is the reference user API. patterned after the TC39 proposal.
+/// This is the reference user API, patterned after the TC39 proposal.
 impl Signal {
     pub fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &self,
