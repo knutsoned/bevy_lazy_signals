@@ -32,11 +32,11 @@ fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
     // create a signal
     let test_signal = Signal.state(false, &mut commands);
     test.signal = Some(test_signal);
-    trace!("created test signal");
+    info!("created test signal");
 
     // trigger an effect from the signal
     test.effect = Some(Signal.effect(effect_propagator, vec![test_signal], &mut commands));
-    trace!("created test effect");
+    info!("created test effect");
 }
 
 fn send_some_signals(test: ResMut<TestResource>, mut commands: Commands) {

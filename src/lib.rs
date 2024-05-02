@@ -1,9 +1,12 @@
-use std::{ any::TypeId, sync::RwLockReadGuard };
+use std::sync::RwLockReadGuard;
 
+/*
 use bevy_app::PostUpdate;
-use bevy_ecs::{ component::ComponentId, prelude::* };
+use bevy_ecs::prelude::*;
 use bevy_reflect::*;
 use bevy_utils::tracing::*;
+*/
+use bevy::{ prelude::*, ptr::PtrMut, reflect::{ ReflectFromPtr, TypeRegistry } };
 
 pub mod commands;
 use commands::*;
@@ -149,14 +152,14 @@ pub fn init_subscribers(
     mut commands: Commands
 ) {
     // TODO this needs to run the subscribe method on each Propagator.sources, passing the Entity
-    todo!();
+
 }
 
 pub fn send_signals(
     world: &mut World,
     query_signals: &mut QueryState<(Entity, &ImmutableComponentId), With<SendSignal>>
 ) {
-    info!("SIGNALS");
+    trace!("SIGNALS");
 
     // Phase One:
     world.resource_scope(|world, mut signal: Mut<SignalsResource>| {
@@ -167,18 +170,18 @@ pub fn send_signals(
         let mut component_id_set = ComponentIdSet::new();
         let mut component_info = ComponentInfoSet::new();
 
-        info!("looking for signals");
+        trace!("looking for signals");
         // build component id -> info map
         for (entity, immutable) in query_signals.iter(world) {
             let component_id = immutable.component_id;
-            info!("found a signal for component ID {:?}", component_id);
+            trace!("found a signal for component ID {:?}", component_id);
             component_id_set.insert(entity, component_id);
             if let Some(info) = world.components().get_info(component_id) {
                 component_info.insert(component_id, info.clone());
             }
             count += 1;
         }
-        info!("found {} signals to send", count);
+        trace!("found {} signals to send", count);
 
         // build reflect types for merge operation on reflected UntypedObservable trait object
         world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
@@ -191,12 +194,29 @@ pub fn send_signals(
                 // use the type_id from the component info, YOLO
                 if let Some(info) = component_info.get(component_id) {
                     if let Some(type_id) = info.type_id() {
+                        // the type_id matches the concrete type of the Signal's generic Immutable component
+
+                        // it comes from ComponentInfo which is retrieved from the ECS World Components
+
+                        // the component_id is recorded when the command to make the concrete Immutable runs
+
+                        // the reflect_data is used to build a strategy to dereference a pointer to the component
+                        let reflect_data = type_registry.get(type_id).unwrap();
+
+                        // we're going to get a pointer to the component, so we'll need this
+                        let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap();
+
+                        // get what is basically an ECS change detection handle for the component in question
+                        let mut mut_untyped = signal_to_send.get_mut_by_id(component_id).unwrap();
+
+                        // and convert that into a pointer
+                        let ptr_mut = mut_untyped.as_mut();
+
                         // insert arcane wizardry here
                         let subs = the_abyss_gazes_into_you(
-                            &mut signal_to_send,
-                            component_id,
-                            type_registry,
-                            type_id
+                            ptr_mut,
+                            reflect_from_ptr,
+                            &type_registry
                         );
 
                         // add subscribers to the running set
@@ -233,7 +253,7 @@ pub fn send_signals(
 }
 
 pub fn calculate_memos(world: &mut World, query_memos: &mut QueryState<Entity, With<ComputeMemo>>) {
-    info!("MEMOS");
+    trace!("MEMOS");
     // need exclusive world access here to update memos immediately and need to write to resource
     world.resource_scope(
         |world, mut signal: Mut<SignalsResource>| {
@@ -257,7 +277,7 @@ pub fn apply_deferred_effects(
     mut signal: ResMut<SignalsResource>,
     mut commands: Commands
 ) {
-    info!("EFFECTS");
+    trace!("EFFECTS");
     // only run an effect if one of its triggers is in the changed set
 
     // *** spawn a thread for each effect
@@ -267,29 +287,10 @@ pub fn apply_deferred_effects(
 
 // mut (apply the next value to) the Immutable
 fn the_abyss_gazes_into_you(
-    signal_to_send: &mut EntityWorldMut,
-    component_id: ComponentId,
-    type_registry: RwLockReadGuard<TypeRegistry>,
-    type_id: TypeId
+    ptr_mut: PtrMut,
+    reflect_from_ptr: &ReflectFromPtr,
+    type_registry: &RwLockReadGuard<TypeRegistry>
 ) -> Vec<Entity> {
-    // the type_id matches the concrete type of the Signal's generic Immutable component
-
-    // it comes from ComponentInfo which is retrieved from the ECS World Components
-
-    // the component_id is recorded when the command to make the concrete Immutable runs
-
-    // the reflect_data is used to build a strategy to dereference a pointer to the component
-    let reflect_data = type_registry.get(type_id).unwrap();
-
-    // we're going to get a pointer to the component, so we'll need this
-    let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap();
-
-    // get what is basically an ECS change detection handle for the component in question
-    let mut mut_untyped = signal_to_send.get_mut_by_id(component_id).unwrap();
-
-    // and convert that into a pointer
-    let ptr_mut = mut_untyped.as_mut();
-
     // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
     let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
 
@@ -314,8 +315,8 @@ pub type ImmutableStr = LazyImmutable<&'static str>;
 /// Plugin to initialize the resource and system schedule.
 pub struct SignalsPlugin;
 
-impl bevy_app::Plugin for SignalsPlugin {
-    fn build(&self, app: &mut bevy_app::App) {
+impl Plugin for SignalsPlugin {
+    fn build(&self, app: &mut App) {
         // NOTE: the user application will need to register each custom Immutable<T> for reflection
 
         // add the systems to process signals, memos, and effects

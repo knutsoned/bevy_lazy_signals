@@ -1,5 +1,8 @@
+/*
 use bevy_ecs::{ prelude::*, world::Command };
 use bevy_utils::tracing::*;
+*/
+use bevy::{ ecs::world::Command, prelude::* };
 
 use crate::signals::*;
 
@@ -136,6 +139,7 @@ pub struct CreateStateCommand<T: Copy + PartialEq + Send + Sync + 'static> {
 
 impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateStateCommand<T> {
     fn apply(self, world: &mut World) {
+        // store the ComponentId so we can reflect the LazyImmutable
         let component_id = world.init_component::<LazyImmutable<T>>();
         world
             .get_entity_mut(self.state)
@@ -152,14 +156,14 @@ pub struct SendSignalCommand<T: Copy + PartialEq + Send + Sync + 'static> {
 
 impl<T: Copy + PartialEq + Send + Sync + 'static> Command for SendSignalCommand<T> {
     fn apply(self, world: &mut World) {
-        info!("SendSignalCommand {:?}", self.signal);
+        trace!("SendSignalCommand {:?}", self.signal);
         // we're less sure the signal actually exists, but don't panic if not
         // (assume the caller removed it and we don't care about it anymore)
         if let Some(mut entity) = world.get_entity_mut(self.signal) {
             if let Some(mut immutable) = entity.get_mut::<LazyImmutable<T>>() {
                 immutable.merge_next(self.data);
                 entity.insert(SendSignal);
-                info!("merged next and inserted SendSignal");
+                trace!("merged next and inserted SendSignal");
             } else {
                 error!("could not get Immutable");
             }

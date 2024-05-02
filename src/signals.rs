@@ -1,6 +1,9 @@
+/*
 use bevy_ecs::{ component::{ ComponentId, ComponentInfo }, prelude::*, storage::SparseSet };
 use bevy_reflect::{ reflect_trait, Reflect };
 use bevy_utils::tracing::*;
+*/
+use bevy::{ ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet }, prelude::* };
 
 use thiserror::Error;
 
@@ -16,22 +19,17 @@ pub enum SignalsError {
 // ## Traits
 /// An item of data backed by a Bevy entity with a set of subscribers.
 /// Additional methods in UntypedObservable would be here but you can't have generic trait objects.
-pub trait Observable: Send + Sync + 'static {
+pub trait Immutable: Send + Sync + 'static {
     type DataType: Copy + PartialEq + Send + Sync + 'static;
+
+    /// Called by a consumer to provide a new value for the lazy update system to merge.
+    fn merge_next(&mut self, next: Self::DataType);
 
     /// Get the current value.
     fn read(&self) -> Self::DataType;
 
     /// Get the current value, subscribing an entity if provided (mostly used internally).
     fn value(&mut self, caller: Entity) -> Self::DataType;
-}
-
-/// This method supports lazy operation as the user side of sending a Signal.
-pub trait LazyObservable: Send + Sync + 'static {
-    type DataType: Copy + PartialEq + Send + Sync + 'static;
-
-    /// Called by a consumer to provide a new value for the lazy update system to merge.
-    fn merge_next(&mut self, next: Self::DataType);
 }
 
 #[reflect_trait]
@@ -88,8 +86,12 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> LazyImmutable<T> {
     }
 }
 
-impl<T: Copy + PartialEq + Send + Sync + 'static> Observable for LazyImmutable<T> {
+impl<T: Copy + PartialEq + Send + Sync + 'static> Immutable for LazyImmutable<T> {
     type DataType = T;
+
+    fn merge_next(&mut self, next: T) {
+        self.next_value = Some(next);
+    }
 
     fn read(&self) -> Self::DataType {
         self.data
@@ -107,7 +109,7 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> UntypedObservable for LazyImmu
 
         // update the Immutable data value
         if let Some(next) = self.next_value {
-            info!("next exists");
+            trace!("next exists");
             if self.data != next {
                 info!("data != next");
                 self.data = next;
@@ -135,14 +137,7 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> UntypedObservable for LazyImmu
     }
 }
 
-impl<T: Copy + PartialEq + Send + Sync + 'static> LazyObservable for LazyImmutable<T> {
-    type DataType = T;
-
-    fn merge_next(&mut self, next: T) {
-        self.next_value = Some(next);
-    }
-}
-
+/// An ImmutableComponentId allows us to dereference a generic Immutable without knowing its type.
 #[derive(Component)]
 pub struct ImmutableComponentId {
     pub component_id: ComponentId,
@@ -177,13 +172,16 @@ pub struct DeferredEffect;
 pub struct RebuildSubscribers;
 
 /// ## Utilities
-/// Type alias for SparseSet<Entity, ()>
+/// Set of Entity to ComponentId
+pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
+
+/// Set of ComponentId to ComponentInfo
+pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
+
+/// Set of unique Entities
 pub type EntitySet = SparseSet<Entity, ()>;
 
-/// Create an empty sparse set for storing Entities by ID
+/// Create an empty sparse set for storing Entities by ID.
 pub fn empty_set() -> EntitySet {
     EntitySet::new()
 }
-
-pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
-pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
