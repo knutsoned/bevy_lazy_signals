@@ -1,4 +1,4 @@
-use std::sync::RwLockReadGuard;
+use std::{ any::TypeId, sync::RwLockReadGuard };
 
 /*
 use bevy_app::PostUpdate;
@@ -202,17 +202,13 @@ pub fn send_signals(
 
                         // the component_id is recorded when the command to make the concrete Immutable runs
 
-                        // the reflect_data is used to build a strategy to dereference a pointer to the component
-                        let reflect_data = type_registry.get(type_id).unwrap();
-
-                        // we're going to get a pointer to the component, so we'll need this
-                        let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap();
-
                         // get what is basically an ECS change detection handle for the component in question
                         let mut mut_untyped = signal_to_send.get_mut_by_id(component_id).unwrap();
 
                         // and convert that into a pointer
                         let ptr_mut = mut_untyped.as_mut();
+
+                        let reflect_from_ptr = &make_reflect_from_ptr(type_id, &type_registry);
 
                         // insert arcane wizardry here
                         let subs = the_abyss_gazes_into_you(
@@ -287,12 +283,25 @@ pub fn apply_deferred_effects(
     // remove the Effect component
 }
 
+fn make_reflect_from_ptr(
+    type_id: TypeId,
+    type_registry: &RwLockReadGuard<TypeRegistry>
+) -> ReflectFromPtr {
+    // the reflect_data is used to build a strategy to dereference a pointer to the component
+    let reflect_data = type_registry.get(type_id).unwrap();
+
+    // we're going to get a pointer to the component, so we'll need this
+    reflect_data.data::<ReflectFromPtr>().unwrap().clone()
+}
+
 // mut (apply the next value to) the Immutable
 fn the_abyss_gazes_into_you(
     ptr_mut: PtrMut,
     reflect_from_ptr: &ReflectFromPtr,
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) -> Vec<Entity> {
+    // the following boilerplate required due to rules about passing trait objects around
+
     // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
     let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
 
