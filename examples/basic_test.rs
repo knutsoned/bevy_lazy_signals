@@ -29,7 +29,8 @@ fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
         }
     });
 
-    // create a signal
+    // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
+    // see SignalsPlugin
     let test_signal = Signal.state(false, &mut commands);
     test.signal = Some(test_signal);
     info!("created test signal");
@@ -41,7 +42,7 @@ fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
 
 fn send_some_signals(test: ResMut<TestResource>, mut commands: Commands) {
     trace!("sending 'true' to {:?}", test.signal);
-    Signal.send(test.signal.unwrap(), true, &mut commands);
+    Signal.send(test.signal, true, &mut commands);
 }
 
 fn status(world: &mut World) {
