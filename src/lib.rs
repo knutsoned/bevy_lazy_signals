@@ -125,11 +125,13 @@ impl Signal {
 
     pub fn send<T: Copy + PartialEq + Send + Sync + 'static>(
         &self,
-        signal: Entity,
+        signal: Option<Entity>,
         data: T,
         commands: &mut Commands
     ) {
-        commands.send_signal::<T>(signal, data);
+        if let Some(signal) = signal {
+            commands.send_signal::<T>(signal, data);
+        }
     }
 
     pub fn state<T: Copy + PartialEq + Send + Sync + 'static>(
@@ -162,9 +164,9 @@ pub fn send_signals(
     trace!("SIGNALS");
 
     // Phase One:
-    world.resource_scope(|world, mut signal: Mut<SignalsResource>| {
+    world.resource_scope(|world, mut signals: Mut<SignalsResource>| {
         // initialize sets
-        signal.init();
+        signals.init();
 
         let mut count = 0;
         let mut component_id_set = ComponentIdSet::new();
@@ -221,7 +223,7 @@ pub fn send_signals(
 
                         // add subscribers to the running set
                         for subscriber in subs.into_iter() {
-                            signal.running.insert(subscriber, ());
+                            signals.running.insert(subscriber, ());
                             info!("added subscriber {:?} into running set", subscriber);
                         }
                     }
@@ -256,7 +258,7 @@ pub fn calculate_memos(world: &mut World, query_memos: &mut QueryState<Entity, W
     trace!("MEMOS");
     // need exclusive world access here to update memos immediately and need to write to resource
     world.resource_scope(
-        |world, mut signal: Mut<SignalsResource>| {
+        |world, mut signals: Mut<SignalsResource>| {
             // run each Propagator function to recalculate memo, adding sources to the running set
 
             // *** update the data in the cell
@@ -274,7 +276,7 @@ pub fn calculate_memos(world: &mut World, query_memos: &mut QueryState<Entity, W
 
 pub fn apply_deferred_effects(
     query_effects: Query<Entity, With<DeferredEffect>>,
-    mut signal: ResMut<SignalsResource>,
+    mut signals: ResMut<SignalsResource>,
     mut commands: Commands
 ) {
     trace!("EFFECTS");
@@ -304,6 +306,47 @@ fn the_abyss_gazes_into_you(
 
     // do the dang thing
     untyped_observable.merge()
+}
+
+fn enter_malkovich_world(
+    ptr_mut: PtrMut,
+    reflect_from_ptr: &ReflectFromPtr,
+    type_registry: &RwLockReadGuard<TypeRegistry>
+) {
+    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
+    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
+
+    // the sun grew dark and cold
+    let reflect_untyped_observable = type_registry
+        .get_type_data::<ReflectUntypedObservable>(value.type_id())
+        .unwrap();
+
+    // the seas boiled
+    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
+
+    // do the dang thing
+    untyped_observable.merge_subscribers();
+}
+
+fn long_live_the_new_flesh(
+    ptr_mut: PtrMut,
+    reflect_from_ptr: &ReflectFromPtr,
+    type_registry: &RwLockReadGuard<TypeRegistry>,
+    subscriber: Entity
+) {
+    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
+    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
+
+    // the sun grew dark and cold
+    let reflect_untyped_observable = type_registry
+        .get_type_data::<ReflectUntypedObservable>(value.type_id())
+        .unwrap();
+
+    // the seas boiled
+    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
+
+    // do the dang thing
+    untyped_observable.subscribe(subscriber);
 }
 
 // convenience typedefs
