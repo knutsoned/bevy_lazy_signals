@@ -48,7 +48,7 @@ fn status(world: &mut World) {
     world.resource_scope(|world, test: Mut<TestResource>| {
         match Signal.read::<bool>(test.signal, world) {
             Ok(value) => {
-                info!("value: {}", value);
+                trace!("value: {}", value);
             }
             Err(error) => {
                 error!("error: {}", error);
