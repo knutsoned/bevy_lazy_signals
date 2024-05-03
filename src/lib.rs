@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+mod arcane_wizardry;
+
 pub mod commands;
 
 pub mod reference_impl;
