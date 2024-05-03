@@ -40,20 +40,18 @@ fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
     info!("created test effect");
 }
 
-fn send_some_signals(test: ResMut<TestResource>, mut commands: Commands) {
+fn send_some_signals(test: Res<TestResource>, mut commands: Commands) {
     trace!("sending 'true' to {:?}", test.signal);
     Signal.send(test.signal, true, &mut commands);
 }
 
-fn status(world: &mut World) {
-    world.resource_scope(|world, test: Mut<TestResource>| {
-        match Signal.read::<bool>(test.signal, world) {
-            Ok(value) => {
-                trace!("value: {}", value);
-            }
-            Err(error) => {
-                error!("error: {}", error);
-            }
+fn status(world: &World, test: Res<TestResource>) {
+    match Signal.read::<bool>(test.signal, world) {
+        Ok(value) => {
+            trace!("value: {}", value);
         }
-    });
+        Err(error) => {
+            error!("error: {}", error);
+        }
+    }
 }

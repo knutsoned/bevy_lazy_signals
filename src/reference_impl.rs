@@ -27,7 +27,6 @@ pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
 /// ## Systems
 /// These systems are meant to be run in tight sequence, preferably like the plugin demonstrates.
 /// Any commands in each system must be applied before proceeding to the next.
-
 pub fn init_subscribers(
     world: &mut World,
     query_propagators: &mut QueryState<(Entity, &Propagator), With<RebuildSubscribers>>
