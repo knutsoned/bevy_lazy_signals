@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use bevy_signals::{ signals::PropagatorFn, Signal, SignalsPlugin };
+use bevy_signals::{ reference_impl::Signal, signals::PropagatorFn, SignalsPlugin };
 
 #[derive(Resource, Default)]
 struct TestResource {
@@ -21,7 +21,7 @@ fn main() {
 }
 
 fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
-    // simple effect
+    // simple effect as a propagator who logs its triggers whenever one of them changes
     let effect_propagator: &PropagatorFn = &(|_world, triggers, target| {
         info!("triggers: {:?}", triggers);
         if target.is_some() {

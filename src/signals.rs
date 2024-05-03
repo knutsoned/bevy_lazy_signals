@@ -1,9 +1,4 @@
-/*
-use bevy_ecs::{ component::{ ComponentId, ComponentInfo }, prelude::*, storage::SparseSet };
-use bevy_reflect::{ reflect_trait, Reflect };
-use bevy_utils::tracing::*;
-*/
-use bevy::{ ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet }, prelude::* };
+use bevy::{ ecs::{ component::ComponentId, storage::SparseSet }, prelude::* };
 
 use thiserror::Error;
 
@@ -173,14 +168,6 @@ pub struct DeferredEffect;
 pub struct RebuildSubscribers;
 
 /// ## Utilities
-/// Set of Entity to ComponentId
-pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
-
-/// Set of ComponentId to ComponentInfo
-pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
-
-/// Set of unique Entities
-pub type EntitySourcesSet = SparseSet<Entity, Vec<Entity>>;
 
 /// Set of unique Entities
 pub type EntitySet = SparseSet<Entity, ()>;

@@ -1,7 +1,3 @@
-/*
-use bevy_ecs::{ prelude::*, world::Command };
-use bevy_utils::tracing::*;
-*/
 use bevy::{ ecs::world::Command, prelude::* };
 
 use crate::signals::*;
