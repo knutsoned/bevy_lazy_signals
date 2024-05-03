@@ -90,8 +90,7 @@ pub fn init_subscribers(
                 }
             }
 
-            let mut target = world.get_entity_mut(*entity).unwrap();
-            target.remove::<RebuildSubscribers>();
+            world.get_entity_mut(*entity).unwrap().remove::<RebuildSubscribers>();
         }
     });
 }
@@ -161,7 +160,7 @@ pub fn send_signals(
                         // add subscribers to the next running set
                         for subscriber in subs.into_iter() {
                             signals.next_running.insert(subscriber, ());
-                            info!("-added subscriber {:?} into running set", subscriber);
+                            info!("-added subscriber {:?} to running set", subscriber);
                         }
 
                         // if the merge returns a non-zero length list of subscribers, it changed
@@ -254,37 +253,35 @@ pub fn apply_deferred_effects(
     let mut hierarchy = EntityHierarchySet::new();
     let mut props = EntityPropagatorSet::new();
     for (entity, prop) in query_effects.iter(world) {
-        info!("-preparing sources for {:?}", entity);
         hierarchy.insert(entity, prop.sources.clone());
-        let prop_fn: &PropagatorFn = prop.propagator;
-        // FIXME get the damn fn into the set
-        //props.insert(entity, Box::new(prop_fn));
+        // FIXME props.insert(entity, prop.propagator);
     }
 
     // read
-    world.resource_scope(|_, signals: Mut<SignalsResource>| {
+    world.resource_scope(|world, signals: Mut<SignalsResource>| {
         for (entity, triggers) in hierarchy.iter() {
             // only run an effect if at least one of its triggers is in the changed set
             for source in triggers {
                 if signals.changed.contains(*source) {
+                    info!("-running effect {:?} with triggers {:?}", entity, triggers);
                     effects.insert(*entity, ());
                 }
             }
+
+            // remove the DeferredEffect component
+            world.entity_mut(*entity).remove::<DeferredEffect>();
         }
     });
 
     // write
     for (entity, prop) in props.iter_mut() {
-        info!("-running effect {:?}", entity);
+        if effects.contains(*entity) {
+            // actually run the effect
+            if let Some(sources) = hierarchy.get(*entity) {
+                info!("-found propagator with sources {:?}", sources);
 
-        // actually run the effect
-        if let Some(sources) = hierarchy.get(*entity) {
-            info!("-found propagator with sources {:?}", sources);
-
-            prop(world, sources, None);
+                prop(world, sources, None);
+            }
         }
-
-        // remove the DeferredEffect component
-        world.entity_mut(*entity).remove::<DeferredEffect>();
     }
 }

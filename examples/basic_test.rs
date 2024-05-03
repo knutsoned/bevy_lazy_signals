@@ -22,8 +22,9 @@ fn main() {
 
 fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
     // simple effect as a propagator who logs its triggers whenever one of them changes
-    let effect_propagator: &PropagatorFn = &(|_world, triggers, target| {
+    let effect_propagator: Box<PropagatorFn> = Box::new(|_world, triggers, target| {
         info!("triggers: {:?}", triggers);
+        // TODO output the value of each trigger
         if target.is_some() {
             error!("effects should not have targets!");
         }

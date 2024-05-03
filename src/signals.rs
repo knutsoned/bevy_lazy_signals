@@ -20,7 +20,7 @@ pub type SignalsResult<T> = Result<T, SignalsError>;
 impl Signal {
     pub fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &self,
-        propagator: &'static PropagatorFn,
+        propagator: Box<PropagatorFn>,
         sources: Vec<Entity>,
         init_value: T,
         commands: &mut Commands
@@ -32,7 +32,7 @@ impl Signal {
 
     pub fn effect(
         &self,
-        propagator: &'static PropagatorFn,
+        propagator: Box<PropagatorFn>,
         triggers: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
@@ -232,7 +232,7 @@ pub struct SendSignal;
 /// A Propagator component is the aggregating propagator function and its sources/triggers list.
 #[derive(Component)]
 pub struct Propagator {
-    pub propagator: &'static PropagatorFn,
+    pub propagator: Box<PropagatorFn>,
     pub sources: Vec<Entity>,
 }
 
