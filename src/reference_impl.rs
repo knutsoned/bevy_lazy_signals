@@ -4,6 +4,7 @@ use bevy::{ ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet
 
 use crate::{
     arcane_wizardry::*,
+    empty_set,
     ComputeMemo,
     DeferredEffect,
     ImmutableComponentId,
@@ -61,7 +62,7 @@ pub fn init_subscribers(
                     }
                 }
 
-                // now do mutable stuff
+                // we have a component and a type, now do mutable stuff
                 if component_id.is_some() && type_id.is_some() {
                     if let Some(mut source) = world.get_entity_mut(*source) {
                         // get the source Immutable component as an ECS change detection handle
@@ -75,8 +76,11 @@ pub fn init_subscribers(
                             type_id.unwrap(),
                             &type_registry
                         );
+
+                        // add the subscriber
                         enter_malkovich_world(*entity, ptr_mut, &reflect_from_ptr, &type_registry);
 
+                        // merge the new subscriber into the main set
                         let ptr_mut = mut_untyped.as_mut();
                         long_live_the_new_flesh(ptr_mut, &reflect_from_ptr, &type_registry);
                     }
@@ -95,7 +99,7 @@ pub fn send_signals(
 ) {
     trace!("SIGNALS");
 
-    // Phase One:
+    // Phase One: find all the updated signals and schedule their direct subscribers to run
     world.resource_scope(|world, mut signals: Mut<SignalsResource>| {
         // initialize sets
         signals.init();
@@ -129,13 +133,13 @@ pub fn send_signals(
                 // use the type_id from the component info, YOLO
                 if let Some(info) = component_info.get(component_id) {
                     if let Some(type_id) = info.type_id() {
-                        // the type_id matches the concrete type of the Signal's generic Immutable component
+                        // the type_id matches the concrete type of the Signal's generic Immutable
 
-                        // it comes from ComponentInfo which is retrieved from the ECS World Components
+                        // it comes from ComponentInfo which is retrieved from the ECS world
 
-                        // the component_id is recorded when the command to make the concrete Immutable runs
+                        // the component_id is saved when command to make concrete Immutable runs
 
-                        // get what is basically an ECS change detection handle for the component in question
+                        // get like... an ECS change detection handle for the component in question
                         let mut mut_untyped = signal_to_send.get_mut_by_id(component_id).unwrap();
 
                         // ...and convert that into a pointer
@@ -143,15 +147,17 @@ pub fn send_signals(
 
                         // insert arcane wizardry here
                         let reflect_from_ptr = make_reflect_from_ptr(type_id, &type_registry);
+
+                        // merge the next data value and return a list of subscribers to the change
                         let subs = the_abyss_gazes_into_you(
                             ptr_mut,
                             &reflect_from_ptr,
                             &type_registry
                         );
 
-                        // add subscribers to the running set
+                        // add subscribers to the next running set
                         for subscriber in subs.into_iter() {
-                            signals.running.insert(subscriber, ());
+                            signals.next_running.insert(subscriber, ());
                             info!("-added subscriber {:?} into running set", subscriber);
                         }
                     }
@@ -161,23 +167,48 @@ pub fn send_signals(
                 signal_to_send.remove::<SendSignal>();
             }
 
-            // Phase Two:
+            // Phase Two: fire notifications up the subscriber tree
 
-            // iterate through a copy of the running set
+            // as long as there is a next_running set, move next_running set into the current one
+            while signals.merge_running() {
+                // make a copy of the running set
+                let mut running = empty_set();
+                for runner in signals.running.indices() {
+                    // skip if already in processed set
+                    if !signals.processed.contains(runner) {
+                        running.insert(runner, ());
+                    }
+                }
 
-            // remove an item from the running set
+                // get an item from the running set
+                for runner in running.indices() {
+                    // add the item to the processed set
+                    signals.processed.insert(runner, ());
 
-            // skip if already in handled set
+                    // what kind of subscriber is this?
+                    if let Some(mut subscriber) = world.get_entity_mut(runner) {
+                        // if the entity has a Propagator
+                        if subscriber.contains::<Propagator>() {
+                            // a) ...AND an ImmutableComponentId...
+                            // it is a memo, so mark it for recalculation by adding ComputeMemo
+                            if subscriber.contains::<ImmutableComponentId>() {
+                                subscriber.insert(ComputeMemo);
+                                info!("-marked memo for computation");
+                            } else {
+                                // b) ...but no ImmutableComponentId...
+                                // it is an effect, so schedule the effect by adding DeferredEffect
+                                subscriber.insert(DeferredEffect);
+                                info!("-scheduled effect");
+                            }
 
-            // add the item to the handled set
+                            // item has its own subscribers, so add those to the next_running set
+                        }
+                    }
+                }
 
-            // a) item is an effect, so schedule the effect by adding a DeferredEffect component
-
-            // b1) item is a memo, so mark it for recalculation by adding a ComputeMemo component
-
-            // b2) item has its own subscribers, so add those to a new running set
-
-            // loop through the running set until it is empty, then loop through the new running set, and so on
+                // clear the running set at the end of each iteration
+                signals.running.clear();
+            }
         });
     });
 }

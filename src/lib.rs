@@ -83,6 +83,19 @@ impl SignalsResource {
         self.deferred.clear();
         // self.effects.clear(); // don't clear this, need.. to remember... what is going on
     }
+
+    // if there is anext_running set, move it into the running set and empty it
+    pub fn merge_running(&mut self) -> bool {
+        if self.next_running.is_empty() {
+            false
+        } else {
+            for index in self.next_running.indices() {
+                self.running.insert(index, ());
+            }
+            self.next_running.clear();
+            true
+        }
+    }
 }
 
 impl Default for SignalsResource {

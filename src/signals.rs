@@ -105,7 +105,10 @@ pub trait UntypedObservable {
     /// The ref impl uses this to update the Immutable values without knowing the type.
     /// These are also part of sending a Signal.
     ///
-    /// This method returns a vector of subscriber Entities that may need notification.
+    /// Get the list of subscriber Entities that may need notification.
+    fn get_subscribers(&self) -> Vec<Entity>;
+
+    /// This method merges the next_value and returns get_subscribers().
     fn merge(&mut self) -> Vec<Entity>;
 
     /// Called by a lazy update system to refresh the subscribers.
@@ -170,6 +173,15 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Immutable for LazyImmutable<T>
 }
 
 impl<T: Copy + PartialEq + Send + Sync + 'static> UntypedObservable for LazyImmutable<T> {
+    fn get_subscribers(&self) -> Vec<Entity> {
+        let mut subs = Vec::<Entity>::new();
+
+        // copy the subscribers into the output vector
+        subs.extend(self.subscribers.indices());
+        info!("-found subs {:?}", self.subscribers);
+        subs
+    }
+
     fn merge(&mut self) -> Vec<Entity> {
         let mut subs = Vec::<Entity>::new();
 
@@ -181,11 +193,10 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> UntypedObservable for LazyImmu
                 self.data = next;
 
                 // copy the subscribers into the output vector
-                subs.extend(self.subscribers.indices());
-                info!("-found subs {:?}", self.subscribers);
+                subs = self.get_subscribers();
 
-                // clear the local subscriber set which will be replenished by each subscriber if it calls
-                // the value method later
+                // clear the local subscriber set which will be replenished by each subscriber if
+                // it calls the value method later
                 self.subscribers.clear();
             }
         }
@@ -199,6 +210,7 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> UntypedObservable for LazyImmu
         }
         self.next_subscribers.clear();
     }
+
     fn subscribe(&mut self, entity: Entity) {
         self.next_subscribers.insert(entity, ());
     }
