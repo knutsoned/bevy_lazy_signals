@@ -6,7 +6,12 @@ use bevy_ecs::prelude::*;
 use bevy_reflect::*;
 use bevy_utils::tracing::*;
 */
-use bevy::{ prelude::*, ptr::PtrMut, reflect::{ ReflectFromPtr, TypeRegistry } };
+use bevy::{
+    ecs::component::ComponentId,
+    prelude::*,
+    ptr::PtrMut,
+    reflect::{ ReflectFromPtr, TypeRegistry },
+};
 
 pub mod commands;
 use commands::*;
@@ -150,11 +155,67 @@ impl Signal {
 /// Any commands in each system must be applied before proceeding to the next.
 
 pub fn init_subscribers(
-    query_propagators: Query<(Entity, &Propagator), With<RebuildSubscribers>>,
-    mut commands: Commands
+    world: &mut World,
+    query_propagators: &mut QueryState<(Entity, &Propagator), With<RebuildSubscribers>>
 ) {
-    // TODO this needs to run the subscribe method on each Propagator.sources, passing the Entity
+    // collapse the query or get world concurrency errors
+    let mut entities = EntitySourcesSet::new();
+    for (entity, prop) in query_propagators.iter(world) {
+        info!("-preparing sources for {:?}", entity);
+        entities.insert(entity, prop.sources.clone());
+    }
 
+    world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
+        let type_registry = type_registry.read();
+
+        // run the subscribe method on each Propagator.sources, passing the Entity
+        for (entity, sources) in entities.iter() {
+            // loop through the sources
+            for source in sources.iter() {
+                // get the TypeId of each source (Signal or Memo) Immutable component
+                let mut component_id: Option<ComponentId> = None;
+                let mut type_id: Option<TypeId> = None;
+
+                // get a readonly reference to the source entity
+                if let Some(source) = world.get_entity(*source) {
+                    // get the source Immutable component
+                    if let Some(immutable) = source.get::<ImmutableComponentId>() {
+                        // ...as an UntypedObservable
+                        component_id = Some(immutable.component_id);
+                        if let Some(info) = world.components().get_info(component_id.unwrap()) {
+                            type_id = info.type_id();
+                        }
+                    }
+                }
+
+                // now do mutable stuff
+                if component_id.is_some() && type_id.is_some() {
+                    if let Some(mut source) = world.get_entity_mut(*source) {
+                        // get the source Immutable component as an ECS change detection handle
+                        let mut mut_untyped = source.get_mut_by_id(component_id.unwrap()).unwrap();
+
+                        // ...and convert that into a pointer
+                        let ptr_mut = mut_untyped.as_mut();
+
+                        // insert arcane wizardry here
+                        let reflect_from_ptr = make_reflect_from_ptr(
+                            type_id.unwrap(),
+                            &type_registry
+                        );
+                        long_live_the_new_flesh(
+                            *entity,
+                            ptr_mut,
+                            &reflect_from_ptr,
+                            &type_registry
+                        );
+                    }
+                }
+            }
+
+            let mut target = world.get_entity_mut(*entity).unwrap();
+            target.remove::<RebuildSubscribers>();
+        }
+    });
 }
 
 pub fn send_signals(
@@ -187,11 +248,12 @@ pub fn send_signals(
 
         // build reflect types for merge operation on reflected UntypedObservable trait object
         world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
+            let type_registry = type_registry.read();
+
             for (entity, component_id) in component_id_set.iter() {
                 // here we need to access the Signal as an UntypedObservable & run the merge method
                 let component_id = *component_id;
                 let mut signal_to_send = world.entity_mut(*entity);
-                let type_registry = type_registry.read();
 
                 // use the type_id from the component info, YOLO
                 if let Some(info) = component_info.get(component_id) {
@@ -205,22 +267,21 @@ pub fn send_signals(
                         // get what is basically an ECS change detection handle for the component in question
                         let mut mut_untyped = signal_to_send.get_mut_by_id(component_id).unwrap();
 
-                        // and convert that into a pointer
+                        // ...and convert that into a pointer
                         let ptr_mut = mut_untyped.as_mut();
 
-                        let reflect_from_ptr = &make_reflect_from_ptr(type_id, &type_registry);
-
                         // insert arcane wizardry here
+                        let reflect_from_ptr = make_reflect_from_ptr(type_id, &type_registry);
                         let subs = the_abyss_gazes_into_you(
                             ptr_mut,
-                            reflect_from_ptr,
+                            &reflect_from_ptr,
                             &type_registry
                         );
 
                         // add subscribers to the running set
                         for subscriber in subs.into_iter() {
                             signals.running.insert(subscriber, ());
-                            info!("added subscriber {:?} into running set", subscriber);
+                            info!("-added subscriber {:?} into running set", subscriber);
                         }
                     }
                 }
@@ -294,6 +355,29 @@ fn make_reflect_from_ptr(
     reflect_data.data::<ReflectFromPtr>().unwrap().clone()
 }
 
+// initialize the subscriber sets for all new Signals and Memos
+fn long_live_the_new_flesh(
+    subscriber: Entity,
+    ptr_mut: PtrMut,
+    reflect_from_ptr: &ReflectFromPtr,
+    type_registry: &RwLockReadGuard<TypeRegistry>
+) {
+    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
+    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
+
+    // the sun grew dark and cold
+    let reflect_untyped_observable = type_registry
+        .get_type_data::<ReflectUntypedObservable>(value.type_id())
+        .unwrap();
+
+    // the seas boiled
+    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
+
+    // do the dang thing
+    untyped_observable.subscribe(subscriber);
+    info!("-subscribed {:?}", subscriber);
+}
+
 // mut (apply the next value to) the Immutable
 fn the_abyss_gazes_into_you(
     ptr_mut: PtrMut,
@@ -335,27 +419,6 @@ fn enter_malkovich_world(
 
     // do the dang thing
     untyped_observable.merge_subscribers();
-}
-
-fn long_live_the_new_flesh(
-    ptr_mut: PtrMut,
-    reflect_from_ptr: &ReflectFromPtr,
-    type_registry: &RwLockReadGuard<TypeRegistry>,
-    subscriber: Entity
-) {
-    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
-    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
-
-    // the sun grew dark and cold
-    let reflect_untyped_observable = type_registry
-        .get_type_data::<ReflectUntypedObservable>(value.type_id())
-        .unwrap();
-
-    // the seas boiled
-    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
-
-    // do the dang thing
-    untyped_observable.subscribe(subscriber);
 }
 
 // convenience typedefs

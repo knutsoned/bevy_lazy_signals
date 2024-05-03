@@ -116,6 +116,7 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> UntypedObservable for LazyImmu
 
                 // copy the subscribers into the output vector
                 subs.extend(self.subscribers.indices());
+                info!("-found subs {:?}", self.subscribers);
 
                 // clear the local subscriber set which will be replenished by each subscriber if it calls
                 // the value method later
@@ -177,6 +178,9 @@ pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
 
 /// Set of ComponentId to ComponentInfo
 pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
+
+/// Set of unique Entities
+pub type EntitySourcesSet = SparseSet<Entity, Vec<Entity>>;
 
 /// Set of unique Entities
 pub type EntitySet = SparseSet<Entity, ()>;
