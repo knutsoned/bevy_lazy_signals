@@ -72,6 +72,7 @@ pub struct SignalsResource {
     pub effects: EntitySet,
 }
 
+/// This is a singleton that represents the "global state." It is used during internal updates.
 impl SignalsResource {
     /// Call this at the start of each run to make sure everything is fresh.
     fn init(&mut self) {
@@ -96,5 +97,3 @@ impl Default for SignalsResource {
         }
     }
 }
-
-pub type SignalsResult<T> = Result<T, SignalsError>;

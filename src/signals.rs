@@ -2,6 +2,8 @@ use bevy::{ ecs::{ component::ComponentId, storage::SparseSet }, prelude::* };
 
 use thiserror::Error;
 
+use crate::commands::SignalsCommandsExt;
+
 /// # Signals framework
 /// ## Enums
 /// Read error.
@@ -9,6 +11,75 @@ use thiserror::Error;
 pub enum SignalsError {
     #[error("Error reading signal {0}")] ReadError(Entity),
     #[error["Signal does not exist"]] NoSignalError,
+}
+
+/// Convenience wrapper for Signal creation and manipulation functionality.
+pub struct Signal;
+pub type SignalsResult<T> = Result<T, SignalsError>;
+
+impl Signal {
+    pub fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
+        &self,
+        propagator: &'static PropagatorFn,
+        sources: Vec<Entity>,
+        init_value: T,
+        commands: &mut Commands
+    ) -> Entity {
+        let computed = commands.spawn_empty().id();
+        commands.create_computed::<T>(computed, propagator, sources, init_value);
+        computed
+    }
+
+    pub fn effect(
+        &self,
+        propagator: &'static PropagatorFn,
+        triggers: Vec<Entity>,
+        commands: &mut Commands
+    ) -> Entity {
+        let effect = commands.spawn_empty().id();
+        commands.create_effect(effect, propagator, triggers);
+        effect
+    }
+
+    pub fn read<T: Copy + PartialEq + Send + Sync + 'static>(
+        &self,
+        immutable: Option<Entity>,
+        world: &World
+    ) -> SignalsResult<T> {
+        match immutable {
+            Some(immutable) => {
+                let entity = world.entity(immutable);
+                match entity.get::<LazyImmutable<T>>() {
+                    Some(observable) => Ok(observable.read()),
+
+                    // TODO maybe add some kind of config option to ignore errors and return default
+                    None => Err(SignalsError::ReadError(immutable)),
+                }
+            }
+            None => Err(SignalsError::NoSignalError),
+        }
+    }
+
+    pub fn send<T: Copy + PartialEq + Send + Sync + 'static>(
+        &self,
+        signal: Option<Entity>,
+        data: T,
+        commands: &mut Commands
+    ) {
+        if let Some(signal) = signal {
+            commands.send_signal::<T>(signal, data);
+        }
+    }
+
+    pub fn state<T: Copy + PartialEq + Send + Sync + 'static>(
+        &self,
+        data: T,
+        commands: &mut Commands
+    ) -> Entity {
+        let state = commands.spawn_empty().id();
+        commands.create_state::<T>(state, data);
+        state
+    }
 }
 
 // ## Traits

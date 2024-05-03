@@ -4,19 +4,13 @@ use bevy::{ ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet
 
 use crate::{
     arcane_wizardry::*,
-    commands::SignalsCommandsExt,
     ComputeMemo,
     DeferredEffect,
-    Immutable,
     ImmutableComponentId,
-    LazyImmutable,
     Propagator,
-    PropagatorFn,
     RebuildSubscribers,
     SendSignal,
-    SignalsError,
     SignalsResource,
-    SignalsResult,
 };
 
 /// Set of unique Entities
@@ -29,73 +23,7 @@ pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
 pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
 
 /// This is the reference user API, patterned after the TC39 proposal.
-pub struct Signal;
-
-impl Signal {
-    pub fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        propagator: &'static PropagatorFn,
-        sources: Vec<Entity>,
-        init_value: T,
-        commands: &mut Commands
-    ) -> Entity {
-        let computed = commands.spawn_empty().id();
-        commands.create_computed::<T>(computed, propagator, sources, init_value);
-        computed
-    }
-
-    pub fn effect(
-        &self,
-        propagator: &'static PropagatorFn,
-        triggers: Vec<Entity>,
-        commands: &mut Commands
-    ) -> Entity {
-        let effect = commands.spawn_empty().id();
-        commands.create_effect(effect, propagator, triggers);
-        effect
-    }
-
-    pub fn read<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        immutable: Option<Entity>,
-        world: &World
-    ) -> SignalsResult<T> {
-        match immutable {
-            Some(immutable) => {
-                let entity = world.entity(immutable);
-                match entity.get::<LazyImmutable<T>>() {
-                    Some(observable) => Ok(observable.read()),
-
-                    // TODO maybe add some kind of config option to ignore errors and return default
-                    None => Err(SignalsError::ReadError(immutable)),
-                }
-            }
-            None => Err(SignalsError::NoSignalError),
-        }
-    }
-
-    pub fn send<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        signal: Option<Entity>,
-        data: T,
-        commands: &mut Commands
-    ) {
-        if let Some(signal) = signal {
-            commands.send_signal::<T>(signal, data);
-        }
-    }
-
-    pub fn state<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        data: T,
-        commands: &mut Commands
-    ) -> Entity {
-        let state = commands.spawn_empty().id();
-        commands.create_state::<T>(state, data);
-        state
-    }
-}
-
+///
 /// ## Systems
 /// These systems are meant to be run in tight sequence, preferably like the plugin demonstrates.
 /// Any commands in each system must be applied before proceeding to the next.
