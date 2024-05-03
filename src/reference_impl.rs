@@ -9,18 +9,21 @@ use crate::{
     DeferredEffect,
     ImmutableComponentId,
     Propagator,
+    PropagatorFn,
     RebuildSubscribers,
     SendSignal,
     SignalsResource,
 };
 
-/// Set of unique Entities
-pub type EntitySourcesSet = SparseSet<Entity, Vec<Entity>>;
+/// Set of Entity to child Entities.
+pub type EntityHierarchySet = SparseSet<Entity, Vec<Entity>>;
 
-/// Set of Entity to ComponentId
+pub type EntityPropagatorSet = SparseSet<Entity, Box<PropagatorFn>>;
+
+/// Set of Entity to ComponentId.
 pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
 
-/// Set of ComponentId to ComponentInfo
+/// Set of ComponentId to ComponentInfo.
 pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
 
 /// This is the reference user API, patterned after the TC39 proposal.
@@ -33,7 +36,7 @@ pub fn init_subscribers(
     query_propagators: &mut QueryState<(Entity, &Propagator), With<RebuildSubscribers>>
 ) {
     // collapse the query or get world concurrency errors
-    let mut entities = EntitySourcesSet::new();
+    let mut entities = EntityHierarchySet::new();
     for (entity, prop) in query_propagators.iter(world) {
         info!("-preparing sources for {:?}", entity);
         entities.insert(entity, prop.sources.clone());
@@ -160,6 +163,9 @@ pub fn send_signals(
                             signals.next_running.insert(subscriber, ());
                             info!("-added subscriber {:?} into running set", subscriber);
                         }
+
+                        // if the merge returns a non-zero length list of subscribers, it changed
+                        signals.changed.insert(*entity, ());
                     }
                 }
 
@@ -213,7 +219,10 @@ pub fn send_signals(
     });
 }
 
-pub fn calculate_memos(world: &mut World, query_memos: &mut QueryState<Entity, With<ComputeMemo>>) {
+pub fn calculate_memos(
+    world: &mut World,
+    query_memos: &mut QueryState<(Entity, &Propagator), With<ComputeMemo>>
+) {
     trace!("MEMOS");
     // need exclusive world access here to update memos immediately and need to write to resource
     world.resource_scope(
@@ -229,19 +238,53 @@ pub fn calculate_memos(world: &mut World, query_memos: &mut QueryState<Entity, W
             // remove the Memo component
 
             // merge all next_subscribers sets into subscribers
+
         }
     );
 }
 
 pub fn apply_deferred_effects(
-    query_effects: Query<Entity, With<DeferredEffect>>,
-    mut signals: ResMut<SignalsResource>,
-    mut commands: Commands
+    world: &mut World,
+    query_effects: &mut QueryState<(Entity, &Propagator), With<DeferredEffect>>
 ) {
     trace!("EFFECTS");
-    // only run an effect if one of its triggers is in the changed set
+    let mut effects = empty_set();
 
-    // *** spawn a thread for each effect
+    // collapse the query or get world concurrency errors
+    let mut hierarchy = EntityHierarchySet::new();
+    let mut props = EntityPropagatorSet::new();
+    for (entity, prop) in query_effects.iter(world) {
+        info!("-preparing sources for {:?}", entity);
+        hierarchy.insert(entity, prop.sources.clone());
+        let prop_fn: &PropagatorFn = prop.propagator;
+        // FIXME get the damn fn into the set
+        //props.insert(entity, Box::new(prop_fn));
+    }
 
-    // remove the Effect component
+    // read
+    world.resource_scope(|_, signals: Mut<SignalsResource>| {
+        for (entity, triggers) in hierarchy.iter() {
+            // only run an effect if at least one of its triggers is in the changed set
+            for source in triggers {
+                if signals.changed.contains(*source) {
+                    effects.insert(*entity, ());
+                }
+            }
+        }
+    });
+
+    // write
+    for (entity, prop) in props.iter_mut() {
+        info!("-running effect {:?}", entity);
+
+        // actually run the effect
+        if let Some(sources) = hierarchy.get(*entity) {
+            info!("-found propagator with sources {:?}", sources);
+
+            prop(world, sources, None);
+        }
+
+        // remove the DeferredEffect component
+        world.entity_mut(*entity).remove::<DeferredEffect>();
+    }
 }
