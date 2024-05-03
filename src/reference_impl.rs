@@ -9,7 +9,6 @@ use crate::{
     DeferredEffect,
     ImmutableComponentId,
     Propagator,
-    PropagatorFn,
     RebuildSubscribers,
     SendSignal,
     SignalsResource,
@@ -17,8 +16,6 @@ use crate::{
 
 /// Set of Entity to child Entities.
 pub type EntityHierarchySet = SparseSet<Entity, Vec<Entity>>;
-
-pub type EntityPropagatorSet = SparseSet<Entity, Box<PropagatorFn>>;
 
 /// Set of Entity to ComponentId.
 pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
@@ -251,10 +248,8 @@ pub fn apply_deferred_effects(
 
     // collapse the query or get world concurrency errors
     let mut hierarchy = EntityHierarchySet::new();
-    let mut props = EntityPropagatorSet::new();
     for (entity, prop) in query_effects.iter(world) {
         hierarchy.insert(entity, prop.sources.clone());
-        // FIXME props.insert(entity, prop.propagator);
     }
 
     // read
@@ -274,13 +269,13 @@ pub fn apply_deferred_effects(
     });
 
     // write
-    for (entity, prop) in props.iter_mut() {
-        if effects.contains(*entity) {
-            // actually run the effect
-            if let Some(sources) = hierarchy.get(*entity) {
-                info!("-found propagator with sources {:?}", sources);
+    for entity in effects.indices() {
+        if let Some(sources) = hierarchy.get(entity) {
+            info!("-found propagator with sources {:?}", sources);
 
-                prop(world, sources, None);
+            // actually run the effect
+            if let Some(mut component) = world.entity_mut(entity).get_mut::<Propagator>() {
+                (component.propagator)(sources, None);
             }
         }
     }

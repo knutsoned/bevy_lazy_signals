@@ -124,7 +124,7 @@ pub trait UntypedObservable {
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
 /// It should call value instead of read to make sure it is re-subscribed to its sources!
 /// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub type PropagatorFn = dyn FnMut(&mut World, &Vec<Entity>, Option<&mut Entity>) + Send + Sync;
+pub type PropagatorFn = dyn FnMut(&Vec<Entity>, Option<&mut Entity>) + Send + Sync;
 
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.

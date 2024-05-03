@@ -1,11 +1,6 @@
 use std::{ any::TypeId, sync::RwLockReadGuard };
 
-use bevy::{
-    ecs::entity::Entity,
-    prelude::*,
-    ptr::PtrMut,
-    reflect::{ ReflectFromPtr, TypeRegistry },
-};
+use bevy::{ ecs::entity::Entity, ptr::PtrMut, reflect::{ ReflectFromPtr, TypeRegistry } };
 
 use crate::ReflectUntypedObservable;
 
@@ -42,7 +37,6 @@ pub(crate) fn enter_malkovich_world(
 
     // make it so!
     untyped_observable.subscribe(subscriber);
-    info!("-subscribed {:?}", subscriber);
 }
 
 // merge subscribers
@@ -66,7 +60,6 @@ pub(crate) fn long_live_the_new_flesh(
 
     // engage!
     untyped_observable.merge_subscribers();
-    info!("-merged subscribers");
 }
 
 // mut (apply the next value to) the Immutable
