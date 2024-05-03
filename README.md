@@ -37,18 +37,21 @@ For basic usage, an application specific resource may track the entities:
 TODO: actually test this
 
 ```
+use bevy::prelude::*;
+use bevy_signals::{ commands::SignalsCommandsExt, signals::Signal };
+
 #[derive(Default, Resource)]
 struct ConfigResource {
-    x_axis: Entity,
-    y_axis: Entity,
+    x_axis: Option<Entity>,
+    y_axis: Option<Entity>,
     ...
-    action_button: Entity,
+    action_button: Option<Entity>,
 }
 
-fn signals_setup_system(config: ConfigResource, signal: SignalsResource, mut commands: Commands) {
+fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     // note these will not be ready for use until the commands actually run
-    config.x_axis = signal.state::<f32>(0.0, commands);
-    config.y_axis = signal.state::<f32>(0.0, commands);
+    config.x_axis = Signal.state::<f32>(0.0, commands);
+    config.y_axis = Signal.state::<f32>(0.0, commands);
 
     // here we start with an empty Entity (more useful if we already spawned the entity elsewhere)
     config.action_button = commands.spawn_empty().id();
@@ -58,18 +61,16 @@ fn signals_setup_system(config: ConfigResource, signal: SignalsResource, mut com
 }
 
 fn signals_update_system(
-    config: ConfigResource,
-    signal: SignalsResource,
-    mut commands: Commands,
-    world: &World
+    config: Res<ConfigResource>,
+    mut commands: Commands
 ) {
     // assume we have somehow read x and y values of the gamepad stick and assigned them to x and y
-    signal.send(config.x_axis, x, commands);
-    signal.send(config.y_axis, y, commands);
+    Signal.send(config.x_axis, x, commands);
+    Signal.send(config.y_axis, y, commands);
 
     // signals aren't processed right away, so the signals are still the original value
-    let prev_x = signal.read::<f32>(config.x_axis, world);
-    let prev_y = signal.read::<f32>(config.y_axis, world);
+    let prev_x = Signal.read::<f32>(config.x_axis, world);
+    let prev_y = Signal.read::<f32>(config.y_axis, world);
 
     // let's force the action button to true to simulate pressing the button but use custom command
     commands.send_signal::<bool>(config.action_button, true);
