@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use bevy_signals::{ reference_impl::Signal, signals::PropagatorFn, SignalsPlugin };
+use bevy_signals::{ signals::{ PropagatorFn, Signal }, SignalsPlugin };
 
 #[derive(Resource, Default)]
 struct TestResource {
