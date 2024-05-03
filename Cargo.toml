@@ -10,5 +10,11 @@ edition = "2021"
 #bevy_ecs = { version = "0.14.0-dev", git = "https://github.com/bevyengine/bevy", rev = "5c3ae32" }
 #bevy_reflect = { version = "0.14.0-dev", git = "https://github.com/bevyengine/bevy", rev = "5c3ae32" }
 #bevy_utils = { version = "0.14.0-dev", git = "https://github.com/bevyengine/bevy", rev = "5c3ae32" }
-bevy = { version = "0.14.0-dev", git = "https://github.com/bevyengine/bevy", rev = "5c3ae32" }
 thiserror = "1.0.59"
+
+[dependencies.bevy]
+version = "0.14.0-dev"
+git = "https://github.com/bevyengine/bevy"
+rev = "5c3ae32"
+default-features = false
+features = ["bevy_core_pipeline","bevy_winit","multi-threaded"]
