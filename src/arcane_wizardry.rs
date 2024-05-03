@@ -1,4 +1,4 @@
-use std::sync::RwLockReadGuard;
+use std::{ any::TypeId, sync::RwLockReadGuard };
 
 use bevy::{
     ecs::entity::Entity,
@@ -8,6 +8,17 @@ use bevy::{
 };
 
 use crate::ReflectUntypedObservable;
+
+pub(crate) fn make_reflect_from_ptr(
+    type_id: TypeId,
+    type_registry: &RwLockReadGuard<TypeRegistry>
+) -> ReflectFromPtr {
+    // the reflect_data is used to build a strategy to dereference a pointer to the component
+    let reflect_data = type_registry.get(type_id).unwrap();
+
+    // we're going to get a pointer to the component, so we'll need this
+    reflect_data.data::<ReflectFromPtr>().unwrap().clone()
+}
 
 // initialize the subscriber sets for all new Signals and Memos
 pub(crate) fn enter_malkovich_world(
@@ -55,6 +66,7 @@ pub(crate) fn long_live_the_new_flesh(
 
     // engage!
     untyped_observable.merge_subscribers();
+    info!("-merged subscribers");
 }
 
 // mut (apply the next value to) the Immutable

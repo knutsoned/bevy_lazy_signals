@@ -1,10 +1,6 @@
-use std::{ any::TypeId, sync::RwLockReadGuard };
+use std::any::TypeId;
 
-use bevy::{
-    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
-    prelude::*,
-    reflect::{ ReflectFromPtr, TypeRegistry },
-};
+use bevy::{ ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet }, prelude::* };
 
 use crate::{
     arcane_wizardry::*,
@@ -290,15 +286,4 @@ pub fn apply_deferred_effects(
     // *** spawn a thread for each effect
 
     // remove the Effect component
-}
-
-fn make_reflect_from_ptr(
-    type_id: TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) -> ReflectFromPtr {
-    // the reflect_data is used to build a strategy to dereference a pointer to the component
-    let reflect_data = type_registry.get(type_id).unwrap();
-
-    // we're going to get a pointer to the component, so we'll need this
-    reflect_data.data::<ReflectFromPtr>().unwrap().clone()
 }
