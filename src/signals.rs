@@ -80,6 +80,26 @@ impl Signal {
         commands.create_state::<T>(state, data);
         state
     }
+
+    pub fn value<T: Copy + PartialEq + Send + Sync + 'static>(
+        &self,
+        immutable: Option<Entity>,
+        caller: Entity,
+        world: &mut World
+    ) -> SignalsResult<T> {
+        match immutable {
+            Some(immutable) => {
+                let mut entity = world.entity_mut(immutable);
+                match entity.get_mut::<LazyImmutable<T>>() {
+                    Some(mut observable) => { Ok(observable.value(caller)) }
+
+                    // TODO maybe add some kind of config option to ignore errors and return default
+                    None => Err(SignalsError::ReadError(immutable)),
+                }
+            }
+            None => Err(SignalsError::NoSignalError),
+        }
+    }
 }
 
 // ## Traits
@@ -124,7 +144,7 @@ pub trait UntypedObservable {
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
 /// It should call value instead of read to make sure it is re-subscribed to its sources!
 /// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub type PropagatorFn = dyn FnMut(&Vec<Entity>, Option<&mut Entity>) + Send + Sync;
+pub type PropagatorFn = dyn FnMut(Entity, &Vec<Entity>, Option<&mut Entity>) + Send + Sync;
 
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.

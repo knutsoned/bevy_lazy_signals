@@ -275,7 +275,7 @@ pub fn apply_deferred_effects(
 
             // actually run the effect
             if let Some(mut component) = world.entity_mut(entity).get_mut::<Propagator>() {
-                (component.propagator)(sources, None);
+                (component.propagator)(entity, sources, None);
             }
         }
     }

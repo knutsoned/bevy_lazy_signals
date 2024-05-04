@@ -20,25 +20,32 @@ fn main() {
         .run();
 }
 
-fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
-    // simple effect as a propagator who logs its triggers whenever one of them changes
-    let effect_propagator: Box<PropagatorFn> = Box::new(|triggers, target| {
-        info!("triggers: {:?}", triggers);
-        // TODO output the value of each trigger
-        if target.is_some() {
-            error!("effects should not have targets!");
-        }
+fn init(world: &mut World) {
+    world.resource_scope(|world, mut test: Mut<TestResource>| {
+        let mut commands = world.commands();
+
+        // simple effect as a propagator who logs its triggers whenever one of them changes
+        let effect_propagator: Box<PropagatorFn> = Box::new(|caller, triggers, target| {
+            info!("running effect {:?} with triggers {:?}", caller, triggers);
+            /* FIXME -- there has to be a non-ugly way to do this
+            if let Ok(value) = Signal.value::<bool>(Some(triggers[0]), caller, world) {
+            }
+            */
+            if target.is_some() {
+                error!("effects should not have targets!");
+            }
+        });
+
+        // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
+        // see SignalsPlugin
+        let test_signal = Signal.state(false, &mut commands);
+        test.signal = Some(test_signal);
+        info!("created test signal");
+
+        // trigger an effect from the signal
+        test.effect = Some(Signal.effect(effect_propagator, vec![test_signal], &mut commands));
+        info!("created test effect");
     });
-
-    // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
-    // see SignalsPlugin
-    let test_signal = Signal.state(false, &mut commands);
-    test.signal = Some(test_signal);
-    info!("created test signal");
-
-    // trigger an effect from the signal
-    test.effect = Some(Signal.effect(effect_propagator, vec![test_signal], &mut commands));
-    info!("created test effect");
 }
 
 fn send_some_signals(test: Res<TestResource>, mut commands: Commands) {
