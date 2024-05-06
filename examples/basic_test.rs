@@ -25,7 +25,7 @@ fn init(world: &mut World) {
     world.resource_scope(|world, mut test: Mut<TestResource>| {
         let mut commands = world.commands();
 
-        // simple effect as a propagator who logs its triggers whenever one of them changes
+        // simple effect that logs its trigger(s) whenever one changes
         let effect_propagator: Box<dyn EffectFn> = Box::new(|params| {
             info!("running effect {:?}", params);
             Ok(())
