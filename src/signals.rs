@@ -20,7 +20,7 @@ pub type SignalsResult<T> = Result<T, SignalsError>;
 impl Signal {
     pub fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &self,
-        propagator: Box<PropagatorFn>,
+        propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
         init_value: T,
         commands: &mut Commands
@@ -32,7 +32,7 @@ impl Signal {
 
     pub fn effect(
         &self,
-        propagator: Box<PropagatorFn>,
+        propagator: Box<dyn PropagatorFn>,
         triggers: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
@@ -138,14 +138,6 @@ pub trait UntypedObservable {
     fn subscribe(&mut self, entity: Entity);
 }
 
-/// A Propagator function aggregates (merges) data from multiple cells to store in a bound cell.
-/// Compared to the MIT model, these Propagators pull data into a cell they are bound to.
-/// MIT Propagators are conceptually more independent and closer to a push-based flow.
-/// This Propagator merges the values of cells denoted by the entity vector into the target entity.
-/// It should call value instead of read to make sure it is re-subscribed to its sources!
-/// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub type PropagatorFn = dyn FnMut(Entity, &Vec<Entity>, Option<&mut Entity>) + Send + Sync;
-
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.
 /// Using the label Immutable because Cell and State often mean other things.
@@ -249,10 +241,22 @@ pub struct ImmutableComponentId {
 #[component(storage = "SparseSet")]
 pub struct SendSignal;
 
+/// A Propagator function aggregates (merges) data from multiple cells to store in a bound cell.
+/// Compared to the MIT model, these Propagators pull data into a cell they are bound to.
+/// MIT Propagators are conceptually more independent and closer to a push-based flow.
+/// This Propagator merges the values of cells denoted by the entity vector into the target entity.
+/// It should call value instead of read to make sure it is re-subscribed to its sources!
+/// If the target entity is not supplied, the function is assumed to execute side effects only.
+pub trait PropagatorFn: Send +
+    Sync +
+    FnMut(&mut World, &Entity, &Vec<Entity>, Option<&mut Entity>) {}
+impl<T: Send + Sync + FnMut(&mut World, &Entity, &Vec<Entity>, Option<&mut Entity>)> PropagatorFn
+for T {}
+
 /// A Propagator component is the aggregating propagator function and its sources/triggers list.
 #[derive(Component)]
 pub struct Propagator {
-    pub propagator: Box<PropagatorFn>,
+    pub propagator: Box<dyn PropagatorFn>,
     pub sources: Vec<Entity>,
 }
 

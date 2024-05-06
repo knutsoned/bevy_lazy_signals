@@ -274,9 +274,11 @@ pub fn apply_deferred_effects(
             info!("-found propagator with sources {:?}", sources);
 
             // actually run the effect
+            /* FIXME can not get mutable reference to world twice, maybe reflect the component?
             if let Some(mut component) = world.entity_mut(entity).get_mut::<Propagator>() {
-                (component.propagator)(entity, sources, None);
+                (component.propagator)(world, &entity, sources, None);
             }
+            */
         }
     }
 }
