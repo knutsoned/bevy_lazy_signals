@@ -76,6 +76,9 @@ pub struct SignalsResource {
 
     /// Tracks Effects that are still running and should not be re-triggered.
     pub effects: EntitySet,
+
+    /// Tracks errors that occur when things try to run.
+    pub errors: ErrorSet,
 }
 
 /// This is a singleton that represents the "global state." It is used during internal updates.
@@ -88,6 +91,7 @@ impl SignalsResource {
         self.changed.clear();
         self.deferred.clear();
         // self.effects.clear(); // don't clear this, need.. to remember... what is going on
+        self.errors.clear();
     }
 
     // if there is anext_running set, move it into the running set and empty it
@@ -113,6 +117,7 @@ impl Default for SignalsResource {
             changed: empty_set(),
             deferred: empty_set(),
             effects: empty_set(),
+            errors: ErrorSet::new(),
         }
     }
 }

@@ -20,10 +20,14 @@ pub enum SignalsError {
 }
 
 // ## Traits
+/// An item of data for use with Immutables.
+pub trait ReflectedData: Copy + PartialEq + Reflect + Send + Sync + 'static {}
+impl<T> ReflectedData for T where T: Copy + PartialEq + Reflect + Send + Sync + 'static {}
+
 /// An item of data backed by a Bevy entity with a set of subscribers.
 /// Additional methods in UntypedObservable would be here but you can't have generic trait objects.
 pub trait Immutable: Send + Sync + 'static {
-    type DataType: Copy + PartialEq + Send + Sync + 'static;
+    type DataType: ReflectedData;
 
     /// Called by a consumer to provide a new value for the lazy update system to merge.
     fn merge_next(&mut self, next: Self::DataType);
@@ -42,6 +46,9 @@ pub trait UntypedObservable {
     /// The ref impl uses this to update the Immutable values without knowing the type.
     /// These are also part of sending a Signal.
     ///
+    /// Copy the data into a dynamic tuple of params for the Effect or Propagator to consume.
+    fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple);
+
     /// Get the list of subscriber Entities that may need notification.
     fn get_subscribers(&self) -> Vec<Entity>;
 
@@ -84,7 +91,7 @@ impl<T: Send + Sync + FnMut(DynamicTuple) -> SignalsResult<()>> EffectFn for T {
 /// This Immutable is lazy. Other forms are left as an exercise for the reader.
 #[derive(Component, Reflect)]
 #[reflect(Component, UntypedObservable)]
-pub struct LazyImmutable<T: Copy + PartialEq + Send + Sync + 'static> {
+pub struct LazyImmutable<T: ReflectedData> {
     data: T,
     next_value: Option<T>,
     #[reflect(ignore)]
@@ -93,13 +100,13 @@ pub struct LazyImmutable<T: Copy + PartialEq + Send + Sync + 'static> {
     next_subscribers: EntitySet,
 }
 
-impl<T: Copy + PartialEq + Send + Sync + 'static> LazyImmutable<T> {
+impl<T: ReflectedData> LazyImmutable<T> {
     pub fn new(data: T) -> Self {
         Self { data, next_value: None, subscribers: empty_set(), next_subscribers: empty_set() }
     }
 }
 
-impl<T: Copy + PartialEq + Send + Sync + 'static> Immutable for LazyImmutable<T> {
+impl<T: ReflectedData> Immutable for LazyImmutable<T> {
     type DataType = T;
 
     // TODO add a get that returns a result after safely calling read
@@ -120,7 +127,12 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Immutable for LazyImmutable<T>
     }
 }
 
-impl<T: Copy + PartialEq + Send + Sync + 'static> UntypedObservable for LazyImmutable<T> {
+impl<T: ReflectedData> UntypedObservable for LazyImmutable<T> {
+    fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple) {
+        params.insert(self.data);
+        self.subscribe(caller);
+    }
+
     fn get_subscribers(&self) -> Vec<Entity> {
         let mut subs = Vec::<Entity>::new();
 
@@ -180,7 +192,7 @@ pub struct SendSignal;
 /// A Propagator component is the aggregating propagator function and its sources/triggers list.
 #[derive(Component)]
 pub struct Propagator {
-    pub propagator: Box<dyn PropagatorFn>,
+    pub function: Box<dyn PropagatorFn>,
     pub sources: Vec<Entity>,
 }
 
@@ -192,7 +204,7 @@ pub struct ComputeMemo;
 /// An effect is a Propagator endpoint that returns no value and just runs side-effects.
 #[derive(Component)]
 pub struct Effect {
-    pub effect: Box<dyn EffectFn>,
+    pub function: Box<dyn EffectFn>,
     pub triggers: Vec<Entity>,
 }
 
@@ -220,6 +232,9 @@ pub type EntityHierarchySet = SparseSet<Entity, Vec<Entity>>;
 
 /// Set of unique Entities
 pub type EntitySet = SparseSet<Entity, ()>;
+
+/// Set of internal errors when running computed (propagator) and effect functions.
+pub type ErrorSet = SparseSet<Entity, SignalsError>;
 
 /// Create an empty sparse set for storing Entities by ID.
 pub fn empty_set() -> EntitySet {

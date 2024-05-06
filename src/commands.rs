@@ -5,63 +5,60 @@ use crate::signals::*;
 /// Convenience extension to use each Command directly from Commands instance.
 pub trait SignalsCommandsExt {
     /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
-    fn create_computed<T: Copy + PartialEq + Send + Sync + 'static>(
+    fn create_computed<T: ReflectedData>(
         &mut self,
-        entity: Entity,
-        propagator: Box<dyn PropagatorFn>,
+        computed: Entity,
+        function: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
         init_value: T
     );
 
     /// Command to create an effect (Propagator with no Immutable) from the given entity.
-    fn create_effect(&mut self, entity: Entity, effect: Box<dyn EffectFn>, triggers: Vec<Entity>);
+    fn create_effect(&mut self, effect: Entity, function: Box<dyn EffectFn>, triggers: Vec<Entity>);
 
     /// Command to create a state (Immutable with no Propagator) from the given entity.
-    fn create_state<T: Copy + PartialEq + Send + Sync + 'static>(&mut self, state: Entity, data: T);
+    fn create_state<T: ReflectedData>(&mut self, state: Entity, data: T);
 
-    fn send_signal<T: Copy + PartialEq + Send + Sync + 'static>(&mut self, signal: Entity, data: T);
+    fn send_signal<T: ReflectedData>(&mut self, signal: Entity, data: T);
 }
 
 impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
-    fn create_computed<T: Copy + PartialEq + Send + Sync + 'static>(
+    fn create_computed<T: ReflectedData>(
         &mut self,
-        entity: Entity,
-        propagator: Box<dyn PropagatorFn>,
+        computed: Entity,
+        function: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
         init_value: T
     ) {
         self.add(CreateComputedCommand::<T> {
-            entity,
-            propagator,
+            computed,
+            function,
             sources,
             init_value,
         });
     }
 
-    fn create_effect(&mut self, entity: Entity, effect: Box<dyn EffectFn>, triggers: Vec<Entity>) {
+    fn create_effect(
+        &mut self,
+        effect: Entity,
+        function: Box<dyn EffectFn>,
+        triggers: Vec<Entity>
+    ) {
         self.add(CreateEffectCommand {
-            entity,
             effect,
+            function,
             triggers,
         });
     }
 
-    fn create_state<T: Copy + PartialEq + Send + Sync + 'static>(
-        &mut self,
-        state: Entity,
-        data: T
-    ) {
+    fn create_state<T: ReflectedData>(&mut self, state: Entity, data: T) {
         self.add(CreateStateCommand::<T> {
             state,
             data,
         });
     }
 
-    fn send_signal<T: Copy + PartialEq + Send + Sync + 'static>(
-        &mut self,
-        signal: Entity,
-        data: T
-    ) {
+    fn send_signal<T: ReflectedData>(&mut self, signal: Entity, data: T) {
         self.add(SendSignalCommand::<T> {
             signal,
             data,
@@ -70,24 +67,24 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
 }
 
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
-pub struct CreateComputedCommand<T: Copy + PartialEq + Send + Sync + 'static> {
-    entity: Entity,
-    propagator: Box<dyn PropagatorFn>,
+pub struct CreateComputedCommand<T: ReflectedData> {
+    computed: Entity,
+    function: Box<dyn PropagatorFn>,
     sources: Vec<Entity>,
     init_value: T,
 }
 
-impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateComputedCommand<T> {
+impl<T: ReflectedData> Command for CreateComputedCommand<T> {
     fn apply(self, world: &mut World) {
         let component_id = world.init_component::<LazyImmutable<T>>();
         world
-            .get_entity_mut(self.entity)
+            .get_entity_mut(self.computed)
             .unwrap()
             .insert((
                 LazyImmutable::<T>::new(self.init_value),
                 ImmutableComponentId { component_id },
                 Propagator {
-                    propagator: self.propagator,
+                    function: self.function,
                     sources: self.sources,
                 },
                 RebuildSubscribers,
@@ -97,19 +94,19 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateComputedComm
 
 /// Command to create an effect (Propagator with no memo) from the given entity.
 pub struct CreateEffectCommand {
-    entity: Entity,
-    effect: Box<dyn EffectFn>,
+    effect: Entity,
+    function: Box<dyn EffectFn>,
     triggers: Vec<Entity>,
 }
 
 impl Command for CreateEffectCommand {
     fn apply(self, world: &mut World) {
         world
-            .get_entity_mut(self.entity)
+            .get_entity_mut(self.effect)
             .unwrap()
             .insert((
                 Effect {
-                    effect: self.effect,
+                    function: self.function,
                     triggers: self.triggers,
                 },
                 RebuildSubscribers,
@@ -118,12 +115,12 @@ impl Command for CreateEffectCommand {
 }
 
 /// Command to create a state (Immutable) from the given entity.
-pub struct CreateStateCommand<T: Copy + PartialEq + Send + Sync + 'static> {
+pub struct CreateStateCommand<T: ReflectedData> {
     state: Entity,
     data: T,
 }
 
-impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateStateCommand<T> {
+impl<T: ReflectedData> Command for CreateStateCommand<T> {
     fn apply(self, world: &mut World) {
         // store the ComponentId so we can reflect the LazyImmutable
         let component_id = world.init_component::<LazyImmutable<T>>();
@@ -135,12 +132,12 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateStateCommand
 }
 
 /// Command to send a Signal (i.e. update an Immutable during the next tick) to the given entity.
-pub struct SendSignalCommand<T: Copy + PartialEq + Send + Sync + 'static> {
+pub struct SendSignalCommand<T: ReflectedData> {
     signal: Entity,
     data: T,
 }
 
-impl<T: Copy + PartialEq + Send + Sync + 'static> Command for SendSignalCommand<T> {
+impl<T: ReflectedData> Command for SendSignalCommand<T> {
     fn apply(self, world: &mut World) {
         trace!("SendSignalCommand {:?}", self.signal);
         // we're less sure the signal actually exists, but don't panic if not

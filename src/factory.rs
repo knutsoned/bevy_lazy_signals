@@ -6,7 +6,7 @@ use crate::{ commands::*, signals::* };
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
 pub struct Signal;
 impl Signal {
-    pub fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
+    pub fn computed<T: ReflectedData>(
         &self,
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
@@ -29,7 +29,7 @@ impl Signal {
         entity
     }
 
-    pub fn read<T: Copy + PartialEq + Send + Sync + 'static>(
+    pub fn read<T: ReflectedData>(
         &self,
         immutable: Option<Entity>,
         world: &World
@@ -48,28 +48,19 @@ impl Signal {
         }
     }
 
-    pub fn send<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        signal: Option<Entity>,
-        data: T,
-        commands: &mut Commands
-    ) {
+    pub fn send<T: ReflectedData>(&self, signal: Option<Entity>, data: T, commands: &mut Commands) {
         if let Some(signal) = signal {
             commands.send_signal::<T>(signal, data);
         }
     }
 
-    pub fn state<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        data: T,
-        commands: &mut Commands
-    ) -> Entity {
+    pub fn state<T: ReflectedData>(&self, data: T, commands: &mut Commands) -> Entity {
         let state = commands.spawn_empty().id();
         commands.create_state::<T>(state, data);
         state
     }
 
-    pub fn value<T: Copy + PartialEq + Send + Sync + 'static>(
+    pub fn value<T: ReflectedData>(
         &self,
         immutable: Option<Entity>,
         caller: Entity,

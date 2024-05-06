@@ -224,7 +224,7 @@ pub fn send_signals(
 
             // as long as there is a next_running set, move next_running set into the current one
             while signals.merge_running() {
-                // make a copy of the running set
+                // make a local copy of the running set
                 let mut running = empty_set();
                 for runner in signals.running.indices() {
                     info!("we've got a runner: {:?}", runner);
@@ -255,7 +255,7 @@ pub fn send_signals(
                             subscriber.insert(ComputeMemo);
                             info!("-marked memo for computation");
 
-                            // FIXME item has its own subscribers, so add those to the next_running set
+                            // FIXME computed has its own subscribers, so add those to the next_running set
                         }
                     }
                 }
@@ -335,63 +335,44 @@ pub fn apply_deferred_effects(
                 let immutable = world.entity(*source).get::<ImmutableComponentId>().unwrap();
                 let component_id = immutable.component_id;
                 info!("-found a trigger with component ID {:?}", component_id);
-                component_id_set.insert(entity, component_id);
+                component_id_set.insert(*source, component_id);
                 if let Some(info) = world.components().get_info(component_id) {
                     component_info.insert(component_id, info.clone());
                 }
             }
 
             // actually run the effect
-            // let mut params = DynamicTuple::default();
-            for (_, component_id) in component_id_set.iter() {
+            let mut params = DynamicTuple::default();
+            for (source, component_id) in component_id_set.iter() {
                 // should be able to call the value method via reflection
                 world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
                     let type_registry = type_registry.read();
-
-                    info!("component_id: {:?}", component_id);
                     let type_id = component_info.get(*component_id).unwrap().type_id();
-
-                    // this may be a little trickier since we need to do generics
-                    //let registration = type_registry.get(component_id.type_id()).unwrap();
-                    info!("type_id: {:?}", type_id);
-
-                    // looks like we need the type_id to come from component_info
-                    // since the one from component_id is probably the ComponentIfd itself
-                    // and not the actual Component
-                    let registration = type_registry.get(type_id.unwrap()).unwrap();
-                    info!("Registration for {} exists", registration.type_info().type_path());
-
-                    /* TODO
-                    // we can get the proper type registration for the Immutable<T> component
-                    // but without knowing T we can't get the right reflect type such as
-                    // ReflectLazyImmutable<bool>
-                    let mut binding = world.entity_mut(source);
-
-                    // need to call the value method and add the result to the params
-                    let mut mut_untyped = binding.get_mut_by_id(*component_id).unwrap();
-
-                    // ...and convert that into a pointer
-                    let ptr_mut = mut_untyped.as_mut();
-
-                    // insert arcane wizardry here
-                    let reflect_from_ptr = make_reflect_from_ptr(
-                        registration.type_id(),
-                        &type_registry
-                    );
-
-                    // get the data and put it in a dyhnamic tuple
-                    params.insert(
+                    if let Some(mut source) = world.get_entity_mut(*source) {
+                        let type_id = type_id.unwrap();
+                        // insert arcane wizardry here
                         ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
-                            ptr_mut,
-                            &reflect_from_ptr,
+                            &mut source,
+                            &entity,
+                            &mut params,
+                            component_id,
+                            &type_id,
                             &type_registry
-                        )
-                    );
-                    */
+                        );
+                    }
                 });
             }
 
-            // then call the EffectFn with the gathered params
+            world.resource_scope(|world, mut signals: Mut<SignalsResource>| {
+                // then call the EffectFn with the gathered params
+                if let Some(mut handle) = world.get_entity_mut(entity) {
+                    let mut effect = handle.get_mut::<Effect>().unwrap();
+                    let result = (effect.function)(params);
+                    if result.is_err() {
+                        signals.errors.insert(entity, result.err().unwrap());
+                    }
+                }
+            });
         }
     }
 }
