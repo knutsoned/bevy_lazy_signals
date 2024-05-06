@@ -7,7 +7,7 @@ use bevy::{
     reflect::{ ReflectFromPtr, TypeRegistry },
 };
 
-use crate::signals::ReflectUntypedObservable;
+use crate::signals::*;
 
 pub(crate) fn make_reflect_from_ptr(
     type_id: TypeId,
@@ -113,8 +113,9 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
     let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
 
     // the sun grew dark and cold
+    /*
     let reflect_untyped_observable = type_registry
-        .get_type_data::<ReflectLazyImmutable<bool>>(value.type_id())
+        .get_type_data::<Reflect<bool>>(value.type_id())
         .unwrap();
 
     // the seas boiled
@@ -122,4 +123,5 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
 
     // do the dang thing
     untyped_observable.merge()
+    */
 }
