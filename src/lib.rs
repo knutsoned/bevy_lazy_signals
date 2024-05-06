@@ -13,7 +13,7 @@ pub mod signals;
 use signals::*;
 
 pub mod prelude {
-    pub use crate::{ factory::*, reference_impl::*, SignalsPlugin, SignalsResource };
+    pub use crate::{ factory::*, signals::*, SignalsPlugin, SignalsResource };
 }
 
 /// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.
@@ -41,11 +41,11 @@ impl Plugin for SignalsPlugin {
             //.register_component_as::<dyn LazyMergeable, LazyImmutable<>>()
             .add_systems(
                 PreUpdate, // could be PostUpdate or whatever else (probably not Update)
-                // defaults to PreUpdate since it is assumed the UI will process right after Update
+                // before() ensures each system's changes will be applied before the next is called
 
+                // defaults to PreUpdate since it is assumed the UI will process right after Update
                 // PostUpdate is a good place to read any events from the main app and send signals
 
-                // before() ensures each system's changes will be applied before the next is called
                 (
                     init_subscribers.before(send_signals),
                     send_signals.before(calculate_memos),
