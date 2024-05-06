@@ -2,7 +2,7 @@ use std::{ any::TypeId, sync::RwLockReadGuard };
 
 use bevy::{ ecs::entity::Entity, ptr::PtrMut, reflect::{ ReflectFromPtr, TypeRegistry } };
 
-use crate::ReflectUntypedObservable;
+use crate::signals::ReflectUntypedObservable;
 
 pub(crate) fn make_reflect_from_ptr(
     type_id: TypeId,
