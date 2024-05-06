@@ -40,7 +40,11 @@ impl Plugin for SignalsPlugin {
             .register_type::<ImmutableStr>()
             //.register_component_as::<dyn LazyMergeable, LazyImmutable<>>()
             .add_systems(
-                PostUpdate, // could be Preupdate or whatever else (probably not Update)
+                PreUpdate, // could be PostUpdate or whatever else (probably not Update)
+                // defaults to PreUpdate since it is assumed the UI will process right after Update
+
+                // PostUpdate is a good place to read any events from the main app and send signals
+
                 // before() ensures each system's changes will be applied before the next is called
                 (
                     init_subscribers.before(send_signals),
