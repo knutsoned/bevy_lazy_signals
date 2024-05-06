@@ -379,7 +379,7 @@ pub fn apply_deferred_effects(
                         &type_registry
                     );
 
-                    // merge the next data value and return a list of subscribers to the change
+                    // get the data and put it in a dyhnamic tuple
                     params.insert(
                         ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
                             ptr_mut,
