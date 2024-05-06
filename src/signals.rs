@@ -13,10 +13,30 @@ pub enum SignalsError {
     #[error["Signal does not exist"]] NoSignalError,
 }
 
-/// Convenience wrapper for Signal creation and manipulation functionality.
-pub struct Signal;
+/// ## Main Signal primitive factory
+/// Result type for handling error conditions in consumer code.
 pub type SignalsResult<T> = Result<T, SignalsError>;
 
+/// Reader to make it easier to read sources in a PropagatorFn.
+pub struct SignalsReader<'a> {
+    world: &'a mut World,
+    caller: &'a Entity,
+    triggers: &'a Vec<Entity>,
+}
+impl<'a> SignalsReader<'a> {
+    pub fn value<T: Copy + PartialEq + Send + Sync + 'static>(
+        &mut self,
+        index: usize
+    ) -> SignalsResult<T> {
+        match self.triggers.get(index) {
+            Some(index) => Signal.value::<T>(Some(*index), *self.caller, self.world),
+            None => Err(SignalsError::NoSignalError),
+        }
+    }
+}
+
+/// Convenience functions for Signal creation and manipulation.
+pub struct Signal;
 impl Signal {
     pub fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &self,
@@ -58,6 +78,15 @@ impl Signal {
             }
             None => Err(SignalsError::NoSignalError),
         }
+    }
+
+    pub fn reader<'a>(
+        &self,
+        world: &'a mut World,
+        caller: &'a Entity,
+        triggers: &'a Vec<Entity>
+    ) -> SignalsReader<'a> {
+        SignalsReader { world, caller, triggers }
     }
 
     pub fn send<T: Copy + PartialEq + Send + Sync + 'static>(
@@ -137,6 +166,18 @@ pub trait UntypedObservable {
     /// Called by an Effect or Memo indirectly by reading the current value.
     fn subscribe(&mut self, entity: Entity);
 }
+
+/// A Propagator function aggregates (merges) data from multiple cells to store in a bound cell.
+/// Compared to the MIT model, these Propagators pull data into a cell they are bound to.
+/// MIT Propagators are conceptually more independent and closer to a push-based flow.
+/// This Propagator merges the values of cells denoted by the entity vector into the target entity.
+/// It should call value instead of read to make sure it is re-subscribed to its sources!
+/// If the target entity is not supplied, the function is assumed to execute side effects only.
+pub trait PropagatorFn: Send +
+    Sync +
+    FnMut(&mut World, &Entity, &Vec<Entity>, Option<&mut Entity>) {}
+impl<T: Send + Sync + FnMut(&mut World, &Entity, &Vec<Entity>, Option<&mut Entity>)> PropagatorFn
+for T {}
 
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.
@@ -240,18 +281,6 @@ pub struct ImmutableComponentId {
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct SendSignal;
-
-/// A Propagator function aggregates (merges) data from multiple cells to store in a bound cell.
-/// Compared to the MIT model, these Propagators pull data into a cell they are bound to.
-/// MIT Propagators are conceptually more independent and closer to a push-based flow.
-/// This Propagator merges the values of cells denoted by the entity vector into the target entity.
-/// It should call value instead of read to make sure it is re-subscribed to its sources!
-/// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub trait PropagatorFn: Send +
-    Sync +
-    FnMut(&mut World, &Entity, &Vec<Entity>, Option<&mut Entity>) {}
-impl<T: Send + Sync + FnMut(&mut World, &Entity, &Vec<Entity>, Option<&mut Entity>)> PropagatorFn
-for T {}
 
 /// A Propagator component is the aggregating propagator function and its sources/triggers list.
 #[derive(Component)]

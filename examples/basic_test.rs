@@ -26,9 +26,10 @@ fn init(world: &mut World) {
 
         // simple effect as a propagator who logs its triggers whenever one of them changes
         let effect_propagator: Box<dyn PropagatorFn> = Box::new(|world, caller, triggers, target| {
-            info!("running effect {:?} with triggers {:?}", caller, triggers);
+            info!("running effect {:?}", caller);
             // FIXME -- there has to be a non-ugly way to do this
-            if let Ok(value) = Signal.value::<bool>(Some(triggers[0]), *caller, world) {
+            let mut trigger = Signal.reader(world, caller, triggers);
+            if let Ok(value) = trigger.value::<bool>(0) {
                 info!("effect triggered by trigger changing to '{}'", value);
             }
             if target.is_some() {
