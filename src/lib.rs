@@ -47,7 +47,7 @@ impl Plugin for SignalsPlugin {
                 // PostUpdate is a good place to read any events from the main app and send signals
 
                 (
-                    init_subscribers.before(send_signals),
+                    (init_effects, init_propagators).before(send_signals),
                     send_signals.before(calculate_memos),
                     calculate_memos.before(apply_deferred_effects),
                     apply_deferred_effects,

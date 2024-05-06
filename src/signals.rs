@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{ component::ComponentId, storage::SparseSet },
+    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
     prelude::*,
     reflect::DynamicTuple,
 };
@@ -208,6 +208,15 @@ pub struct DeferredEffect;
 pub struct RebuildSubscribers;
 
 /// ## Utilities
+
+/// Set of Entity to ComponentId.
+pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
+
+/// Set of ComponentId to ComponentInfo.
+pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
+
+/// Set of Entity to child Entities.
+pub type EntityHierarchySet = SparseSet<Entity, Vec<Entity>>;
 
 /// Set of unique Entities
 pub type EntitySet = SparseSet<Entity, ()>;

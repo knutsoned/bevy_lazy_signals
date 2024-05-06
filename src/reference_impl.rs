@@ -1,28 +1,81 @@
 use std::any::TypeId;
 
-use bevy::{
-    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
-    prelude::*,
-    reflect::DynamicTuple,
-};
+use bevy::{ ecs::component::ComponentId, prelude::*, reflect::DynamicTuple };
 
 use crate::{ arcane_wizardry::*, signals::*, SignalsResource };
-
-/// Set of Entity to child Entities.
-pub type EntityHierarchySet = SparseSet<Entity, Vec<Entity>>;
-
-/// Set of Entity to ComponentId.
-pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
-
-/// Set of ComponentId to ComponentInfo.
-pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
 
 /// This is the reference user API, patterned after the TC39 proposal.
 ///
 /// ## Systems
 /// These systems are meant to be run in tight sequence, preferably like the plugin demonstrates.
 /// Any commands in each system must be applied before proceeding to the next.
-pub fn init_subscribers(
+pub fn init_effects(
+    world: &mut World,
+    query_effects: &mut QueryState<(Entity, &Effect), With<RebuildSubscribers>>
+) {
+    // collapse the query or get world concurrency errors
+    let mut entities = EntityHierarchySet::new();
+    for (entity, prop) in query_effects.iter(world) {
+        info!("-preparing sources for {:?}", entity);
+        entities.insert(entity, prop.triggers.clone());
+    }
+
+    world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
+        let type_registry = type_registry.read();
+
+        // run the subscribe method on each Propagator.sources, passing the Entity
+        for (entity, sources) in entities.iter() {
+            // loop through the sources
+            for source in sources.iter() {
+                // get the TypeId of each source (Signal or Memo) Immutable component
+                let mut component_id: Option<ComponentId> = None;
+                let mut type_id: Option<TypeId> = None;
+
+                // get a readonly reference to the source entity
+                if let Some(source) = world.get_entity(*source) {
+                    // get the source Immutable component
+                    if let Some(immutable) = source.get::<ImmutableComponentId>() {
+                        // ...as an UntypedObservable
+                        component_id = Some(immutable.component_id);
+                        if let Some(info) = world.components().get_info(component_id.unwrap()) {
+                            type_id = info.type_id();
+                        }
+                    }
+                }
+
+                // we have a component and a type, now do mutable stuff
+                if component_id.is_some() && type_id.is_some() {
+                    if let Some(mut source) = world.get_entity_mut(*source) {
+                        let type_id = type_id.unwrap();
+
+                        // call subscribe
+                        enter_malkovich_world(
+                            &mut source,
+                            entity,
+                            &component_id.unwrap(),
+                            &type_id,
+                            &type_registry
+                        );
+
+                        // get the source Immutable component as an ECS change detection handle
+                        let mut mut_untyped = source.get_mut_by_id(component_id.unwrap()).unwrap();
+
+                        // merge the new subscriber into the main set
+                        let ptr_mut = mut_untyped.as_mut();
+
+                        // insert arcane wizardry here
+                        let reflect_from_ptr = make_reflect_from_ptr(type_id, &type_registry);
+                        long_live_the_new_flesh(ptr_mut, &reflect_from_ptr, &type_registry);
+                    }
+                }
+            }
+
+            world.get_entity_mut(*entity).unwrap().remove::<RebuildSubscribers>();
+        }
+    });
+}
+
+pub fn init_propagators(
     world: &mut World,
     query_propagators: &mut QueryState<(Entity, &Propagator), With<RebuildSubscribers>>
 ) {
@@ -56,26 +109,29 @@ pub fn init_subscribers(
                     }
                 }
 
+                info!("component_id: {:?}, type_id: {:?}", component_id, type_id);
                 // we have a component and a type, now do mutable stuff
                 if component_id.is_some() && type_id.is_some() {
                     if let Some(mut source) = world.get_entity_mut(*source) {
-                        // get the source Immutable component as an ECS change detection handle
-                        let mut mut_untyped = source.get_mut_by_id(component_id.unwrap()).unwrap();
+                        let type_id = type_id.unwrap();
 
-                        // ...and convert that into a pointer
-                        let ptr_mut = mut_untyped.as_mut();
-
-                        // insert arcane wizardry here
-                        let reflect_from_ptr = make_reflect_from_ptr(
-                            type_id.unwrap(),
+                        // call subscribe
+                        enter_malkovich_world(
+                            &mut source,
+                            entity,
+                            &component_id.unwrap(),
+                            &type_id,
                             &type_registry
                         );
 
-                        // add the subscriber
-                        enter_malkovich_world(*entity, ptr_mut, &reflect_from_ptr, &type_registry);
+                        // get the source Immutable component as an ECS change detection handle
+                        let mut mut_untyped = source.get_mut_by_id(component_id.unwrap()).unwrap();
 
                         // merge the new subscriber into the main set
                         let ptr_mut = mut_untyped.as_mut();
+
+                        // insert arcane wizardry here
+                        let reflect_from_ptr = make_reflect_from_ptr(type_id, &type_registry);
                         long_live_the_new_flesh(ptr_mut, &reflect_from_ptr, &type_registry);
                     }
                 }
@@ -97,15 +153,16 @@ pub fn send_signals(
         // initialize sets
         signals.init();
 
+        trace!("looking for signals");
         let mut count = 0;
+
         let mut component_id_set = ComponentIdSet::new();
         let mut component_info = ComponentInfoSet::new();
 
-        trace!("looking for signals");
         // build component id -> info map
         for (entity, immutable) in query_signals.iter(world) {
             let component_id = immutable.component_id;
-            trace!("found a signal for component ID {:?}", component_id);
+            trace!("-found a signal with component ID {:?}", component_id);
             component_id_set.insert(entity, component_id);
             if let Some(info) = world.components().get_info(component_id) {
                 component_info.insert(component_id, info.clone());
@@ -170,8 +227,12 @@ pub fn send_signals(
                 // make a copy of the running set
                 let mut running = empty_set();
                 for runner in signals.running.indices() {
+                    info!("we've got a runner: {:?}", runner);
+
                     // skip if already in processed set
                     if !signals.processed.contains(runner) {
+                        info!("...adding to running set");
+
                         running.insert(runner, ());
                     }
                 }
@@ -183,21 +244,18 @@ pub fn send_signals(
 
                     // what kind of subscriber is this?
                     if let Some(mut subscriber) = world.get_entity_mut(runner) {
+                        if subscriber.contains::<Effect>() {
+                            // it is an effect, so schedule the effect by adding DeferredEffect
+                            subscriber.insert(DeferredEffect);
+                            info!("-scheduled effect");
+                        }
                         // if the entity has a Propagator
                         if subscriber.contains::<Propagator>() {
-                            // a) ...AND an ImmutableComponentId...
                             // it is a memo, so mark it for recalculation by adding ComputeMemo
-                            if subscriber.contains::<ImmutableComponentId>() {
-                                subscriber.insert(ComputeMemo);
-                                info!("-marked memo for computation");
-                            } else {
-                                // b) ...but no ImmutableComponentId...
-                                // it is an effect, so schedule the effect by adding DeferredEffect
-                                subscriber.insert(DeferredEffect);
-                                info!("-scheduled effect");
-                            }
+                            subscriber.insert(ComputeMemo);
+                            info!("-marked memo for computation");
 
-                            // item has its own subscribers, so add those to the next_running set
+                            // FIXME item has its own subscribers, so add those to the next_running set
                         }
                     }
                 }
@@ -235,15 +293,15 @@ pub fn calculate_memos(
 
 pub fn apply_deferred_effects(
     world: &mut World,
-    query_effects: &mut QueryState<(Entity, &Propagator), With<DeferredEffect>>
+    query_effects: &mut QueryState<(Entity, &Effect), With<DeferredEffect>>
 ) {
     trace!("EFFECTS");
     let mut effects = empty_set();
 
     // collapse the query or get world concurrency errors
     let mut hierarchy = EntityHierarchySet::new();
-    for (entity, prop) in query_effects.iter(world) {
-        hierarchy.insert(entity, prop.sources.clone());
+    for (entity, effect) in query_effects.iter(world) {
+        hierarchy.insert(entity, effect.triggers.clone());
     }
 
     // read
@@ -251,6 +309,7 @@ pub fn apply_deferred_effects(
         for (entity, triggers) in hierarchy.iter() {
             // only run an effect if at least one of its triggers is in the changed set
             for source in triggers {
+                info!("-checking changed set");
                 if signals.changed.contains(*source) {
                     info!("-running effect {:?} with triggers {:?}", entity, triggers);
                     effects.insert(*entity, ());
@@ -265,20 +324,74 @@ pub fn apply_deferred_effects(
     // write
     for entity in effects.indices() {
         if let Some(sources) = hierarchy.get(entity) {
-            info!("-found propagator with sources {:?}", sources);
+            info!("-found effect with sources {:?}", sources);
+
+            // add the source component ID to the set (probably could be optimized)
+            let mut component_id_set = ComponentIdSet::new();
+            let mut component_info = ComponentInfoSet::new();
+
+            // build component id -> info map
+            for source in sources.iter() {
+                let immutable = world.entity(*source).get::<ImmutableComponentId>().unwrap();
+                let component_id = immutable.component_id;
+                info!("-found a trigger with component ID {:?}", component_id);
+                component_id_set.insert(entity, component_id);
+                if let Some(info) = world.components().get_info(component_id) {
+                    component_info.insert(component_id, info.clone());
+                }
+            }
 
             // actually run the effect
+            // let mut params = DynamicTuple::default();
+            for (_, component_id) in component_id_set.iter() {
+                // should be able to call the value method via reflection
+                world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
+                    let type_registry = type_registry.read();
 
-            // try looking up the triggers in the sources (can we just add it without knowing T?)
-            // TODO figure out how to loop through the component IDs for all the sources
-            // then we should be able to call the value methods via reflection
-            let mut params = DynamicTuple::default();
-            for source in sources.iter() {
-                /*
-                let value = Signal.value(Some(*source), entity, world);
-                params.insert(value.unwrap());
-                */
+                    info!("component_id: {:?}", component_id);
+                    let type_id = component_info.get(*component_id).unwrap().type_id();
+
+                    // this may be a little trickier since we need to do generics
+                    //let registration = type_registry.get(component_id.type_id()).unwrap();
+                    info!("type_id: {:?}", type_id);
+
+                    // looks like we need the type_id to come from component_info
+                    // since the one from component_id is probably the ComponentIfd itself
+                    // and not the actual Component
+                    let registration = type_registry.get(type_id.unwrap()).unwrap();
+                    info!("Registration for {} exists", registration.type_info().type_path());
+
+                    /* TODO
+                    // we can get the proper type registration for the Immutable<T> component
+                    // but without knowing T we can't get the right reflect type such as
+                    // ReflectLazyImmutable<bool>
+                    let mut binding = world.entity_mut(source);
+
+                    // need to call the value method and add the result to the params
+                    let mut mut_untyped = binding.get_mut_by_id(*component_id).unwrap();
+
+                    // ...and convert that into a pointer
+                    let ptr_mut = mut_untyped.as_mut();
+
+                    // insert arcane wizardry here
+                    let reflect_from_ptr = make_reflect_from_ptr(
+                        registration.type_id(),
+                        &type_registry
+                    );
+
+                    // merge the next data value and return a list of subscribers to the change
+                    params.insert(
+                        ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
+                            ptr_mut,
+                            &reflect_from_ptr,
+                            &type_registry
+                        )
+                    );
+                    */
+                });
             }
+
+            // then call the EffectFn with the gathered params
         }
     }
 }

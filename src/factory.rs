@@ -13,20 +13,20 @@ impl Signal {
         init_value: T,
         commands: &mut Commands
     ) -> Entity {
-        let computed = commands.spawn_empty().id();
-        commands.create_computed::<T>(computed, propagator, sources, init_value);
-        computed
+        let entity = commands.spawn_empty().id();
+        commands.create_computed::<T>(entity, propagator, sources, init_value);
+        entity
     }
 
     pub fn effect(
         &self,
-        propagator: Box<dyn EffectFn>,
+        effect: Box<dyn EffectFn>,
         triggers: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
-        let effect = commands.spawn_empty().id();
-        commands.create_effect(effect, propagator, triggers);
-        effect
+        let entity = commands.spawn_empty().id();
+        commands.create_effect(entity, effect, triggers);
+        entity
     }
 
     pub fn read<T: Copy + PartialEq + Send + Sync + 'static>(
