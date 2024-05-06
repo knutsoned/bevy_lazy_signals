@@ -1,7 +1,7 @@
 use bevy::{
     ecs::{ component::ComponentId, storage::SparseSet },
     prelude::*,
-    reflect::DynamicStruct,
+    reflect::DynamicTuple,
 };
 
 use thiserror::Error;
@@ -57,8 +57,8 @@ pub trait UntypedObservable {
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
 /// It should call value instead of read to make sure it is re-subscribed to its sources!
 /// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub trait PropagatorFn: Send + Sync + FnMut(DynamicStruct) {}
-impl<T: Send + Sync + FnMut(DynamicStruct)> PropagatorFn for T {}
+pub trait PropagatorFn: Send + Sync + FnMut(DynamicTuple) {}
+impl<T: Send + Sync + FnMut(DynamicTuple)> PropagatorFn for T {}
 
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.

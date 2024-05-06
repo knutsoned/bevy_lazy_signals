@@ -1,6 +1,10 @@
 use std::any::TypeId;
 
-use bevy::{ ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet }, prelude::* };
+use bevy::{
+    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
+    prelude::*,
+    reflect::DynamicTuple,
+};
 
 use crate::{ arcane_wizardry::*, signals::*, SignalsResource };
 
@@ -264,13 +268,17 @@ pub fn apply_deferred_effects(
             info!("-found propagator with sources {:?}", sources);
 
             // actually run the effect
-            // FIXME can not get mutable reference to world twice, maybe reflect the component?
-            // need to somehow get a pointer to the function and still be able to read the world data
-            /*
-            if let Some(mut component) = world.entity_mut(entity).get_mut::<Propagator>() {
-                (component.propagator)(world, &entity, sources, None);
+
+            // try looking up the triggers in the sources (can we just add it without knowing T?)
+            // TODO figure out how to loop through the component IDs for all the sources
+            // then we should be able to call the value methods via reflection
+            let mut params = DynamicTuple::default();
+            for source in sources.iter() {
+                /*
+                let value = Signal.value(Some(*source), entity, world);
+                params.insert(value.unwrap());
+                */
             }
-            */
         }
     }
 }
