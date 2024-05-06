@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use bevy_signals::{ factory::Signal, signals::PropagatorFn, SignalsPlugin };
+use bevy_signals::{ factory::Signal, signals::EffectFn, SignalsPlugin };
 
 #[derive(Resource, Default)]
 struct TestResource {
@@ -26,8 +26,9 @@ fn init(world: &mut World) {
         let mut commands = world.commands();
 
         // simple effect as a propagator who logs its triggers whenever one of them changes
-        let effect_propagator: Box<dyn PropagatorFn> = Box::new(|params| {
+        let effect_propagator: Box<dyn EffectFn> = Box::new(|params| {
             info!("running effect {:?}", params);
+            Ok(())
         });
 
         // create a signal (you need to register data types if not bool, i32, f64, or &'static str)

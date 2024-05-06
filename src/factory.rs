@@ -3,9 +3,6 @@ use bevy::prelude::*;
 use crate::{ commands::*, signals::* };
 
 /// ## Main Signal primitive factory.
-/// Result type for handling error conditions in consumer code.
-pub type SignalsResult<T> = Result<T, SignalsError>;
-
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
 pub struct Signal;
 impl Signal {
@@ -23,7 +20,7 @@ impl Signal {
 
     pub fn effect(
         &self,
-        propagator: Box<dyn PropagatorFn>,
+        propagator: Box<dyn EffectFn>,
         triggers: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {

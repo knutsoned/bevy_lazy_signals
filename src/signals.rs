@@ -7,6 +7,10 @@ use bevy::{
 use thiserror::Error;
 
 /// # Signals framework
+/// ## Types
+/// Result type for handling error conditions in consumer code.
+pub type SignalsResult<T> = Result<T, SignalsError>;
+
 /// ## Enums
 /// Read error.
 #[derive(Error, Debug)]
@@ -57,8 +61,14 @@ pub trait UntypedObservable {
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
 /// It should call value instead of read to make sure it is re-subscribed to its sources!
 /// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub trait PropagatorFn: Send + Sync + FnMut(DynamicTuple) {}
-impl<T: Send + Sync + FnMut(DynamicTuple)> PropagatorFn for T {}
+pub trait PropagatorFn: Send + Sync + FnMut(DynamicTuple) -> DynamicTuple {}
+impl<T: Send + Sync + FnMut(DynamicTuple) -> DynamicTuple> PropagatorFn for T {}
+
+// TODO provide a to_effect to allow a propagator to be used as an effect
+
+/// This is the same basic thing but this fn just runs side-effects so no value is returned
+pub trait EffectFn: Send + Sync + FnMut(DynamicTuple) -> SignalsResult<()> {}
+impl<T: Send + Sync + FnMut(DynamicTuple) -> SignalsResult<()>> EffectFn for T {}
 
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.
@@ -179,7 +189,14 @@ pub struct Propagator {
 #[component(storage = "SparseSet")]
 pub struct ComputeMemo;
 
-/// A DeferredEffect component marks a Propagator function that needs to run.
+/// An effect is a Propagator endpoint that returns no value and just runs side-effects.
+#[derive(Component)]
+pub struct Effect {
+    pub effect: Box<dyn EffectFn>,
+    pub triggers: Vec<Entity>,
+}
+
+/// A DeferredEffect component marks an Effect function that needs to run.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct DeferredEffect;

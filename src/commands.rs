@@ -7,19 +7,14 @@ pub trait SignalsCommandsExt {
     /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
     fn create_computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &mut self,
-        computed: Entity,
+        entity: Entity,
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
         init_value: T
     );
 
     /// Command to create an effect (Propagator with no Immutable) from the given entity.
-    fn create_effect(
-        &mut self,
-        effect: Entity,
-        propagator: Box<dyn PropagatorFn>,
-        triggers: Vec<Entity>
-    );
+    fn create_effect(&mut self, entity: Entity, effect: Box<dyn EffectFn>, triggers: Vec<Entity>);
 
     /// Command to create a state (Immutable with no Propagator) from the given entity.
     fn create_state<T: Copy + PartialEq + Send + Sync + 'static>(&mut self, state: Entity, data: T);
@@ -30,28 +25,23 @@ pub trait SignalsCommandsExt {
 impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
     fn create_computed<T: Copy + PartialEq + Send + Sync + 'static>(
         &mut self,
-        computed: Entity,
+        entity: Entity,
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
         init_value: T
     ) {
         self.add(CreateComputedCommand::<T> {
-            computed,
+            entity,
             propagator,
             sources,
             init_value,
         });
     }
 
-    fn create_effect(
-        &mut self,
-        effect: Entity,
-        propagator: Box<dyn PropagatorFn>,
-        triggers: Vec<Entity>
-    ) {
+    fn create_effect(&mut self, entity: Entity, effect: Box<dyn EffectFn>, triggers: Vec<Entity>) {
         self.add(CreateEffectCommand {
+            entity,
             effect,
-            propagator,
             triggers,
         });
     }
@@ -81,7 +71,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
 
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
 pub struct CreateComputedCommand<T: Copy + PartialEq + Send + Sync + 'static> {
-    computed: Entity,
+    entity: Entity,
     propagator: Box<dyn PropagatorFn>,
     sources: Vec<Entity>,
     init_value: T,
@@ -91,7 +81,7 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateComputedComm
     fn apply(self, world: &mut World) {
         let component_id = world.init_component::<LazyImmutable<T>>();
         world
-            .get_entity_mut(self.computed)
+            .get_entity_mut(self.entity)
             .unwrap()
             .insert((
                 LazyImmutable::<T>::new(self.init_value),
@@ -107,20 +97,20 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> Command for CreateComputedComm
 
 /// Command to create an effect (Propagator with no memo) from the given entity.
 pub struct CreateEffectCommand {
-    effect: Entity,
-    propagator: Box<dyn PropagatorFn>,
+    entity: Entity,
+    effect: Box<dyn EffectFn>,
     triggers: Vec<Entity>,
 }
 
 impl Command for CreateEffectCommand {
     fn apply(self, world: &mut World) {
         world
-            .get_entity_mut(self.effect)
+            .get_entity_mut(self.entity)
             .unwrap()
             .insert((
-                Propagator {
-                    propagator: self.propagator,
-                    sources: self.triggers,
+                Effect {
+                    effect: self.effect,
+                    triggers: self.triggers,
                 },
                 RebuildSubscribers,
             ));
