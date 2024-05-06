@@ -4,6 +4,8 @@ mod arcane_wizardry;
 
 pub mod commands;
 
+pub mod factory;
+
 pub mod reference_impl;
 use reference_impl::*;
 
@@ -11,7 +13,7 @@ pub mod signals;
 use signals::*;
 
 pub mod prelude {
-    pub use crate::{ reference_impl::*, SignalsPlugin, SignalsResource };
+    pub use crate::{ factory::*, reference_impl::*, SignalsPlugin, SignalsResource };
 }
 
 /// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.

@@ -1,8 +1,10 @@
-use bevy::{ ecs::{ component::ComponentId, storage::SparseSet }, prelude::* };
+use bevy::{
+    ecs::{ component::ComponentId, storage::SparseSet },
+    prelude::*,
+    reflect::DynamicStruct,
+};
 
 use thiserror::Error;
-
-use crate::commands::SignalsCommandsExt;
 
 /// # Signals framework
 /// ## Enums
@@ -11,124 +13,6 @@ use crate::commands::SignalsCommandsExt;
 pub enum SignalsError {
     #[error("Error reading signal {0}")] ReadError(Entity),
     #[error["Signal does not exist"]] NoSignalError,
-}
-
-/// ## Main Signal primitive factory
-/// Result type for handling error conditions in consumer code.
-pub type SignalsResult<T> = Result<T, SignalsError>;
-
-/// Reader to make it easier to read sources in a PropagatorFn.
-pub struct SignalsReader<'a> {
-    world: &'a mut World,
-    caller: &'a Entity,
-    triggers: &'a Vec<Entity>,
-}
-impl<'a> SignalsReader<'a> {
-    pub fn value<T: Copy + PartialEq + Send + Sync + 'static>(
-        &mut self,
-        index: usize
-    ) -> SignalsResult<T> {
-        match self.triggers.get(index) {
-            Some(index) => Signal.value::<T>(Some(*index), *self.caller, self.world),
-            None => Err(SignalsError::NoSignalError),
-        }
-    }
-}
-
-/// Convenience functions for Signal creation and manipulation.
-pub struct Signal;
-impl Signal {
-    pub fn computed<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        propagator: Box<dyn PropagatorFn>,
-        sources: Vec<Entity>,
-        init_value: T,
-        commands: &mut Commands
-    ) -> Entity {
-        let computed = commands.spawn_empty().id();
-        commands.create_computed::<T>(computed, propagator, sources, init_value);
-        computed
-    }
-
-    pub fn effect(
-        &self,
-        propagator: Box<dyn PropagatorFn>,
-        triggers: Vec<Entity>,
-        commands: &mut Commands
-    ) -> Entity {
-        let effect = commands.spawn_empty().id();
-        commands.create_effect(effect, propagator, triggers);
-        effect
-    }
-
-    pub fn read<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        immutable: Option<Entity>,
-        world: &World
-    ) -> SignalsResult<T> {
-        match immutable {
-            Some(immutable) => {
-                let entity = world.entity(immutable);
-                match entity.get::<LazyImmutable<T>>() {
-                    Some(observable) => Ok(observable.read()),
-
-                    // TODO maybe add some kind of config option to ignore errors and return default
-                    None => Err(SignalsError::ReadError(immutable)),
-                }
-            }
-            None => Err(SignalsError::NoSignalError),
-        }
-    }
-
-    pub fn reader<'a>(
-        &self,
-        world: &'a mut World,
-        caller: &'a Entity,
-        triggers: &'a Vec<Entity>
-    ) -> SignalsReader<'a> {
-        SignalsReader { world, caller, triggers }
-    }
-
-    pub fn send<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        signal: Option<Entity>,
-        data: T,
-        commands: &mut Commands
-    ) {
-        if let Some(signal) = signal {
-            commands.send_signal::<T>(signal, data);
-        }
-    }
-
-    pub fn state<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        data: T,
-        commands: &mut Commands
-    ) -> Entity {
-        let state = commands.spawn_empty().id();
-        commands.create_state::<T>(state, data);
-        state
-    }
-
-    pub fn value<T: Copy + PartialEq + Send + Sync + 'static>(
-        &self,
-        immutable: Option<Entity>,
-        caller: Entity,
-        world: &mut World
-    ) -> SignalsResult<T> {
-        match immutable {
-            Some(immutable) => {
-                let mut entity = world.entity_mut(immutable);
-                match entity.get_mut::<LazyImmutable<T>>() {
-                    Some(mut observable) => { Ok(observable.value(caller)) }
-
-                    // TODO maybe add some kind of config option to ignore errors and return default
-                    None => Err(SignalsError::ReadError(immutable)),
-                }
-            }
-            None => Err(SignalsError::NoSignalError),
-        }
-    }
 }
 
 // ## Traits
@@ -173,11 +57,8 @@ pub trait UntypedObservable {
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
 /// It should call value instead of read to make sure it is re-subscribed to its sources!
 /// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub trait PropagatorFn: Send +
-    Sync +
-    FnMut(&mut World, &Entity, &Vec<Entity>, Option<&mut Entity>) {}
-impl<T: Send + Sync + FnMut(&mut World, &Entity, &Vec<Entity>, Option<&mut Entity>)> PropagatorFn
-for T {}
+pub trait PropagatorFn: Send + Sync + FnMut(DynamicStruct) {}
+impl<T: Send + Sync + FnMut(DynamicStruct)> PropagatorFn for T {}
 
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.
@@ -210,6 +91,10 @@ impl<T: Copy + PartialEq + Send + Sync + 'static> LazyImmutable<T> {
 
 impl<T: Copy + PartialEq + Send + Sync + 'static> Immutable for LazyImmutable<T> {
     type DataType = T;
+
+    // TODO add a get that returns a result after safely calling read
+
+    // TODO add a get_value that returns a result after safely calling value
 
     fn merge_next(&mut self, next: T) {
         self.next_value = Some(next);

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use bevy_signals::{ signals::{ PropagatorFn, Signal }, SignalsPlugin };
+use bevy_signals::{ factory::Signal, signals::PropagatorFn, SignalsPlugin };
 
 #[derive(Resource, Default)]
 struct TestResource {
@@ -25,16 +25,8 @@ fn init(world: &mut World) {
         let mut commands = world.commands();
 
         // simple effect as a propagator who logs its triggers whenever one of them changes
-        let effect_propagator: Box<dyn PropagatorFn> = Box::new(|world, caller, triggers, target| {
-            info!("running effect {:?}", caller);
-            // FIXME -- there has to be a non-ugly way to do this
-            let mut trigger = Signal.reader(world, caller, triggers);
-            if let Ok(value) = trigger.value::<bool>(0) {
-                info!("effect triggered by trigger changing to '{}'", value);
-            }
-            if target.is_some() {
-                error!("effects should not have targets!");
-            }
+        let effect_propagator: Box<dyn PropagatorFn> = Box::new(|params| {
+            info!("running effect {:?}", params);
         });
 
         // create a signal (you need to register data types if not bool, i32, f64, or &'static str)

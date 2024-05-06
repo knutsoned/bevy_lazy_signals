@@ -2,17 +2,7 @@ use std::any::TypeId;
 
 use bevy::{ ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet }, prelude::* };
 
-use crate::{
-    arcane_wizardry::*,
-    empty_set,
-    ComputeMemo,
-    DeferredEffect,
-    ImmutableComponentId,
-    Propagator,
-    RebuildSubscribers,
-    SendSignal,
-    SignalsResource,
-};
+use crate::{ arcane_wizardry::*, signals::*, SignalsResource };
 
 /// Set of Entity to child Entities.
 pub type EntityHierarchySet = SparseSet<Entity, Vec<Entity>>;
@@ -274,7 +264,9 @@ pub fn apply_deferred_effects(
             info!("-found propagator with sources {:?}", sources);
 
             // actually run the effect
-            /* FIXME can not get mutable reference to world twice, maybe reflect the component?
+            // FIXME can not get mutable reference to world twice, maybe reflect the component?
+            // need to somehow get a pointer to the function and still be able to read the world data
+            /*
             if let Some(mut component) = world.entity_mut(entity).get_mut::<Propagator>() {
                 (component.propagator)(world, &entity, sources, None);
             }
