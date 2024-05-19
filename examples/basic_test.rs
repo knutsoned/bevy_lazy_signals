@@ -52,11 +52,11 @@ fn init(world: &mut World) {
         // in this case Immutable<bool> is already registered so we're cool
         let test_signal1 = Signal.state(false, &mut commands);
         test.signal1 = Some(test_signal1);
-        info!("created test signal");
+        info!("created test signal 1");
 
         let test_signal2 = Signal.state("true", &mut commands);
         test.signal2 = Some(test_signal2);
-        info!("created test signal");
+        info!("created test signal 2");
 
         // trigger an effect from the signal
         test.effect = Some(
