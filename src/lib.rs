@@ -19,10 +19,11 @@ pub mod prelude {
 /// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.
 ///
 // Convenience typedefs.
+pub type SignalsStr = &'static str;
 pub type ImmutableBool = LazyImmutable<bool>;
 pub type ImmutableInt = LazyImmutable<u32>;
 pub type ImmutableFloat = LazyImmutable<f64>;
-pub type ImmutableStr = LazyImmutable<&'static str>;
+pub type ImmutableStr = LazyImmutable<SignalsStr>;
 
 /// Plugin to initialize the resource and system schedule.
 pub struct SignalsPlugin;
@@ -46,10 +47,14 @@ impl Plugin for SignalsPlugin {
                 // defaults to PreUpdate since it is assumed the UI will process right after Update
                 // PostUpdate is a good place to read any events from the main app and send signals
 
+                // TODO make system sets
                 (
                     (init_effects, init_propagators).before(send_signals),
+                    /*
                     send_signals.before(calculate_memos),
                     calculate_memos.before(apply_deferred_effects),
+                    */
+                    send_signals.before(apply_deferred_effects),
                     apply_deferred_effects,
                 )
             );

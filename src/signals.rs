@@ -9,7 +9,7 @@ use thiserror::Error;
 /// # Signals framework
 /// ## Types
 /// Result type for handling error conditions in consumer code.
-pub type SignalsResult<T> = Result<T, SignalsError>;
+pub type SignalsResult<R> = Result<R, SignalsError>;
 
 /// ## Enums
 /// Read error.
@@ -21,13 +21,17 @@ pub enum SignalsError {
 
 // ## Traits
 /// An item of data for use with Immutables.
-pub trait ReflectedData: Copy + PartialEq + Reflect + Send + Sync + 'static {}
-impl<T> ReflectedData for T where T: Copy + PartialEq + Reflect + Send + Sync + 'static {}
+pub trait SignalsData: Copy + PartialEq + Reflect + Send + Sync + 'static {}
+impl<T> SignalsData for T where T: Copy + PartialEq + Reflect + Send + Sync + 'static {}
 
 /// An item of data backed by a Bevy entity with a set of subscribers.
 /// Additional methods in UntypedObservable would be here but you can't have generic trait objects.
 pub trait Immutable: Send + Sync + 'static {
-    type DataType: ReflectedData;
+    type DataType: SignalsData;
+
+    // TODO add a get that returns a result after safely calling read
+
+    // TODO add a get_value that returns a result after safely calling value
 
     /// Called by a consumer to provide a new value for the lazy update system to merge.
     fn merge_next(&mut self, next: Self::DataType);
@@ -68,14 +72,14 @@ pub trait UntypedObservable {
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
 /// It should call value instead of read to make sure it is re-subscribed to its sources!
 /// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub trait PropagatorFn: Send + Sync + FnMut(DynamicTuple) -> DynamicTuple {}
-impl<T: Send + Sync + FnMut(DynamicTuple) -> DynamicTuple> PropagatorFn for T {}
+pub trait PropagatorFn: Send + Sync + Fn(DynamicTuple) -> SignalsResult<Box<dyn Reflect>> {}
+impl<T: Send + Sync + Fn(DynamicTuple) -> SignalsResult<Box<dyn Reflect>>> PropagatorFn for T {}
 
-// TODO provide a to_effect to allow a propagator to be used as an effect
+// TODO provide a to_effect to allow a propagator to be used as an effect?
 
 /// This is the same basic thing but this fn just runs side-effects so no value is returned
-pub trait EffectFn: Send + Sync + FnMut(DynamicTuple) -> SignalsResult<()> {}
-impl<T: Send + Sync + FnMut(DynamicTuple) -> SignalsResult<()>> EffectFn for T {}
+pub trait EffectFn: Send + Sync + Fn(DynamicTuple) -> SignalsResult<()> {}
+impl<T: Send + Sync + Fn(DynamicTuple) -> SignalsResult<()>> EffectFn for T {}
 
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.
@@ -91,7 +95,7 @@ impl<T: Send + Sync + FnMut(DynamicTuple) -> SignalsResult<()>> EffectFn for T {
 /// This Immutable is lazy. Other forms are left as an exercise for the reader.
 #[derive(Component, Reflect)]
 #[reflect(Component, UntypedObservable)]
-pub struct LazyImmutable<T: ReflectedData> {
+pub struct LazyImmutable<T: SignalsData> {
     data: T,
     next_value: Option<T>,
     #[reflect(ignore)]
@@ -100,18 +104,14 @@ pub struct LazyImmutable<T: ReflectedData> {
     next_subscribers: EntitySet,
 }
 
-impl<T: ReflectedData> LazyImmutable<T> {
+impl<T: SignalsData> LazyImmutable<T> {
     pub fn new(data: T) -> Self {
         Self { data, next_value: None, subscribers: empty_set(), next_subscribers: empty_set() }
     }
 }
 
-impl<T: ReflectedData> Immutable for LazyImmutable<T> {
+impl<T: SignalsData> Immutable for LazyImmutable<T> {
     type DataType = T;
-
-    // TODO add a get that returns a result after safely calling read
-
-    // TODO add a get_value that returns a result after safely calling value
 
     fn merge_next(&mut self, next: T) {
         self.next_value = Some(next);
@@ -127,7 +127,7 @@ impl<T: ReflectedData> Immutable for LazyImmutable<T> {
     }
 }
 
-impl<T: ReflectedData> UntypedObservable for LazyImmutable<T> {
+impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
     fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple) {
         params.insert(self.data);
         self.subscribe(caller);
@@ -189,7 +189,6 @@ pub struct ImmutableComponentId {
 #[component(storage = "SparseSet")]
 pub struct SendSignal;
 
-/// A Propagator component is the aggregating propagator function and its sources/triggers list.
 #[derive(Component)]
 pub struct Propagator {
     pub function: Box<dyn PropagatorFn>,

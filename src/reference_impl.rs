@@ -267,6 +267,7 @@ pub fn send_signals(
     });
 }
 
+/*
 pub fn calculate_memos(
     world: &mut World,
     query_memos: &mut QueryState<(Entity, &Propagator), With<ComputeMemo>>
@@ -290,6 +291,7 @@ pub fn calculate_memos(
         }
     );
 }
+*/
 
 pub fn apply_deferred_effects(
     world: &mut World,
@@ -366,7 +368,7 @@ pub fn apply_deferred_effects(
             world.resource_scope(|world, mut signals: Mut<SignalsResource>| {
                 // then call the EffectFn with the gathered params
                 if let Some(mut handle) = world.get_entity_mut(entity) {
-                    let mut effect = handle.get_mut::<Effect>().unwrap();
+                    let effect = handle.get_mut::<Effect>().unwrap();
                     let result = (effect.function)(params);
                     if result.is_err() {
                         signals.errors.insert(entity, result.err().unwrap());
