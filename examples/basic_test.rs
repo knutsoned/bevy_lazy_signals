@@ -9,11 +9,15 @@ struct TestResource {
     pub effect: Option<Entity>,
 }
 
+type EffectParams = (bool, SignalsStr);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         // NOTE: the user application will need to register each custom Immutable<T> for reflection
         // .register_type::<Immutable<MyType>>()
+        // also register type aliases for computed and effect param tuples
+        .register_type::<EffectParams>()
         .add_plugins(SignalsPlugin)
         .init_resource::<TestResource>()
         .add_systems(Startup, init)
@@ -31,9 +35,10 @@ fn init(world: &mut World) {
         let mut commands = world.commands();
 
         // simple effect that logs its trigger(s) whenever one changes
+        // TODO try determining the TypeInfo of the params in the system and pass that in
         let effect_propagator: Box<dyn EffectFn> = Box::new(|params: DynamicTuple| {
             //params.set_represented_type(T.type_info());
-            let params = get_tuple::<(bool, SignalsStr)>(&params);
+            let params = get_tuple::<EffectParams>(&params);
             info!("running effect with {:?}", params);
 
             // TODO read param 0
