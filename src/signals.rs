@@ -13,16 +13,18 @@ pub type SignalsResult<R> = Result<R, SignalsError>;
 
 /// ## Enums
 /// Read error.
-#[derive(Error, Debug)]
+#[derive(Error, Clone, Copy, Reflect, Debug)]
 pub enum SignalsError {
-    #[error("Error reading signal {0}")] ReadError(Entity),
     #[error["Signal does not exist"]] NoSignalError,
+    #[error["No next value"]] NoValue,
+    #[error["Null value"]] NullValue,
+    #[error("Error reading signal {0}")] ReadError(Entity),
 }
 
 // ## Traits
 /// An item of data for use with Immutables.
-pub trait SignalsData: Copy + PartialEq + Reflect + Send + Sync + 'static {}
-impl<T> SignalsData for T where T: Copy + PartialEq + Reflect + Send + Sync + 'static {}
+pub trait SignalsData: Copy + PartialEq + Reflect + Send + Sync + TypePath + 'static {}
+impl<T> SignalsData for T where T: Copy + PartialEq + Reflect + Send + Sync + TypePath + 'static {}
 
 /// An item of data backed by a Bevy entity with a set of subscribers.
 /// Additional methods in UntypedObservable would be here but you can't have generic trait objects.
@@ -34,13 +36,13 @@ pub trait Immutable: Send + Sync + 'static {
     // TODO add a get_value that returns a result after safely calling value
 
     /// Called by a consumer to provide a new value for the lazy update system to merge.
-    fn merge_next(&mut self, next: Self::DataType);
+    fn merge_next(&mut self, next: SignalsResult<Self::DataType>);
 
     /// Get the current value.
-    fn read(&self) -> Self::DataType;
+    fn read(&self) -> SignalsResult<Self::DataType>;
 
     /// Get the current value, subscribing an entity if provided (mostly used internally).
-    fn value(&mut self, caller: Entity) -> Self::DataType;
+    fn value(&mut self, caller: Entity) -> SignalsResult<Self::DataType>;
 }
 
 #[reflect_trait]
@@ -96,8 +98,8 @@ impl<T: Send + Sync + Fn(DynamicTuple) -> SignalsResult<()>> EffectFn for T {}
 #[derive(Component, Reflect)]
 #[reflect(Component, UntypedObservable)]
 pub struct LazyImmutable<T: SignalsData> {
-    data: T,
-    next_value: Option<T>,
+    data: SignalsResult<T>,
+    next_value: SignalsResult<T>,
     #[reflect(ignore)]
     subscribers: EntitySet,
     #[reflect(ignore)]
@@ -105,23 +107,31 @@ pub struct LazyImmutable<T: SignalsData> {
 }
 
 impl<T: SignalsData> LazyImmutable<T> {
-    pub fn new(data: T) -> Self {
-        Self { data, next_value: None, subscribers: empty_set(), next_subscribers: empty_set() }
+    pub fn new(data: SignalsResult<T>) -> Self {
+        Self {
+            data,
+            next_value: Err(SignalsError::NoValue),
+            subscribers: empty_set(),
+            next_subscribers: empty_set(),
+        }
     }
 }
 
 impl<T: SignalsData> Immutable for LazyImmutable<T> {
     type DataType = T;
 
-    fn merge_next(&mut self, next: T) {
-        self.next_value = Some(next);
+    fn merge_next(&mut self, next: SignalsResult<T>) {
+        self.next_value = next;
     }
 
-    fn read(&self) -> Self::DataType {
-        self.data
+    fn read(&self) -> SignalsResult<Self::DataType> {
+        match self.data {
+            Ok(data) => { Ok(data) }
+            Err(error) => { Err(error) }
+        }
     }
 
-    fn value(&mut self, caller: Entity) -> Self::DataType {
+    fn value(&mut self, caller: Entity) -> SignalsResult<Self::DataType> {
         self.subscribe(caller);
         self.read()
     }
@@ -143,32 +153,52 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
     }
 
     fn merge(&mut self) -> Vec<Entity> {
+        let mut do_eet = false;
         let mut subs = Vec::<Entity>::new();
 
         // update the Immutable data value
-        if let Some(next) = self.next_value {
-            trace!("next exists");
+        match self.next_value {
+            Ok(next) => {
+                trace!("next exists");
 
-            // only fire the rest of the process if the data actually changed
-            if self.data != next {
-                info!("data != next");
-                self.data = next;
+                // only fire the rest of the process if the data actually changed
+                if let Ok(data) = self.data {
+                    trace!("data exists");
 
-                // copy the subscribers into the output vector
-                subs = self.get_subscribers();
-
-                // clear the local subscriber set which will be replenished by each subscriber if
-                // it calls the value method later
-                self.subscribers.clear();
+                    if data != next {
+                        info!("data != next");
+                        do_eet = true;
+                    }
+                } else {
+                    // if data is not a value and not NoValue, always replace
+                    do_eet = true;
+                }
+            }
+            Err(SignalsError::NoValue) => {
+                // don't clobber the data with a null placeholder
+            }
+            Err(_) => {
+                // do merge any actual upstream errors
+                do_eet = true;
             }
         }
-        self.next_value = None;
+        if do_eet {
+            self.data = self.next_value;
+
+            // copy the subscribers into the output vector
+            subs = self.get_subscribers();
+
+            // clear the local subscriber set which will be replenished by each subscriber if
+            // it calls the value method later
+            self.subscribers.clear();
+        }
+        self.next_value = Err(SignalsError::NoValue);
         subs
     }
 
     fn merge_subscribers(&mut self) {
-        for subscriber in self.next_subscribers.iter() {
-            self.subscribers.insert(*subscriber.0, ());
+        for subscriber in self.next_subscribers.indices() {
+            self.subscribers.insert(subscriber, ());
         }
         self.next_subscribers.clear();
     }

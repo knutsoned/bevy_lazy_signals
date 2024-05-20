@@ -10,11 +10,10 @@ impl Signal {
         &self,
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
-        init_value: T,
         commands: &mut Commands
     ) -> Entity {
         let entity = commands.spawn_empty().id();
-        commands.create_computed::<T>(entity, propagator, sources, init_value);
+        commands.create_computed::<T>(entity, propagator, sources);
         entity
     }
 
@@ -38,9 +37,9 @@ impl Signal {
             Some(immutable) => {
                 let entity = world.entity(immutable);
                 match entity.get::<LazyImmutable<R>>() {
-                    Some(observable) => Ok(observable.read()),
+                    Some(observable) => observable.read(),
 
-                    // TODO maybe add some kind of config option to ignore errors and return default
+                    // TODO maybe add some kind of config option to ignore errors and return a default
                     None => Err(SignalsError::ReadError(immutable)),
                 }
             }
@@ -70,7 +69,7 @@ impl Signal {
             Some(immutable) => {
                 let mut entity = world.entity_mut(immutable);
                 match entity.get_mut::<LazyImmutable<R>>() {
-                    Some(mut observable) => { Ok(observable.value(caller)) }
+                    Some(mut observable) => { observable.value(caller) }
 
                     // TODO maybe add some kind of config option to ignore errors and return default
                     None => Err(SignalsError::ReadError(immutable)),

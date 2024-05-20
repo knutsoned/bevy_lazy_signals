@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use bevy::{ ecs::world::Command, prelude::* };
 
 use crate::signals::*;
@@ -9,8 +11,7 @@ pub trait SignalsCommandsExt {
         &mut self,
         computed: Entity,
         function: Box<dyn PropagatorFn>,
-        sources: Vec<Entity>,
-        init_value: T
+        sources: Vec<Entity>
     );
 
     /// Command to create an effect (Propagator with no Immutable) from the given entity.
@@ -27,14 +28,13 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
         &mut self,
         computed: Entity,
         function: Box<dyn PropagatorFn>,
-        sources: Vec<Entity>,
-        init_value: T
+        sources: Vec<Entity>
     ) {
-        self.add(CreateComputedCommand {
+        self.add(CreateComputedCommand::<T> {
             computed,
             function,
             sources,
-            init_value,
+            result_type: PhantomData,
         });
     }
 
@@ -71,7 +71,7 @@ pub struct CreateComputedCommand<T: SignalsData> {
     computed: Entity,
     function: Box<dyn PropagatorFn>,
     sources: Vec<Entity>,
-    init_value: T,
+    result_type: PhantomData<T>,
 }
 
 impl<T: SignalsData> Command for CreateComputedCommand<T> {
@@ -81,7 +81,7 @@ impl<T: SignalsData> Command for CreateComputedCommand<T> {
             .get_entity_mut(self.computed)
             .unwrap()
             .insert((
-                LazyImmutable::<T>::new(self.init_value),
+                LazyImmutable::<T>::new(Err(SignalsError::NoValue)),
                 ImmutableComponentId { component_id },
                 Propagator {
                     function: self.function,
@@ -127,7 +127,10 @@ impl<T: SignalsData> Command for CreateStateCommand<T> {
         world
             .get_entity_mut(self.state)
             .unwrap()
-            .insert((LazyImmutable::<T>::new(self.data), ImmutableComponentId { component_id }));
+            .insert((
+                LazyImmutable::<T>::new(Ok(self.data)),
+                ImmutableComponentId { component_id },
+            ));
     }
 }
 
@@ -144,7 +147,7 @@ impl<T: SignalsData> Command for SendSignalCommand<T> {
         // (assume the caller removed it and we don't care about it anymore)
         if let Some(mut entity) = world.get_entity_mut(self.signal) {
             if let Some(mut immutable) = entity.get_mut::<LazyImmutable<T>>() {
-                immutable.merge_next(self.data);
+                immutable.merge_next(Ok(self.data));
                 entity.insert(SendSignal);
                 trace!("merged next and inserted SendSignal");
             } else {
