@@ -153,7 +153,7 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
     }
 
     fn merge(&mut self) -> Vec<Entity> {
-        let mut do_eet = false;
+        let mut doo_eet = false;
         let mut subs = Vec::<Entity>::new();
 
         // update the Immutable data value
@@ -167,11 +167,11 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
 
                     if data != next {
                         info!("data != next");
-                        do_eet = true;
+                        doo_eet = true;
                     }
                 } else {
                     // if data is not a value and not NoValue, always replace
-                    do_eet = true;
+                    doo_eet = true;
                 }
             }
             Err(SignalsError::NoValue) => {
@@ -179,10 +179,10 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
             }
             Err(_) => {
                 // do merge any actual upstream errors
-                do_eet = true;
+                doo_eet = true;
             }
         }
-        if do_eet {
+        if doo_eet {
             self.data = self.next_value;
 
             // copy the subscribers into the output vector

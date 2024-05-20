@@ -1,23 +1,43 @@
 use std::{ any::TypeId, sync::RwLockReadGuard };
 
 use bevy::{
-    ecs::{ component::ComponentId, entity::Entity, world::EntityWorldMut },
+    ecs::{
+        change_detection::MutUntyped,
+        component::ComponentId,
+        entity::Entity,
+        world::EntityWorldMut,
+    },
     prelude::*,
-    ptr::PtrMut,
     reflect::{ DynamicTuple, ReflectFromPtr, TypeRegistry },
 };
 
 use crate::signals::*;
 
-pub(crate) fn make_reflect_from_ptr(
-    type_id: TypeId,
+// given a mutable reference to a LazyImmutable component instance, make a UntypedObservable
+pub fn make_untyped_observable<'a>(
+    mut_untyped: &'a mut MutUntyped,
+    type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
-) -> ReflectFromPtr {
+) -> &'a mut dyn UntypedObservable {
+    // convert into a pointer
+    let ptr_mut = mut_untyped.as_mut();
+
     // the reflect_data is used to build a strategy to dereference a pointer to the component
-    let reflect_data = type_registry.get(type_id).unwrap();
+    let reflect_data = type_registry.get(*type_id).unwrap();
 
     // we're going to get a pointer to the component, so we'll need this
-    reflect_data.data::<ReflectFromPtr>().unwrap().clone()
+    let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap().clone();
+
+    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
+    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
+
+    // the sun grew dark and cold
+    let reflect_untyped_observable = type_registry
+        .get_type_data::<ReflectUntypedObservable>(value.type_id())
+        .unwrap();
+
+    // the seas boiled
+    reflect_untyped_observable.get_mut(value).unwrap()
 }
 
 // add a subscriber
@@ -28,31 +48,19 @@ pub(crate) fn enter_malkovich_world(
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) {
-    let component_id = *component_id;
+    let entity = source.id();
+
+    // the following boilerplate required due to rules about returning local variables
+    // FIXME make sure this is necessary, otherwise
+    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
+
     // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = source.get_mut_by_id(component_id).unwrap();
+    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
 
-    // ...and convert that into a pointer
-    let ptr_mut = mut_untyped.as_mut();
-
-    // insert arcane wizardry here
-    let reflect_from_ptr = make_reflect_from_ptr(*type_id, type_registry);
-
-    // the following boilerplate required due to rules about passing trait objects around
-
-    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
-    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
-
-    // meet the new flesh
-    let reflect_untyped_observable = type_registry
-        .get_type_data::<ReflectUntypedObservable>(value.type_id())
-        .unwrap();
-
-    // same as the old flesh
-    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
-
+    // ...and convert that into a trait object
+    let untyped_observable = make_untyped_observable(&mut mut_untyped, type_id, type_registry);
     // make it so!
-    info!("-subscribing {:?}", subscriber);
+    info!("-subscribing {:?} to {:?}", subscriber, entity);
     untyped_observable.subscribe(*subscriber);
 }
 
@@ -63,51 +71,36 @@ pub(crate) fn this_is_bat_country(
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) -> Vec<Entity> {
-    let component_id = *component_id;
+    // the following boilerplate required due to rules about returning local variables
+    // FIXME make sure this is necessary, otherwise
+    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
+
     // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = source.get_mut_by_id(component_id).unwrap();
+    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
 
-    // ...and convert that into a pointer
-    let ptr_mut = mut_untyped.as_mut();
+    // ...and convert that into a trait object
+    let untyped_observable = make_untyped_observable(&mut mut_untyped, type_id, type_registry);
 
-    // insert arcane wizardry here
-    let reflect_from_ptr = make_reflect_from_ptr(*type_id, type_registry);
-
-    // the following boilerplate required due to rules about passing trait objects around
-
-    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
-    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
-
-    // the sun grew dark and cold
-    let reflect_untyped_observable = type_registry
-        .get_type_data::<ReflectUntypedObservable>(value.type_id())
-        .unwrap();
-
-    // the seas boiled
-    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
-
-    // do the dang thing
+    // I want to go fast!
     untyped_observable.get_subscribers()
 }
 
 // merge subscribers
 pub(crate) fn long_live_the_new_flesh(
-    ptr_mut: PtrMut,
-    reflect_from_ptr: &ReflectFromPtr,
+    source: &mut EntityWorldMut,
+    component_id: &ComponentId,
+    type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) {
-    // the following boilerplate required due to rules about passing trait objects around
+    // the following boilerplate required due to rules about returning local variables
+    // FIXME make sure this is necessary, otherwise
+    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
 
-    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
-    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
+    // get the source Immutable component as an ECS change detection handle
+    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
 
-    // dogs and cats
-    let reflect_untyped_observable = type_registry
-        .get_type_data::<ReflectUntypedObservable>(value.type_id())
-        .unwrap();
-
-    // living together
-    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
+    // ...and convert that into a trait object
+    let untyped_observable = make_untyped_observable(&mut mut_untyped, type_id, type_registry);
 
     // engage!
     untyped_observable.merge_subscribers();
@@ -115,24 +108,22 @@ pub(crate) fn long_live_the_new_flesh(
 
 // mut (apply the next value to) the Immutable
 pub(crate) fn the_abyss_gazes_into_you(
-    ptr_mut: PtrMut,
-    reflect_from_ptr: &ReflectFromPtr,
+    source: &mut EntityWorldMut,
+    component_id: &ComponentId,
+    type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) -> Vec<Entity> {
-    // the following boilerplate required due to rules about passing trait objects around
+    // the following boilerplate required due to rules about returning local variables
+    // FIXME make sure this is necessary, otherwise
+    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
 
-    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
-    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
+    // get the source Immutable component as an ECS change detection handle
+    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
 
-    // the sun grew dark and cold
-    let reflect_untyped_observable = type_registry
-        .get_type_data::<ReflectUntypedObservable>(value.type_id())
-        .unwrap();
+    // ...and convert that into a trait object
+    let untyped_observable = make_untyped_observable(&mut mut_untyped, type_id, type_registry);
 
-    // the seas boiled
-    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
-
-    // do the dang thing
+    // please clap
     untyped_observable.merge()
 }
 
@@ -145,29 +136,16 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) {
-    let component_id = *component_id;
+    // the following boilerplate required due to rules about returning local variables
+    // FIXME make sure this is necessary, otherwise
+    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
+
     // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = source.get_mut_by_id(component_id).unwrap();
+    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
 
-    // ...and convert that into a pointer
-    let ptr_mut = mut_untyped.as_mut();
+    // ...and convert that into a trait object
+    let untyped_observable = make_untyped_observable(&mut mut_untyped, type_id, type_registry);
 
-    // insert arcane wizardry here
-    let reflect_from_ptr = make_reflect_from_ptr(*type_id, type_registry);
-
-    // the following boilerplate required due to rules about passing trait objects around
-
-    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
-    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
-
-    // in their house at R'lyeh
-    let reflect_untyped_observable = type_registry
-        .get_type_data::<ReflectUntypedObservable>(value.type_id())
-        .unwrap();
-
-    // dead Cthulhu waits
-    let untyped_observable = reflect_untyped_observable.get_mut(value).unwrap();
-
-    // dreaming
+    // do the dang thing
     untyped_observable.copy_data(*target, params);
 }

@@ -23,10 +23,10 @@ pub fn init_effects(
     world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
         let type_registry = type_registry.read();
 
-        // run the subscribe method on each Propagator.sources, passing the Entity
-        for (entity, sources) in entities.iter() {
+        // run the subscribe method on each Effect.triggers, passing the Entity
+        for (entity, triggers) in entities.iter() {
             // loop through the sources
-            for source in sources.iter() {
+            for source in triggers.iter() {
                 // get the TypeId of each source (Signal or Memo) Immutable component
                 let mut component_id: Option<ComponentId> = None;
                 let mut type_id: Option<TypeId> = None;
@@ -46,30 +46,30 @@ pub fn init_effects(
                 // we have a component and a type, now do mutable stuff
                 if component_id.is_some() && type_id.is_some() {
                     if let Some(mut source) = world.get_entity_mut(*source) {
+                        let component_id = &component_id.unwrap();
                         let type_id = type_id.unwrap();
 
                         // call subscribe
                         enter_malkovich_world(
                             &mut source,
                             entity,
-                            &component_id.unwrap(),
+                            component_id,
                             &type_id,
                             &type_registry
                         );
 
-                        // get the source Immutable component as an ECS change detection handle
-                        let mut mut_untyped = source.get_mut_by_id(component_id.unwrap()).unwrap();
-
-                        // merge the new subscriber into the main set
-                        let ptr_mut = mut_untyped.as_mut();
-
-                        // insert arcane wizardry here
-                        let reflect_from_ptr = make_reflect_from_ptr(type_id, &type_registry);
-                        long_live_the_new_flesh(ptr_mut, &reflect_from_ptr, &type_registry);
+                        // merge subscribers just added
+                        long_live_the_new_flesh(
+                            &mut source,
+                            component_id,
+                            &type_id,
+                            &type_registry
+                        );
                     }
                 }
             }
 
+            // mark as processed
             world.get_entity_mut(*entity).unwrap().remove::<RebuildSubscribers>();
         }
     });
@@ -113,30 +113,30 @@ pub fn init_propagators(
                 // we have a component and a type, now do mutable stuff
                 if component_id.is_some() && type_id.is_some() {
                     if let Some(mut source) = world.get_entity_mut(*source) {
+                        let component_id = &component_id.unwrap();
                         let type_id = type_id.unwrap();
 
                         // call subscribe
                         enter_malkovich_world(
                             &mut source,
                             entity,
-                            &component_id.unwrap(),
+                            component_id,
                             &type_id,
                             &type_registry
                         );
 
-                        // get the source Immutable component as an ECS change detection handle
-                        let mut mut_untyped = source.get_mut_by_id(component_id.unwrap()).unwrap();
-
-                        // merge the new subscriber into the main set
-                        let ptr_mut = mut_untyped.as_mut();
-
-                        // insert arcane wizardry here
-                        let reflect_from_ptr = make_reflect_from_ptr(type_id, &type_registry);
-                        long_live_the_new_flesh(ptr_mut, &reflect_from_ptr, &type_registry);
+                        // merge subscribers just added
+                        long_live_the_new_flesh(
+                            &mut source,
+                            component_id,
+                            &type_id,
+                            &type_registry
+                        );
                     }
                 }
             }
 
+            // mark as processed
             world.get_entity_mut(*entity).unwrap().remove::<RebuildSubscribers>();
         }
     });
@@ -189,19 +189,11 @@ pub fn send_signals(
 
                         // the component_id is saved when command to make concrete Immutable runs
 
-                        // get like... an ECS change detection handle for the component in question
-                        let mut mut_untyped = signal_to_send.get_mut_by_id(component_id).unwrap();
-
-                        // ...and convert that into a pointer
-                        let ptr_mut = mut_untyped.as_mut();
-
-                        // insert arcane wizardry here
-                        let reflect_from_ptr = make_reflect_from_ptr(type_id, &type_registry);
-
                         // merge the next data value and return a list of subscribers to the change
                         let subs = the_abyss_gazes_into_you(
-                            ptr_mut,
-                            &reflect_from_ptr,
+                            &mut signal_to_send,
+                            &component_id,
+                            &type_id,
                             &type_registry
                         );
 
@@ -216,7 +208,7 @@ pub fn send_signals(
                     }
                 }
 
-                // remove the Signal component
+                // mark as processed
                 signal_to_send.remove::<SendSignal>();
             }
 
@@ -348,8 +340,8 @@ pub fn apply_deferred_effects(
             for (source, component_id) in component_id_set.iter() {
                 // should be able to call the value method via reflection
                 world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
-                    let type_registry = type_registry.read();
                     let type_id = component_info.get(*component_id).unwrap().type_id();
+                    let type_registry = type_registry.read();
                     if let Some(mut source) = world.get_entity_mut(*source) {
                         let type_id = type_id.unwrap();
                         // insert arcane wizardry here
