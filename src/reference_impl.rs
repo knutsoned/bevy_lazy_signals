@@ -1,11 +1,47 @@
-use std::any::TypeId;
+use std::{ any::TypeId, sync::RwLockReadGuard };
 
-use bevy::{ ecs::component::ComponentId, prelude::*, reflect::DynamicTuple };
+use bevy::{ ecs::component::ComponentId, prelude::*, reflect::{ DynamicTuple, TypeRegistry } };
 
 use crate::{ arcane_wizardry::*, signals::*, SignalsResource };
 
 /// This is the reference user API, patterned after the TC39 proposal.
-///
+fn process_subs(
+    world: &mut World,
+    entity: &Entity,
+    source: &Entity,
+    type_registry: &RwLockReadGuard<TypeRegistry>
+) {
+    // get the TypeId of each source (Signal or Memo) Immutable component
+    let mut component_id: Option<ComponentId> = None;
+    let mut type_id: Option<TypeId> = None;
+
+    // get a readonly reference to the source entity
+    if let Some(source) = world.get_entity(*source) {
+        // get the source Immutable component
+        if let Some(immutable) = source.get::<ImmutableComponentId>() {
+            // ...as an UntypedObservable
+            component_id = Some(immutable.component_id);
+            if let Some(info) = world.components().get_info(component_id.unwrap()) {
+                type_id = info.type_id();
+            }
+        }
+    }
+
+    // we have a component and a type, now do mutable stuff
+    if component_id.is_some() && type_id.is_some() {
+        if let Some(mut source) = world.get_entity_mut(*source) {
+            let component_id = &component_id.unwrap();
+            let type_id = type_id.unwrap();
+
+            // call subscribe
+            enter_malkovich_world(&mut source, entity, component_id, &type_id, type_registry);
+
+            // merge subscribers just added
+            long_live_the_new_flesh(&mut source, component_id, &type_id, type_registry);
+        }
+    }
+}
+
 /// ## Systems
 /// These systems are meant to be run in tight sequence, preferably like the plugin demonstrates.
 /// Any commands in each system must be applied before proceeding to the next.
@@ -27,46 +63,7 @@ pub fn init_effects(
         for (entity, triggers) in entities.iter() {
             // loop through the sources
             for source in triggers.iter() {
-                // get the TypeId of each source (Signal or Memo) Immutable component
-                let mut component_id: Option<ComponentId> = None;
-                let mut type_id: Option<TypeId> = None;
-
-                // get a readonly reference to the source entity
-                if let Some(source) = world.get_entity(*source) {
-                    // get the source Immutable component
-                    if let Some(immutable) = source.get::<ImmutableComponentId>() {
-                        // ...as an UntypedObservable
-                        component_id = Some(immutable.component_id);
-                        if let Some(info) = world.components().get_info(component_id.unwrap()) {
-                            type_id = info.type_id();
-                        }
-                    }
-                }
-
-                // we have a component and a type, now do mutable stuff
-                if component_id.is_some() && type_id.is_some() {
-                    if let Some(mut source) = world.get_entity_mut(*source) {
-                        let component_id = &component_id.unwrap();
-                        let type_id = type_id.unwrap();
-
-                        // call subscribe
-                        enter_malkovich_world(
-                            &mut source,
-                            entity,
-                            component_id,
-                            &type_id,
-                            &type_registry
-                        );
-
-                        // merge subscribers just added
-                        long_live_the_new_flesh(
-                            &mut source,
-                            component_id,
-                            &type_id,
-                            &type_registry
-                        );
-                    }
-                }
+                process_subs(world, entity, source, &type_registry);
             }
 
             // mark as processed
@@ -93,47 +90,7 @@ pub fn init_propagators(
         for (entity, sources) in entities.iter() {
             // loop through the sources
             for source in sources.iter() {
-                // get the TypeId of each source (Signal or Memo) Immutable component
-                let mut component_id: Option<ComponentId> = None;
-                let mut type_id: Option<TypeId> = None;
-
-                // get a readonly reference to the source entity
-                if let Some(source) = world.get_entity(*source) {
-                    // get the source Immutable component
-                    if let Some(immutable) = source.get::<ImmutableComponentId>() {
-                        // ...as an UntypedObservable
-                        component_id = Some(immutable.component_id);
-                        if let Some(info) = world.components().get_info(component_id.unwrap()) {
-                            type_id = info.type_id();
-                        }
-                    }
-                }
-
-                info!("component_id: {:?}, type_id: {:?}", component_id, type_id);
-                // we have a component and a type, now do mutable stuff
-                if component_id.is_some() && type_id.is_some() {
-                    if let Some(mut source) = world.get_entity_mut(*source) {
-                        let component_id = &component_id.unwrap();
-                        let type_id = type_id.unwrap();
-
-                        // call subscribe
-                        enter_malkovich_world(
-                            &mut source,
-                            entity,
-                            component_id,
-                            &type_id,
-                            &type_registry
-                        );
-
-                        // merge subscribers just added
-                        long_live_the_new_flesh(
-                            &mut source,
-                            component_id,
-                            &type_id,
-                            &type_registry
-                        );
-                    }
-                }
+                process_subs(world, entity, source, &type_registry);
             }
 
             // mark as processed
