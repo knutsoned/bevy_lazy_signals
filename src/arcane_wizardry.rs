@@ -59,6 +59,7 @@ pub(crate) fn enter_malkovich_world(
 
     // ...and convert that into a trait object
     let untyped_observable = make_untyped_observable(&mut mut_untyped, type_id, type_registry);
+
     // make it so!
     info!("-subscribing {:?} to {:?}", subscriber, entity);
     untyped_observable.subscribe(*subscriber);
@@ -123,7 +124,7 @@ pub(crate) fn the_abyss_gazes_into_you(
     // ...and convert that into a trait object
     let untyped_observable = make_untyped_observable(&mut mut_untyped, type_id, type_registry);
 
-    // please clap
+    // give me warp in the factor of uh 5, 6, 7, 8
     untyped_observable.merge()
 }
 
@@ -146,6 +147,6 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
     // ...and convert that into a trait object
     let untyped_observable = make_untyped_observable(&mut mut_untyped, type_id, type_registry);
 
-    // do the dang thing
+    // please clap
     untyped_observable.copy_data(*target, params);
 }
