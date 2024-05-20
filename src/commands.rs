@@ -7,7 +7,7 @@ use crate::signals::*;
 /// Convenience extension to use each Command directly from Commands instance.
 pub trait SignalsCommandsExt {
     /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
-    fn create_computed<T: SignalsData>(
+    fn create_computed<P: SignalsParams, R: SignalsData>(
         &mut self,
         computed: Entity,
         function: Box<dyn PropagatorFn>,
@@ -15,7 +15,12 @@ pub trait SignalsCommandsExt {
     );
 
     /// Command to create an effect (Propagator with no Immutable) from the given entity.
-    fn create_effect(&mut self, effect: Entity, function: Box<dyn EffectFn>, triggers: Vec<Entity>);
+    fn create_effect<P: SignalsParams>(
+        &mut self,
+        effect: Entity,
+        function: Box<dyn EffectFn>,
+        triggers: Vec<Entity>
+    );
 
     /// Command to create a state (Immutable with no Propagator) from the given entity.
     fn create_state<T: SignalsData>(&mut self, state: Entity, data: T);
@@ -24,30 +29,32 @@ pub trait SignalsCommandsExt {
 }
 
 impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
-    fn create_computed<T: SignalsData>(
+    fn create_computed<P: SignalsParams, R: SignalsData>(
         &mut self,
         computed: Entity,
         function: Box<dyn PropagatorFn>,
         sources: Vec<Entity>
     ) {
-        self.add(CreateComputedCommand::<T> {
+        self.add(CreateComputedCommand::<P, R> {
             computed,
             function,
             sources,
+            param_tuple: PhantomData,
             result_type: PhantomData,
         });
     }
 
-    fn create_effect(
+    fn create_effect<P: SignalsParams>(
         &mut self,
         effect: Entity,
         function: Box<dyn EffectFn>,
         triggers: Vec<Entity>
     ) {
-        self.add(CreateEffectCommand {
+        self.add(CreateEffectCommand::<P> {
             effect,
             function,
             triggers,
+            param_tuple: PhantomData,
         });
     }
 
@@ -67,21 +74,22 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
 }
 
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
-pub struct CreateComputedCommand<T: SignalsData> {
+pub struct CreateComputedCommand<P: SignalsParams, R: SignalsData> {
     computed: Entity,
     function: Box<dyn PropagatorFn>,
     sources: Vec<Entity>,
-    result_type: PhantomData<T>,
+    param_tuple: PhantomData<P>,
+    result_type: PhantomData<R>,
 }
 
-impl<T: SignalsData> Command for CreateComputedCommand<T> {
+impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
-        let component_id = world.init_component::<LazyImmutable<T>>();
+        let component_id = world.init_component::<LazyImmutable<R>>();
         world
             .get_entity_mut(self.computed)
             .unwrap()
             .insert((
-                LazyImmutable::<T>::new(Err(SignalsError::NoValue)),
+                LazyImmutable::<R>::new(Err(SignalsError::NoValue)),
                 ImmutableComponentId { component_id },
                 Propagator {
                     function: self.function,
@@ -93,13 +101,14 @@ impl<T: SignalsData> Command for CreateComputedCommand<T> {
 }
 
 /// Command to create an effect (Propagator with no memo) from the given entity.
-pub struct CreateEffectCommand {
+pub struct CreateEffectCommand<P: SignalsParams> {
     effect: Entity,
     function: Box<dyn EffectFn>,
     triggers: Vec<Entity>,
+    param_tuple: PhantomData<P>,
 }
 
-impl Command for CreateEffectCommand {
+impl<P: SignalsParams> Command for CreateEffectCommand<P> {
     fn apply(self, world: &mut World) {
         world
             .get_entity_mut(self.effect)

@@ -65,7 +65,13 @@ fn init(world: &mut World) {
 
         // trigger an effect from the signal
         test.effect = Some(
-            Signal.effect(effect_propagator, vec![test_signal1, test_signal2], &mut commands)
+            Signal.effect::<EffectParams>(
+                // tuple type of params
+                effect_propagator,
+                // type of each trigger must match type at same tuple position
+                vec![test_signal1, test_signal2],
+                &mut commands
+            )
         );
         info!("created test effect");
     });

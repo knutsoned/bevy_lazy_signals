@@ -6,25 +6,25 @@ use crate::{ commands::*, signals::* };
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
 pub struct Signal;
 impl Signal {
-    pub fn computed<T: SignalsData>(
+    pub fn computed<P: SignalsParams, R: SignalsData>(
         &self,
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
         let entity = commands.spawn_empty().id();
-        commands.create_computed::<T>(entity, propagator, sources);
+        commands.create_computed::<P, R>(entity, propagator, sources);
         entity
     }
 
-    pub fn effect(
+    pub fn effect<P: SignalsParams>(
         &self,
         effect: Box<dyn EffectFn>,
         triggers: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
         let entity = commands.spawn_empty().id();
-        commands.create_effect(entity, effect, triggers);
+        commands.create_effect::<P>(entity, effect, triggers);
         entity
     }
 
@@ -47,9 +47,9 @@ impl Signal {
         }
     }
 
-    pub fn send<R: SignalsData>(&self, signal: Option<Entity>, data: R, commands: &mut Commands) {
+    pub fn send<T: SignalsData>(&self, signal: Option<Entity>, data: T, commands: &mut Commands) {
         if let Some(signal) = signal {
-            commands.send_signal::<R>(signal, data);
+            commands.send_signal::<T>(signal, data);
         }
     }
 

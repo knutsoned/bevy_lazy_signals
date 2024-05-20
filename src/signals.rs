@@ -1,7 +1,7 @@
 use bevy::{
     ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
     prelude::*,
-    reflect::DynamicTuple,
+    reflect::{ DynamicTuple, Tuple },
 };
 
 use thiserror::Error;
@@ -25,6 +25,10 @@ pub enum SignalsError {
 /// An item of data for use with Immutables.
 pub trait SignalsData: Copy + PartialEq + Reflect + Send + Sync + TypePath + 'static {}
 impl<T> SignalsData for T where T: Copy + PartialEq + Reflect + Send + Sync + TypePath + 'static {}
+
+/// A tuple containing parameters for a computed memo or effect.
+pub trait SignalsParams: SignalsData + Tuple {}
+impl<T> SignalsParams for T where T: SignalsData + Tuple {}
 
 /// An item of data backed by a Bevy entity with a set of subscribers.
 /// Additional methods in UntypedObservable would be here but you can't have generic trait objects.
