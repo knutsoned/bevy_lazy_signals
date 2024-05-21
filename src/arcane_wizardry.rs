@@ -113,7 +113,7 @@ pub(crate) fn the_abyss_gazes_into_you(
     component_id: &ComponentId,
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
-) -> Vec<Entity> {
+) -> (Vec<Entity>, bool) {
     // the following boilerplate required due to rules about returning local variables
     // FIXME make sure this is necessary, otherwise
     // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
@@ -125,7 +125,9 @@ pub(crate) fn the_abyss_gazes_into_you(
     let untyped_observable = make_untyped_observable(&mut mut_untyped, type_id, type_registry);
 
     // give me warp in the factor of uh 5, 6, 7, 8
-    untyped_observable.merge()
+    let triggered = untyped_observable.is_triggered();
+    let subs = untyped_observable.merge();
+    (subs, triggered)
 }
 
 // copy untyped data into a dynamic tuple

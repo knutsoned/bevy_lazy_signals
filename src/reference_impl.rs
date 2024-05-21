@@ -147,6 +147,7 @@ pub fn send_signals(
                         // the component_id is saved when command to make concrete Immutable runs
 
                         // merge the next data value and return a list of subscribers to the change
+                        // and whether these subscribers should be triggered too
                         let subs = the_abyss_gazes_into_you(
                             &mut signal_to_send,
                             &component_id,
@@ -155,12 +156,20 @@ pub fn send_signals(
                         );
 
                         // add subscribers to the next running set
-                        for subscriber in subs.into_iter() {
+                        for subscriber in subs.0.into_iter() {
                             signals.next_running.insert(subscriber, ());
                             info!("-added subscriber {:?} to running set", subscriber);
+
+                            // if these subs were triggered, they need to be marked triggered too
+                            if subs.1 {
+                                // add each one to the triggered set
+                                signals.triggered.insert(subscriber, ());
+                            }
                         }
 
                         // if the merge returns a non-zero length list of subscribers, it changed
+                        // (for our purposes, anyway)
+                        // FIXME make sure this is what we want if it didn't really change
                         signals.changed.insert(*entity, ());
                     }
                 }
@@ -205,6 +214,7 @@ pub fn send_signals(
                             info!("-marked memo for computation");
 
                             // FIXME computed has its own subscribers, so add those to the next_running set
+                            // and mark triggered if appropriate
                         }
                     }
                 }

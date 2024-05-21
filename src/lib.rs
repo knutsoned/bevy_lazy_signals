@@ -64,6 +64,9 @@ impl Plugin for SignalsPlugin {
 /// Shared reactive context resource.
 #[derive(Resource)]
 pub struct SignalsResource {
+    /// Tracks triggered entities (Signals to send even if their value did not change).
+    pub triggered: EntitySet,
+
     /// Tracks the currently running iteration (immutable once the iteration starts).
     pub running: EntitySet,
 
@@ -90,6 +93,7 @@ pub struct SignalsResource {
 impl SignalsResource {
     /// Call this at the start of each run to make sure everything is fresh.
     fn init(&mut self) {
+        self.triggered.clear();
         self.running.clear();
         self.next_running.clear();
         self.processed.clear();
@@ -116,6 +120,7 @@ impl SignalsResource {
 impl Default for SignalsResource {
     fn default() -> Self {
         Self {
+            triggered: empty_set(),
             running: empty_set(),
             next_running: empty_set(),
             processed: empty_set(),

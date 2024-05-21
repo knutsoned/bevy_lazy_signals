@@ -9,6 +9,9 @@ use thiserror::Error;
 /// # Signals framework
 /// ## Types
 /// Result type for handling error conditions in consumer code.
+
+// FIXME may need a custom enum to handle triggers
+
 pub type SignalsResult<R> = Result<R, SignalsError>;
 
 /// ## Enums
@@ -40,7 +43,7 @@ pub trait Immutable: Send + Sync + 'static {
     // TODO add a get_value that returns a result after safely calling value
 
     /// Called by a consumer to provide a new value for the lazy update system to merge.
-    fn merge_next(&mut self, next: SignalsResult<Self::DataType>);
+    fn merge_next(&mut self, next: SignalsResult<Self::DataType>, trigger: bool);
 
     /// Get the current value.
     fn read(&self) -> SignalsResult<Self::DataType>;
@@ -62,6 +65,9 @@ pub trait UntypedObservable {
     /// Get the list of subscriber Entities that may need notification.
     fn get_subscribers(&self) -> Vec<Entity>;
 
+    /// Is this signal being forced to trigger?
+    fn is_triggered(&self) -> bool;
+
     /// This method merges the next_value and returns get_subscribers().
     fn merge(&mut self) -> Vec<Entity>;
 
@@ -70,6 +76,9 @@ pub trait UntypedObservable {
 
     /// Called by an Effect or Memo indirectly by reading the current value.
     fn subscribe(&mut self, entity: Entity);
+
+    /// Called to force a subscriber to a triggered signal to also trigger.
+    fn trigger(&mut self);
 }
 
 /// A Propagator function aggregates (merges) data from multiple cells to store in a bound cell.
@@ -104,6 +113,7 @@ impl<T: Send + Sync + Fn(DynamicTuple) -> SignalsResult<()>> EffectFn for T {}
 pub struct LazyImmutable<T: SignalsData> {
     data: SignalsResult<T>,
     next_value: SignalsResult<T>,
+    triggered: bool,
     #[reflect(ignore)]
     subscribers: EntitySet,
     #[reflect(ignore)]
@@ -115,6 +125,7 @@ impl<T: SignalsData> LazyImmutable<T> {
         Self {
             data,
             next_value: Err(SignalsError::NoValue),
+            triggered: false,
             subscribers: empty_set(),
             next_subscribers: empty_set(),
         }
@@ -124,8 +135,9 @@ impl<T: SignalsData> LazyImmutable<T> {
 impl<T: SignalsData> Immutable for LazyImmutable<T> {
     type DataType = T;
 
-    fn merge_next(&mut self, next: SignalsResult<T>) {
-        self.next_value = next;
+    fn merge_next(&mut self, next_value: SignalsResult<T>, triggered: bool) {
+        self.next_value = next_value;
+        self.triggered = triggered;
     }
 
     fn read(&self) -> SignalsResult<Self::DataType> {
@@ -156,8 +168,15 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
         subs
     }
 
+    fn is_triggered(&self) -> bool {
+        self.triggered
+    }
+
     fn merge(&mut self) -> Vec<Entity> {
-        let mut doo_eet = false;
+        // whether or not to overwrite the existing data
+        let mut doo_eet = self.triggered;
+
+        // output vector for downstream subscribers to process next
         let mut subs = Vec::<Entity>::new();
 
         // update the Immutable data value
@@ -180,23 +199,32 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
             }
             Err(SignalsError::NoValue) => {
                 // don't clobber the data with a null placeholder
+                doo_eet = false;
             }
             Err(_) => {
                 // do merge any actual upstream errors
                 doo_eet = true;
             }
         }
+
+        // overwrite the value
         if doo_eet {
             self.data = self.next_value;
+            self.next_value = Err(SignalsError::NoValue);
+        }
 
+        // return a list of subscribers
+        if doo_eet || self.triggered {
             // copy the subscribers into the output vector
             subs = self.get_subscribers();
 
             // clear the local subscriber set which will be replenished by each subscriber if
             // it calls the value method later
             self.subscribers.clear();
+
+            // trigger is processed, so reset the flag
+            self.triggered = false;
         }
-        self.next_value = Err(SignalsError::NoValue);
         subs
     }
 
@@ -209,6 +237,10 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
 
     fn subscribe(&mut self, entity: Entity) {
         self.next_subscribers.insert(entity, ());
+    }
+
+    fn trigger(&mut self) {
+        self.triggered = true;
     }
 }
 

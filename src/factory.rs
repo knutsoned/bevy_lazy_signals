@@ -59,6 +59,17 @@ impl Signal {
         state
     }
 
+    pub fn trigger<T: SignalsData>(
+        &self,
+        signal: Option<Entity>,
+        data: T,
+        commands: &mut Commands
+    ) {
+        if let Some(signal) = signal {
+            commands.trigger_signal::<T>(signal, data);
+        }
+    }
+
     pub fn value<R: SignalsData>(
         &self,
         immutable: Option<Entity>,

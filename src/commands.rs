@@ -26,6 +26,8 @@ pub trait SignalsCommandsExt {
     fn create_state<T: SignalsData>(&mut self, state: Entity, data: T);
 
     fn send_signal<T: SignalsData>(&mut self, signal: Entity, data: T);
+
+    fn trigger_signal<T: SignalsData>(&mut self, signal: Entity, data: T);
 }
 
 impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
@@ -67,6 +69,13 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
 
     fn send_signal<T: SignalsData>(&mut self, signal: Entity, data: T) {
         self.add(SendSignalCommand {
+            signal,
+            data,
+        });
+    }
+
+    fn trigger_signal<T: SignalsData>(&mut self, signal: Entity, data: T) {
+        self.add(TriggerSignalCommand {
             signal,
             data,
         });
@@ -156,7 +165,32 @@ impl<T: SignalsData> Command for SendSignalCommand<T> {
         // (assume the caller removed it and we don't care about it anymore)
         if let Some(mut entity) = world.get_entity_mut(self.signal) {
             if let Some(mut immutable) = entity.get_mut::<LazyImmutable<T>>() {
-                immutable.merge_next(Ok(self.data));
+                immutable.merge_next(Ok(self.data), false);
+                entity.insert(SendSignal);
+                trace!("merged next and inserted SendSignal");
+            } else {
+                error!("could not get Immutable");
+            }
+        } else {
+            error!("could not get Signal");
+        }
+    }
+}
+
+/// Command to trigger a Signal (i.e. send signal even if value unchanged) to the given entity.
+pub struct TriggerSignalCommand<T: SignalsData> {
+    signal: Entity,
+    data: T,
+}
+
+impl<T: SignalsData> Command for TriggerSignalCommand<T> {
+    fn apply(self, world: &mut World) {
+        trace!("TriggerSignalCommand {:?}", self.signal);
+        // we're less sure the signal actually exists, but don't panic if not
+        // (assume the caller removed it and we don't care about it anymore)
+        if let Some(mut entity) = world.get_entity_mut(self.signal) {
+            if let Some(mut immutable) = entity.get_mut::<LazyImmutable<T>>() {
+                immutable.merge_next(Ok(self.data), true);
                 entity.insert(SendSignal);
                 trace!("merged next and inserted SendSignal");
             } else {
