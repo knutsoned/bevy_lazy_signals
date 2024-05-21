@@ -3,7 +3,7 @@ use std::any::TypeId;
 use bevy::{
     ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
     prelude::*,
-    reflect::{ DynamicTuple, Tuple },
+    reflect::{ DynamicTuple, GetTypeRegistration, Tuple },
 };
 
 use thiserror::Error;
@@ -15,7 +15,7 @@ pub type SignalsResult<R> = Option<Result<R, SignalsError>>;
 
 /// ## Enums
 /// Read error.
-#[derive(Error, Clone, Copy, Reflect, Debug)]
+#[derive(Error, Clone, Copy, PartialEq, Reflect, Debug)]
 pub enum SignalsError {
     /// An attempt was made to reference a Signal entity that does not have the right components.
     #[error["Signal does not exist"]]
@@ -32,8 +32,27 @@ pub enum SignalsError {
 
 // ## Traits
 /// An item of data for use with Immutables.
-pub trait SignalsData: Copy + PartialEq + Reflect + Send + Sync + TypePath + 'static {}
-impl<T> SignalsData for T where T: Copy + PartialEq + Reflect + Send + Sync + TypePath + 'static {}
+pub trait SignalsData: Copy +
+    FromReflect +
+    GetTypeRegistration +
+    PartialEq +
+    Reflect +
+    Send +
+    Sync +
+    TypePath +
+    'static {}
+impl<T> SignalsData
+    for T
+    where
+        T: Copy +
+            FromReflect +
+            GetTypeRegistration +
+            PartialEq +
+            Reflect +
+            Send +
+            Sync +
+            TypePath +
+            'static {}
 
 /// A tuple containing parameters for a computed memo or effect.
 pub trait SignalsParams: SignalsData + Tuple {}
@@ -158,7 +177,27 @@ impl<T: SignalsData> Immutable for LazyImmutable<T> {
 
 impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
     fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple) {
-        params.insert(self.data);
+        let data = match self.data {
+            Some(data) =>
+                match data {
+                    Ok(data) => {
+                        info!("--inserted data into params");
+                        Some(data)
+                    }
+
+                    // FIXME do something else with the error
+                    Err(error) => {
+                        error!("--error: {:?}", error);
+                        None
+                    }
+                }
+            None => {
+                info!("--no data");
+                None
+            }
+        };
+        params.insert(data);
+
         self.subscribe(caller);
     }
 

@@ -24,6 +24,7 @@ pub type ImmutableBool = LazyImmutable<bool>;
 pub type ImmutableInt = LazyImmutable<u32>;
 pub type ImmutableFloat = LazyImmutable<f64>;
 pub type ImmutableStr = LazyImmutable<SignalsStr>;
+pub type ImmutableUnit = LazyImmutable<()>;
 
 /// Plugin to initialize the resource and system schedule.
 pub struct SignalsPlugin;
@@ -39,6 +40,7 @@ impl Plugin for SignalsPlugin {
             .register_type::<ImmutableInt>()
             .register_type::<ImmutableFloat>()
             .register_type::<ImmutableStr>()
+            .register_type::<ImmutableUnit>()
             //.register_component_as::<dyn LazyMergeable, LazyImmutable<>>()
             .add_systems(
                 PreUpdate, // could be PostUpdate or whatever else (probably not Update)

@@ -313,6 +313,8 @@ pub fn apply_deferred_effects(
                     // should be able to call the value method via reflection
                     let type_id = component_info.get(*component_id).unwrap().type_id().unwrap();
                     let type_registry = type_registry.read();
+
+                    // FIXME throw an error if the params don't line up
                     if let Some(mut source) = world.get_entity_mut(*source) {
                         // insert arcane wizardry here
                         ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
@@ -334,7 +336,7 @@ pub fn apply_deferred_effects(
                         let type_registry = type_registry.read();
                         if let Some(registration) = type_registry.get(effect.params_type) {
                             // assign the TypeId we saved at creation to the DynamicTuple we just made
-                            info!("params tuple type info: {:?}", registration.type_info());
+                            trace!("params tuple type info: {:?}", registration.type_info());
                             params.set_represented_type(Some(registration.type_info()));
 
                             // then call the EffectFn with the gathered params

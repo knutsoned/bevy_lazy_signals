@@ -9,7 +9,7 @@ struct TestResource {
     pub effect: Option<Entity>,
 }
 
-type EffectParams = (bool, SignalsStr);
+type EffectParams = (Option<bool>, Option<SignalsStr>);
 
 fn main() {
     App::new()
@@ -26,8 +26,13 @@ fn main() {
         .run();
 }
 
-fn get_tuple(params: &DynamicTuple, mut output: impl Tuple) {
-    output.apply(params);
+/* patching doesn't seem to work
+fn get_tuple(input: &DynamicTuple, mut output: impl Tuple) {
+    output.apply(input);
+}
+*/
+fn get_tuple<T: Tuple>(params: &DynamicTuple) -> Option<&T> {
+    params.as_any().downcast_ref::<T>()
 }
 
 fn init(world: &mut World) {
@@ -36,9 +41,13 @@ fn init(world: &mut World) {
 
         // simple effect that logs its trigger(s) whenever one changes
         // TODO try determining the TypeInfo of the params in the system and pass that in
-        let effect_propagator: Box<dyn EffectFn> = Box::new(|tuple: DynamicTuple| {
-            let params = EffectParams::default();
-            get_tuple(&tuple, params);
+        let effect_propagator: Box<dyn EffectFn> = Box::new(|params: DynamicTuple| {
+            /* patching doesn't seem to work
+            let tuple = EffectParams::default();
+            get_tuple(&params, tuple);
+            */
+            info!("converting params {:?}", params);
+            let params = get_tuple::<EffectParams>(&params);
             info!("running effect with params {:?}", params);
 
             // TODO read param 0
@@ -59,14 +68,14 @@ fn init(world: &mut World) {
         test.signal1 = Some(test_signal1);
         info!("created test signal 1, entity {:?}", test.signal1);
 
-        let test_signal2 = Signal.state("true", &mut commands);
+        let test_signal2 = Signal.state("test", &mut commands);
         test.signal2 = Some(test_signal2);
         info!("created test signal 2, entity {:?}", test.signal2);
 
         // trigger an effect from the signal
         test.effect = Some(
             Signal.effect::<EffectParams>(
-                // tuple type of params
+                // closure to call when the effect is triggered
                 effect_propagator,
                 // type of each trigger must match type at same tuple position
                 vec![test_signal1, test_signal2],
