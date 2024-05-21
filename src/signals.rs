@@ -1,3 +1,5 @@
+use std::any::TypeId;
+
 use bevy::{
     ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
     prelude::*,
@@ -263,6 +265,8 @@ pub struct SendSignal;
 #[derive(Component)]
 pub struct Propagator {
     pub function: Box<dyn PropagatorFn>,
+    pub params_type: TypeId,
+    pub return_type: TypeId,
     pub sources: Vec<Entity>,
 }
 
@@ -275,6 +279,7 @@ pub struct ComputeMemo;
 #[derive(Component)]
 pub struct Effect {
     pub function: Box<dyn EffectFn>,
+    pub params_type: TypeId,
     pub triggers: Vec<Entity>,
 }
 

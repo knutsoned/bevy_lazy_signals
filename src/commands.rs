@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{ any::TypeId, marker::PhantomData };
 
 use bevy::{ ecs::world::Command, prelude::* };
 
@@ -102,6 +102,8 @@ impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
                 ImmutableComponentId { component_id },
                 Propagator {
                     function: self.function,
+                    params_type: TypeId::of::<P>(),
+                    return_type: TypeId::of::<R>(),
                     sources: self.sources,
                 },
                 RebuildSubscribers,
@@ -125,6 +127,7 @@ impl<P: SignalsParams> Command for CreateEffectCommand<P> {
             .insert((
                 Effect {
                     function: self.function,
+                    params_type: TypeId::of::<P>(),
                     triggers: self.triggers,
                 },
                 RebuildSubscribers,

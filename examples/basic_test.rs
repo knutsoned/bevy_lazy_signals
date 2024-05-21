@@ -26,8 +26,8 @@ fn main() {
         .run();
 }
 
-fn get_tuple<T: Tuple>(params: &DynamicTuple) -> Option<&T> {
-    params.as_reflect().downcast_ref::<T>()
+fn get_tuple(params: &DynamicTuple, mut output: impl Tuple) {
+    output.apply(params);
 }
 
 fn init(world: &mut World) {
@@ -36,9 +36,9 @@ fn init(world: &mut World) {
 
         // simple effect that logs its trigger(s) whenever one changes
         // TODO try determining the TypeInfo of the params in the system and pass that in
-        let effect_propagator: Box<dyn EffectFn> = Box::new(|params: DynamicTuple| {
-            //params.set_represented_type(T.type_info());
-            let params = get_tuple::<EffectParams>(&params);
+        let effect_propagator: Box<dyn EffectFn> = Box::new(|tuple: DynamicTuple| {
+            let params = EffectParams::default();
+            get_tuple(&tuple, params);
             info!("running effect with params {:?}", params);
 
             // TODO read param 0

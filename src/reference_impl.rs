@@ -155,22 +155,26 @@ pub fn send_signals(
                             &type_registry
                         );
 
+                        let triggered = subs.1;
+                        let subs = subs.0;
+
+                        // if the merge returns a non-zero length list of subscribers, it changed
+                        // (for our purposes, anyway)
+                        if !triggered && !subs.is_empty() {
+                            signals.changed.insert(*entity, ());
+                        }
+
                         // add subscribers to the next running set
-                        for subscriber in subs.0.into_iter() {
+                        for subscriber in subs.into_iter() {
                             signals.next_running.insert(subscriber, ());
                             info!("-added subscriber {:?} to running set", subscriber);
 
                             // if these subs were triggered, they need to be marked triggered too
-                            if subs.1 {
+                            if triggered {
                                 // add each one to the triggered set
                                 signals.triggered.insert(subscriber, ());
                             }
                         }
-
-                        // if the merge returns a non-zero length list of subscribers, it changed
-                        // (for our purposes, anyway)
-                        // FIXME make sure this is what we want if it didn't really change
-                        signals.changed.insert(*entity, ());
                     }
                 }
 
@@ -302,15 +306,14 @@ pub fn apply_deferred_effects(
                 }
             }
 
-            // actually run the effect
-            let mut params = DynamicTuple::default();
-            for (source, component_id) in component_id_set.iter() {
-                // should be able to call the value method via reflection
-                world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
-                    let type_id = component_info.get(*component_id).unwrap().type_id();
+            world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
+                // prepare the params
+                let mut params = DynamicTuple::default();
+                for (source, component_id) in component_id_set.iter() {
+                    // should be able to call the value method via reflection
+                    let type_id = component_info.get(*component_id).unwrap().type_id().unwrap();
                     let type_registry = type_registry.read();
                     if let Some(mut source) = world.get_entity_mut(*source) {
-                        let type_id = type_id.unwrap();
                         // insert arcane wizardry here
                         ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
                             &mut source,
@@ -321,19 +324,29 @@ pub fn apply_deferred_effects(
                             &type_registry
                         );
                     }
-                });
-            }
+                }
 
-            world.resource_scope(|world, mut signals: Mut<SignalsResource>| {
-                // then call the EffectFn with the gathered params
-                if let Some(mut handle) = world.get_entity_mut(entity) {
-                    let effect = handle.get_mut::<Effect>().unwrap();
-                    if let Some(result) = (effect.function)(params) {
-                        if result.is_err() {
-                            signals.errors.insert(entity, result.err().unwrap());
+                // actually run the effect
+                world.resource_scope(|world, mut signals: Mut<SignalsResource>| {
+                    if let Some(mut handle) = world.get_entity_mut(entity) {
+                        let effect = handle.get_mut::<Effect>().unwrap();
+
+                        let type_registry = type_registry.read();
+                        if let Some(registration) = type_registry.get(effect.params_type) {
+                            // assign the TypeId we saved at creation to the DynamicTuple we just made
+                            info!("params tuple type info: {:?}", registration.type_info());
+                            params.set_represented_type(Some(registration.type_info()));
+
+                            // then call the EffectFn with the gathered params
+                            if let Some(result) = (effect.function)(params) {
+                                if result.is_err() {
+                                    // add any error to the error set
+                                    signals.errors.insert(entity, result.err().unwrap());
+                                }
+                            }
                         }
                     }
-                }
+                });
             });
         }
     }
