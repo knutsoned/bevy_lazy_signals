@@ -270,7 +270,7 @@ pub fn apply_deferred_effects(
         for (entity, triggers) in hierarchy.iter() {
             // only run an effect if at least one of its triggers is in the changed set
             for source in triggers {
-                info!("-checking changed set");
+                info!("-checking changed set for trigger {:?}", source);
                 if signals.changed.contains(*source) {
                     info!("-running effect {:?} with triggers {:?}", entity, triggers);
                     effects.insert(*entity, ());
@@ -295,7 +295,7 @@ pub fn apply_deferred_effects(
             for source in sources.iter() {
                 let immutable = world.entity(*source).get::<ImmutableComponentId>().unwrap();
                 let component_id = immutable.component_id;
-                info!("-found a trigger with component ID {:?}", component_id);
+                trace!("-found a trigger with component ID {:?}", component_id);
                 component_id_set.insert(*source, component_id);
                 if let Some(info) = world.components().get_info(component_id) {
                     component_info.insert(component_id, info.clone());

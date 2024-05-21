@@ -39,7 +39,7 @@ fn init(world: &mut World) {
         let effect_propagator: Box<dyn EffectFn> = Box::new(|params: DynamicTuple| {
             //params.set_represented_type(T.type_info());
             let params = get_tuple::<EffectParams>(&params);
-            info!("running effect with {:?}", params);
+            info!("running effect with params {:?}", params);
 
             // TODO read param 0
 
