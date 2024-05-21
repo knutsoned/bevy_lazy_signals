@@ -40,10 +40,10 @@ impl Signal {
                     Some(observable) => observable.read(),
 
                     // TODO maybe add some kind of config option to ignore errors and return a default
-                    None => Err(SignalsError::ReadError(immutable)),
+                    None => Some(Err(SignalsError::ReadError(immutable))),
                 }
             }
-            None => Err(SignalsError::NoSignalError),
+            None => Some(Err(SignalsError::NoSignalError)),
         }
     }
 
@@ -83,10 +83,10 @@ impl Signal {
                     Some(mut observable) => { observable.value(caller) }
 
                     // TODO maybe add some kind of config option to ignore errors and return default
-                    None => Err(SignalsError::ReadError(immutable)),
+                    None => Some(Err(SignalsError::ReadError(immutable))),
                 }
             }
-            None => Err(SignalsError::NoSignalError),
+            None => Some(Err(SignalsError::NoSignalError)),
         }
     }
 }

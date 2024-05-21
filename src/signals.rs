@@ -9,19 +9,23 @@ use thiserror::Error;
 /// # Signals framework
 /// ## Types
 /// Result type for handling error conditions in consumer code.
-
-// FIXME may need a custom enum to handle triggers
-
-pub type SignalsResult<R> = Result<R, SignalsError>;
+pub type SignalsResult<R> = Option<Result<R, SignalsError>>;
 
 /// ## Enums
 /// Read error.
 #[derive(Error, Clone, Copy, Reflect, Debug)]
 pub enum SignalsError {
-    #[error["Signal does not exist"]] NoSignalError,
-    #[error["No next value"]] NoValue,
-    #[error["Null value"]] NullValue,
-    #[error("Error reading signal {0}")] ReadError(Entity),
+    /// An attempt was made to reference a Signal entity that does not have the right components.
+    #[error["Signal does not exist"]]
+    NoSignalError,
+
+    /// When there is no next value, and we don't want to clobber the existing one (not really err)
+    #[error["No next value"]]
+    NoNextValue,
+
+    /// An attempt was made to read a signal and something weird went wrong.
+    #[error("Error reading signal {0}")]
+    ReadError(Entity),
 }
 
 // ## Traits
@@ -124,7 +128,7 @@ impl<T: SignalsData> LazyImmutable<T> {
     pub fn new(data: SignalsResult<T>) -> Self {
         Self {
             data,
-            next_value: Err(SignalsError::NoValue),
+            next_value: Some(Err(SignalsError::NoNextValue)),
             triggered: false,
             subscribers: empty_set(),
             next_subscribers: empty_set(),
@@ -141,10 +145,7 @@ impl<T: SignalsData> Immutable for LazyImmutable<T> {
     }
 
     fn read(&self) -> SignalsResult<Self::DataType> {
-        match self.data {
-            Ok(data) => { Ok(data) }
-            Err(error) => { Err(error) }
-        }
+        self.data
     }
 
     fn value(&mut self, caller: Entity) -> SignalsResult<Self::DataType> {
@@ -181,11 +182,11 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
 
         // update the Immutable data value
         match self.next_value {
-            Ok(next) => {
+            Some(Ok(next)) => {
                 trace!("next exists");
 
                 // only fire the rest of the process if the data actually changed
-                if let Ok(data) = self.data {
+                if let Some(Ok(data)) = self.data {
                     trace!("data exists");
 
                     if data != next {
@@ -197,12 +198,16 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
                     doo_eet = true;
                 }
             }
-            Err(SignalsError::NoValue) => {
-                // don't clobber the data with a null placeholder
+            Some(Err(SignalsError::NoNextValue)) => {
+                // don't clobber the data with a null placeholder (different from None)
                 doo_eet = false;
             }
-            Err(_) => {
+            Some(Err(_)) => {
                 // do merge any actual upstream errors
+                doo_eet = true;
+            }
+            None => {
+                // None is a valid value for a state, so clobber away
                 doo_eet = true;
             }
         }
@@ -210,7 +215,7 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
         // overwrite the value
         if doo_eet {
             self.data = self.next_value;
-            self.next_value = Err(SignalsError::NoValue);
+            self.next_value = Some(Err(SignalsError::NoNextValue));
         }
 
         // return a list of subscribers

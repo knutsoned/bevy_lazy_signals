@@ -98,7 +98,7 @@ impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
             .get_entity_mut(self.computed)
             .unwrap()
             .insert((
-                LazyImmutable::<R>::new(Err(SignalsError::NoValue)),
+                LazyImmutable::<R>::new(None),
                 ImmutableComponentId { component_id },
                 Propagator {
                     function: self.function,
@@ -146,7 +146,7 @@ impl<T: SignalsData> Command for CreateStateCommand<T> {
             .get_entity_mut(self.state)
             .unwrap()
             .insert((
-                LazyImmutable::<T>::new(Ok(self.data)),
+                LazyImmutable::<T>::new(Some(Ok(self.data))),
                 ImmutableComponentId { component_id },
             ));
     }
@@ -165,7 +165,7 @@ impl<T: SignalsData> Command for SendSignalCommand<T> {
         // (assume the caller removed it and we don't care about it anymore)
         if let Some(mut entity) = world.get_entity_mut(self.signal) {
             if let Some(mut immutable) = entity.get_mut::<LazyImmutable<T>>() {
-                immutable.merge_next(Ok(self.data), false);
+                immutable.merge_next(Some(Ok(self.data)), false);
                 entity.insert(SendSignal);
                 trace!("merged next and inserted SendSignal");
             } else {
@@ -190,7 +190,7 @@ impl<T: SignalsData> Command for TriggerSignalCommand<T> {
         // (assume the caller removed it and we don't care about it anymore)
         if let Some(mut entity) = world.get_entity_mut(self.signal) {
             if let Some(mut immutable) = entity.get_mut::<LazyImmutable<T>>() {
-                immutable.merge_next(Ok(self.data), true);
+                immutable.merge_next(Some(Ok(self.data)), true);
                 entity.insert(SendSignal);
                 trace!("merged next and inserted SendSignal");
             } else {

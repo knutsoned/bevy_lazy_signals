@@ -13,7 +13,7 @@ use bevy::{
 
 use crate::signals::*;
 
-// given a mutable reference to a LazyImmutable component instance, make a UntypedObservable
+// given a mutable reference to a LazyImmutable component instance, make an UntypedObservable
 pub fn make_untyped_observable<'a>(
     mut_untyped: &'a mut MutUntyped,
     type_id: &TypeId,
@@ -51,8 +51,6 @@ pub(crate) fn enter_malkovich_world(
     let entity = source.id();
 
     // the following boilerplate required due to rules about returning local variables
-    // FIXME make sure this is necessary, otherwise
-    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
 
     // get the source Immutable component as an ECS change detection handle
     let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
@@ -65,7 +63,7 @@ pub(crate) fn enter_malkovich_world(
     untyped_observable.subscribe(*subscriber);
 }
 
-// get the list of subscribers
+// get a copy of the list of subscribers
 pub(crate) fn this_is_bat_country(
     source: &mut EntityWorldMut,
     component_id: &ComponentId,
@@ -73,8 +71,6 @@ pub(crate) fn this_is_bat_country(
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) -> Vec<Entity> {
     // the following boilerplate required due to rules about returning local variables
-    // FIXME make sure this is necessary, otherwise
-    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
 
     // get the source Immutable component as an ECS change detection handle
     let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
@@ -94,8 +90,6 @@ pub(crate) fn long_live_the_new_flesh(
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) {
     // the following boilerplate required due to rules about returning local variables
-    // FIXME make sure this is necessary, otherwise
-    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
 
     // get the source Immutable component as an ECS change detection handle
     let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
@@ -115,8 +109,6 @@ pub(crate) fn the_abyss_gazes_into_you(
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) -> (Vec<Entity>, bool) {
     // the following boilerplate required due to rules about returning local variables
-    // FIXME make sure this is necessary, otherwise
-    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
 
     // get the source Immutable component as an ECS change detection handle
     let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
@@ -140,8 +132,6 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) {
     // the following boilerplate required due to rules about returning local variables
-    // FIXME make sure this is necessary, otherwise
-    // change make_untyped_mut to accept the entity and component ids instead of mut_untyped
 
     // get the source Immutable component as an ECS change detection handle
     let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();

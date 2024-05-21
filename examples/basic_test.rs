@@ -47,7 +47,7 @@ fn init(world: &mut World) {
 
             // TODO something with those values
 
-            Ok(())
+            Some(Ok(()))
         });
 
         // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
@@ -57,11 +57,11 @@ fn init(world: &mut World) {
         // in this case Immutable<bool> is already registered so we're cool
         let test_signal1 = Signal.state(false, &mut commands);
         test.signal1 = Some(test_signal1);
-        info!("created test signal 1");
+        info!("created test signal 1, entity {:?}", test.signal1);
 
         let test_signal2 = Signal.state("true", &mut commands);
         test.signal2 = Some(test_signal2);
-        info!("created test signal 2");
+        info!("created test signal 2, entity {:?}", test.signal2);
 
         // trigger an effect from the signal
         test.effect = Some(
@@ -73,7 +73,7 @@ fn init(world: &mut World) {
                 &mut commands
             )
         );
-        info!("created test effect");
+        info!("created test effect, entity {:?}", test.effect);
     });
 }
 
@@ -84,11 +84,14 @@ fn send_some_signals(test: Res<TestResource>, mut commands: Commands) {
 
 fn status(world: &World, test: Res<TestResource>) {
     match Signal.read::<bool>(test.signal1, world) {
-        Ok(value) => {
+        Some(Ok(value)) => {
             trace!("value: {}", value);
         }
-        Err(error) => {
+        Some(Err(error)) => {
             error!("error: {}", error);
+        }
+        None => {
+            trace!("None");
         }
     }
 }

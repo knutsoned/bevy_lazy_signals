@@ -328,9 +328,10 @@ pub fn apply_deferred_effects(
                 // then call the EffectFn with the gathered params
                 if let Some(mut handle) = world.get_entity_mut(entity) {
                     let effect = handle.get_mut::<Effect>().unwrap();
-                    let result = (effect.function)(params);
-                    if result.is_err() {
-                        signals.errors.insert(entity, result.err().unwrap());
+                    if let Some(result) = (effect.function)(params) {
+                        if result.is_err() {
+                            signals.errors.insert(entity, result.err().unwrap());
+                        }
                     }
                 }
             });
