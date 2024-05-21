@@ -1,6 +1,11 @@
-use bevy::{ prelude::*, reflect::{ DynamicTuple, Tuple } };
+use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
 
-use bevy_signals::{ factory::Signal, signals::EffectFn, SignalsPlugin, SignalsStr };
+use bevy_signals::{
+    factory::Signal,
+    signals::{ EffectFn, SignalsData },
+    SignalsPlugin,
+    SignalsStr,
+};
 
 #[derive(Resource, Default)]
 struct TestResource {
@@ -26,38 +31,13 @@ fn main() {
         .run();
 }
 
-/* patching doesn't seem to work
-fn get_tuple(input: &DynamicTuple, mut output: impl Tuple) {
-    output.apply(input);
-}
-*/
-fn get_tuple<T: Tuple>(params: &DynamicTuple) -> Option<&T> {
-    params.as_any().downcast_ref::<T>()
+fn get_field<T: SignalsData>(tuple: &DynamicTuple, index: usize) -> &Option<T> {
+    tuple.get_field::<Option<T>>(index).unwrap()
 }
 
 fn init(world: &mut World) {
     world.resource_scope(|world, mut test: Mut<TestResource>| {
         let mut commands = world.commands();
-
-        // simple effect that logs its trigger(s) whenever one changes
-        // TODO try determining the TypeInfo of the params in the system and pass that in
-        let effect_propagator: Box<dyn EffectFn> = Box::new(|params: DynamicTuple| {
-            /* patching doesn't seem to work
-            let tuple = EffectParams::default();
-            get_tuple(&params, tuple);
-            */
-            info!("converting params {:?}", params);
-            let params = get_tuple::<EffectParams>(&params);
-            info!("running effect with params {:?}", params);
-
-            // TODO read param 0
-
-            // TODO read param 1
-
-            // TODO something with those values
-
-            Some(Ok(()))
-        });
 
         // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
         // (see SignalsPlugin)
@@ -71,6 +51,36 @@ fn init(world: &mut World) {
         let test_signal2 = Signal.state("test", &mut commands);
         test.signal2 = Some(test_signal2);
         info!("created test signal 2, entity {:?}", test.signal2);
+
+        // simple effect that logs its trigger(s) whenever one changes
+        // TODO try determining the TypeInfo of the params in the system and pass that in
+        let effect_propagator: Box<dyn EffectFn> = Box::new(|params| {
+            info!("converting params {:?}", params);
+
+            /*
+                //let params = get_tuple::<EffectParams>(&params, type_registration);
+                let reflect_from_reflect = type_registration
+                    .data::<ReflectFromReflect>()
+                    .unwrap()
+                    .clone();
+                let value = reflect_from_reflect.from_reflect(params.as_reflect()).unwrap();
+                let binding = <EffectParams as FromReflect>::from_reflect(&*value);
+                let params = binding.as_ref();
+                */
+
+            let bool_param = get_field::<bool>(params, 0);
+            let str_param = get_field::<SignalsStr>(params, 1);
+
+            info!("running effect with params {:?} and {:?}", bool_param, str_param);
+
+            // TODO read param 0
+
+            // TODO read param 1
+
+            // TODO something with those values
+
+            Some(Ok(()))
+        });
 
         // trigger an effect from the signal
         test.effect = Some(

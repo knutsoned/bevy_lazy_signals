@@ -337,10 +337,10 @@ pub fn apply_deferred_effects(
                         if let Some(registration) = type_registry.get(effect.params_type) {
                             // assign the TypeId we saved at creation to the DynamicTuple we just made
                             trace!("params tuple type info: {:?}", registration.type_info());
-                            params.set_represented_type(Some(registration.type_info()));
+                            //params.set_represented_type(Some(registration.type_info()));
 
                             // then call the EffectFn with the gathered params
-                            if let Some(result) = (effect.function)(params) {
+                            if let Some(result) = (effect.function)(&params) {
                                 if result.is_err() {
                                     // add any error to the error set
                                     signals.errors.insert(entity, result.err().unwrap());
