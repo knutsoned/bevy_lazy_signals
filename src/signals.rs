@@ -60,7 +60,7 @@ impl<T> SignalsParams for T where T: SignalsData + Tuple {}
 
 /// An item of data backed by a Bevy entity with a set of subscribers.
 /// Additional methods in UntypedObservable would be here but you can't have generic trait objects.
-pub trait Immutable: Send + Sync + 'static {
+pub trait SignalsImmutable: Send + Sync + 'static {
     type DataType: SignalsData;
 
     // TODO add a get that returns a result after safely calling read
@@ -78,7 +78,7 @@ pub trait Immutable: Send + Sync + 'static {
 }
 
 #[reflect_trait]
-pub trait UntypedObservable {
+pub trait SignalsObservable {
     /// Called by a lazy update system to apply the new value of a signal.
     /// This is a main thing to implement if you're trying to use reflection.
     /// The ref impl uses this to update the Immutable values without knowing the type.
@@ -106,20 +106,32 @@ pub trait UntypedObservable {
     fn trigger(&mut self);
 }
 
+/// Object-safe trait for recomputing memos without knowing their types.
+#[reflect_trait]
+pub trait SignalsMemo {
+    fn compute(&mut self);
+}
+
+/// Object-safe trait for triggering effects without knowing their types.
+#[reflect_trait]
+pub trait SignalsEffect {
+    fn trigger(&mut self);
+}
+
 /// A Propagator function aggregates (merges) data from multiple cells to store in a bound cell.
 /// Compared to the MIT model, these Propagators pull data into a cell they are bound to.
 /// MIT Propagators are conceptually more independent and closer to a push-based flow.
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
 /// It should call value instead of read to make sure it is re-subscribed to its sources!
 /// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub trait PropagatorFn: Send + Sync + Fn(&DynamicTuple) -> SignalsResult<Box<dyn Reflect>> {}
-impl<T: Send + Sync + Fn(&DynamicTuple) -> SignalsResult<Box<dyn Reflect>>> PropagatorFn for T {}
+pub trait PropagatorFn<P, R>: Send + Sync + Fn(&P) -> SignalsResult<R> {}
+impl<P, R, T: Send + Sync + Fn(&P) -> SignalsResult<R>> PropagatorFn<P, R> for T {}
 
 // TODO provide a to_effect to allow a propagator to be used as an effect?
 
 /// This is the same basic thing but this fn just runs side-effects so no value is returned
-pub trait EffectFn: Send + Sync + Fn(&DynamicTuple) -> SignalsResult<()> {}
-impl<T: Send + Sync + Fn(&DynamicTuple) -> SignalsResult<()>> EffectFn for T {}
+pub trait EffectFn<P>: Send + Sync + Fn(&P) -> SignalsResult<()> {}
+impl<P, T: Send + Sync + Fn(&P) -> SignalsResult<()>> EffectFn<P> for T {}
 
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.
@@ -134,7 +146,7 @@ impl<T: Send + Sync + Fn(&DynamicTuple) -> SignalsResult<()>> EffectFn for T {}
 ///
 /// This Immutable is lazy. Other forms are left as an exercise for the reader.
 #[derive(Component, Reflect)]
-#[reflect(Component, UntypedObservable)]
+#[reflect(Component, SignalsObservable)]
 pub struct LazyImmutable<T: SignalsData> {
     data: SignalsResult<T>,
     next_value: SignalsResult<T>,
@@ -157,7 +169,7 @@ impl<T: SignalsData> LazyImmutable<T> {
     }
 }
 
-impl<T: SignalsData> Immutable for LazyImmutable<T> {
+impl<T: SignalsData> SignalsImmutable for LazyImmutable<T> {
     type DataType = T;
 
     fn merge_next(&mut self, next_value: SignalsResult<T>, triggered: bool) {
@@ -175,7 +187,7 @@ impl<T: SignalsData> Immutable for LazyImmutable<T> {
     }
 }
 
-impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
+impl<T: SignalsData> SignalsObservable for LazyImmutable<T> {
     fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple) {
         let data = match self.data {
             Some(data) =>
@@ -290,9 +302,8 @@ impl<T: SignalsData> UntypedObservable for LazyImmutable<T> {
     }
 }
 
-/// An ImmutableComponentId allows us to dereference a generic Immutable without knowing its type.
 #[derive(Component)]
-pub struct ImmutableComponentId {
+pub struct ImmutableState {
     pub component_id: ComponentId,
 }
 
@@ -303,10 +314,23 @@ pub struct SendSignal;
 
 #[derive(Component)]
 pub struct Propagator {
-    pub function: Box<dyn PropagatorFn>,
     pub params_type: TypeId,
     pub return_type: TypeId,
     pub sources: Vec<Entity>,
+    pub immutable_state_id: ComponentId,
+    pub propagator_trigger_id: ComponentId,
+}
+
+#[derive(Component, Reflect)]
+#[reflect(Component, SignalsMemo)]
+pub struct PropagatorTrigger<P: SignalsParams, R: SignalsData> {
+    pub function: Box<dyn PropagatorFn<P, R>>,
+}
+
+impl<P: SignalsParams, R: SignalsData> SignalsMemo for PropagatorTrigger<P, R> {
+    fn compute(&mut self) {
+        todo!()
+    }
 }
 
 /// A ComputeMemo component marks an Immutable that needs to be computed.
@@ -317,9 +341,21 @@ pub struct ComputeMemo;
 /// An effect is a Propagator endpoint that returns no value and just runs side-effects.
 #[derive(Component)]
 pub struct Effect {
-    pub function: Box<dyn EffectFn>,
     pub params_type: TypeId,
     pub triggers: Vec<Entity>,
+    pub effect_trigger_id: ComponentId,
+}
+
+#[derive(Component, Reflect)]
+#[reflect(Component, SignalsEffect)]
+pub struct EffectTrigger<P: SignalsParams> {
+    pub function: Box<dyn EffectFn<P>>,
+}
+
+impl<P: SignalsParams> SignalsEffect for EffectTrigger<P> {
+    fn trigger(&mut self) {
+        todo!()
+    }
 }
 
 /// A DeferredEffect component marks an Effect function that needs to run.

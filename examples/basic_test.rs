@@ -1,11 +1,6 @@
-use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
+use bevy::prelude::*;
 
-use bevy_signals::{
-    factory::Signal,
-    signals::{ EffectFn, SignalsData },
-    SignalsPlugin,
-    SignalsStr,
-};
+use bevy_signals::{ factory::Signal, signals::EffectFn, SignalsPlugin, SignalsStr };
 
 #[derive(Resource, Default)]
 struct TestResource {
@@ -31,9 +26,11 @@ fn main() {
         .run();
 }
 
+/*
 fn get_field<T: SignalsData>(tuple: &DynamicTuple, index: usize) -> &Option<T> {
     tuple.get_field::<Option<T>>(index).unwrap()
 }
+*/
 
 fn init(world: &mut World) {
     world.resource_scope(|world, mut test: Mut<TestResource>| {
@@ -46,32 +43,31 @@ fn init(world: &mut World) {
         // in this case Immutable<bool> is already registered so we're cool
         let test_signal1 = Signal.state(false, &mut commands);
         test.signal1 = Some(test_signal1);
-        info!("created test signal 1, entity {:?}", test.signal1);
+        info!("created test signal 1, entity {:?}", test_signal1);
 
         let test_signal2 = Signal.state("test", &mut commands);
         test.signal2 = Some(test_signal2);
-        info!("created test signal 2, entity {:?}", test.signal2);
+        info!("created test signal 2, entity {:?}", test_signal2);
 
         // simple effect that logs its trigger(s) whenever one changes
         // TODO try determining the TypeInfo of the params in the system and pass that in
-        let effect_propagator: Box<dyn EffectFn> = Box::new(|params| {
+        let effect_propagator: Box<dyn EffectFn<EffectParams>> = Box::new(|params| {
             info!("converting params {:?}", params);
 
             /*
-                //let params = get_tuple::<EffectParams>(&params, type_registration);
-                let reflect_from_reflect = type_registration
-                    .data::<ReflectFromReflect>()
-                    .unwrap()
-                    .clone();
-                let value = reflect_from_reflect.from_reflect(params.as_reflect()).unwrap();
-                let binding = <EffectParams as FromReflect>::from_reflect(&*value);
-                let params = binding.as_ref();
-                */
+            //let params = get_tuple::<EffectParams>(&params, type_registration);
+            let reflect_from_reflect = type_registration
+                .data::<ReflectFromReflect>()
+                .unwrap()
+                .clone();
+            let value = reflect_from_reflect.from_reflect(params.as_reflect()).unwrap();
+            let binding = <EffectParams as FromReflect>::from_reflect(&*value);
+            let params = binding.as_ref();
 
             let bool_param = get_field::<bool>(params, 0);
             let str_param = get_field::<SignalsStr>(params, 1);
-
             info!("running effect with params {:?} and {:?}", bool_param, str_param);
+            */
 
             // TODO read param 0
 

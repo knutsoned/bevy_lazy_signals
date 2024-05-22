@@ -18,9 +18,9 @@ fn process_subs(
     // get a readonly reference to the source entity
     if let Some(source) = world.get_entity(*source) {
         // get the source Immutable component
-        if let Some(immutable) = source.get::<ImmutableComponentId>() {
+        if let Some(immutable_state) = source.get::<ImmutableState>() {
             // ...as an UntypedObservable
-            component_id = Some(immutable.component_id);
+            component_id = Some(immutable_state.component_id);
             if let Some(info) = world.components().get_info(component_id.unwrap()) {
                 type_id = info.type_id();
             }
@@ -101,7 +101,7 @@ pub fn init_propagators(
 
 pub fn send_signals(
     world: &mut World,
-    query_signals: &mut QueryState<(Entity, &ImmutableComponentId), With<SendSignal>>
+    query_signals: &mut QueryState<(Entity, &ImmutableState), With<SendSignal>>
 ) {
     trace!("SIGNALS");
 
@@ -297,7 +297,7 @@ pub fn apply_deferred_effects(
 
             // build component id -> info map
             for source in sources.iter() {
-                let immutable = world.entity(*source).get::<ImmutableComponentId>().unwrap();
+                let immutable = world.entity(*source).get::<ImmutableState>().unwrap();
                 let component_id = immutable.component_id;
                 trace!("-found a trigger with component ID {:?}", component_id);
                 component_id_set.insert(*source, component_id);
@@ -339,13 +339,17 @@ pub fn apply_deferred_effects(
                             trace!("params tuple type info: {:?}", registration.type_info());
                             //params.set_represented_type(Some(registration.type_info()));
 
+                            // FIXME need to get the corresponding EffectTrigger component and fire it
+
                             // then call the EffectFn with the gathered params
+                            /*
                             if let Some(result) = (effect.function)(&params) {
                                 if result.is_err() {
                                     // add any error to the error set
                                     signals.errors.insert(entity, result.err().unwrap());
                                 }
                             }
+                            */
                         }
                     }
                 });

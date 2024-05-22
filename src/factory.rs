@@ -8,7 +8,7 @@ pub struct Signal;
 impl Signal {
     pub fn computed<P: SignalsParams, R: SignalsData>(
         &self,
-        propagator: Box<dyn PropagatorFn>,
+        propagator: Box<dyn PropagatorFn<P, R>>,
         sources: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
@@ -19,7 +19,7 @@ impl Signal {
 
     pub fn effect<P: SignalsParams>(
         &self,
-        effect: Box<dyn EffectFn>,
+        effect: Box<dyn EffectFn<P>>,
         triggers: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {

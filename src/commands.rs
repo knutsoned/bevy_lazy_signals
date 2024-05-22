@@ -10,7 +10,7 @@ pub trait SignalsCommandsExt {
     fn create_computed<P: SignalsParams, R: SignalsData>(
         &mut self,
         computed: Entity,
-        function: Box<dyn PropagatorFn>,
+        function: Box<dyn PropagatorFn<P, R>>,
         sources: Vec<Entity>
     );
 
@@ -18,7 +18,7 @@ pub trait SignalsCommandsExt {
     fn create_effect<P: SignalsParams>(
         &mut self,
         effect: Entity,
-        function: Box<dyn EffectFn>,
+        function: Box<dyn EffectFn<P>>,
         triggers: Vec<Entity>
     );
 
@@ -34,7 +34,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
     fn create_computed<P: SignalsParams, R: SignalsData>(
         &mut self,
         computed: Entity,
-        function: Box<dyn PropagatorFn>,
+        function: Box<dyn PropagatorFn<P, R>>,
         sources: Vec<Entity>
     ) {
         self.add(CreateComputedCommand::<P, R> {
@@ -49,7 +49,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
     fn create_effect<P: SignalsParams>(
         &mut self,
         effect: Entity,
-        function: Box<dyn EffectFn>,
+        function: Box<dyn EffectFn<P>>,
         triggers: Vec<Entity>
     ) {
         self.add(CreateEffectCommand::<P> {
@@ -85,7 +85,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
 pub struct CreateComputedCommand<P: SignalsParams, R: SignalsData> {
     computed: Entity,
-    function: Box<dyn PropagatorFn>,
+    function: Box<dyn PropagatorFn<P, R>>,
     sources: Vec<Entity>,
     param_tuple: PhantomData<P>,
     result_type: PhantomData<R>,
@@ -93,18 +93,22 @@ pub struct CreateComputedCommand<P: SignalsParams, R: SignalsData> {
 
 impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
-        let component_id = world.init_component::<LazyImmutable<R>>();
+        let immutable_state_id = world.init_component::<LazyImmutable<R>>();
+        let propagator_trigger_id = world.init_component::<PropagatorTrigger<P, R>>();
         world
             .get_entity_mut(self.computed)
             .unwrap()
             .insert((
                 LazyImmutable::<R>::new(None),
-                ImmutableComponentId { component_id },
                 Propagator {
-                    function: self.function,
                     params_type: TypeId::of::<P>(),
                     return_type: TypeId::of::<R>(),
                     sources: self.sources,
+                    immutable_state_id,
+                    propagator_trigger_id,
+                },
+                PropagatorTrigger {
+                    function: self.function,
                 },
                 RebuildSubscribers,
             ));
@@ -114,21 +118,25 @@ impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
 /// Command to create an effect (Propagator with no memo) from the given entity.
 pub struct CreateEffectCommand<P: SignalsParams> {
     effect: Entity,
-    function: Box<dyn EffectFn>,
+    function: Box<dyn EffectFn<P>>,
     triggers: Vec<Entity>,
     param_tuple: PhantomData<P>,
 }
 
 impl<P: SignalsParams> Command for CreateEffectCommand<P> {
     fn apply(self, world: &mut World) {
+        let effect_trigger_id = world.init_component::<EffectTrigger<P>>();
         world
             .get_entity_mut(self.effect)
             .unwrap()
             .insert((
                 Effect {
-                    function: self.function,
                     params_type: TypeId::of::<P>(),
                     triggers: self.triggers,
+                    effect_trigger_id,
+                },
+                EffectTrigger {
+                    function: self.function,
                 },
                 RebuildSubscribers,
             ));
@@ -150,7 +158,7 @@ impl<T: SignalsData> Command for CreateStateCommand<T> {
             .unwrap()
             .insert((
                 LazyImmutable::<T>::new(Some(Ok(self.data))),
-                ImmutableComponentId { component_id },
+                ImmutableState { component_id },
             ));
     }
 }
