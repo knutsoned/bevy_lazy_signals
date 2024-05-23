@@ -26,6 +26,9 @@ pub type ImmutableFloat = LazyImmutable<f64>;
 pub type ImmutableStr = LazyImmutable<SignalsStr>;
 pub type ImmutableUnit = LazyImmutable<()>;
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SignalsSystemSet;
+
 /// Plugin to initialize the resource and system schedule.
 pub struct SignalsPlugin;
 
@@ -44,21 +47,11 @@ impl Plugin for SignalsPlugin {
             //.register_component_as::<dyn LazyMergeable, LazyImmutable<>>()
             .add_systems(
                 PreUpdate, // could be PostUpdate or whatever else (probably not Update)
-                // before() ensures each system's changes will be applied before the next is called
-
                 // defaults to PreUpdate since it is assumed the UI will process right after Update
                 // PostUpdate is a good place to read any events from the main app and send signals
-
-                // TODO make system sets
-                (
-                    (init_effects, init_propagators).before(send_signals),
-                    /*
-                    send_signals.before(calculate_memos),
-                    calculate_memos.before(apply_deferred_effects),
-                    */
-                    send_signals.before(apply_deferred_effects),
-                    apply_deferred_effects,
-                )
+                (init_effects, init_memos, send_signals, apply_deferred_effects)
+                    .chain()
+                    .in_set(SignalsSystemSet)
             );
     }
 }

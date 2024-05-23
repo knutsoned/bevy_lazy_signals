@@ -73,9 +73,9 @@ pub fn init_effects(
     });
 }
 
-pub fn init_propagators(
+pub fn init_memos(
     world: &mut World,
-    query_propagators: &mut QueryState<(Entity, &Propagator), With<RebuildSubscribers>>
+    query_propagators: &mut QueryState<(Entity, &Memo), With<RebuildSubscribers>>
 ) {
     // collapse the query or get world concurrency errors
     let mut entities = EntityHierarchySet::new();
@@ -211,8 +211,7 @@ pub fn send_signals(
                             subscriber.insert(DeferredEffect);
                             info!("-scheduled effect");
                         }
-                        // if the entity has a Propagator
-                        if subscriber.contains::<Propagator>() {
+                        if subscriber.contains::<Memo>() {
                             // it is a memo, so mark it for recalculation by adding ComputeMemo
                             subscriber.insert(ComputeMemo);
                             info!("-marked memo for computation");
@@ -230,16 +229,15 @@ pub fn send_signals(
     });
 }
 
-/*
 pub fn calculate_memos(
     world: &mut World,
-    query_memos: &mut QueryState<(Entity, &Propagator), With<ComputeMemo>>
+    _query_memos: &mut QueryState<(Entity, &Memo), With<ComputeMemo>>
 ) {
     trace!("MEMOS");
     // need exclusive world access here to update memos immediately and need to write to resource
     world.resource_scope(
-        |world, mut signals: Mut<SignalsResource>| {
-            // run each Propagator function to recalculate memo, adding sources to the running set
+        |world, mut _signals: Mut<SignalsResource>| {
+            // run each Memo function to recalculate memo, adding sources to the running set
 
             // *** update the data in the cell
 
@@ -254,7 +252,6 @@ pub fn calculate_memos(
         }
     );
 }
-*/
 
 pub fn apply_deferred_effects(
     world: &mut World,
@@ -264,10 +261,8 @@ pub fn apply_deferred_effects(
     let mut effects = empty_set();
 
     // collapse the query or get world concurrency errors
-    let mut effect_components = ComponentIdSet::new();
     let mut hierarchy = EntityHierarchySet::new();
     for (entity, effect) in query_effects.iter(world) {
-        effect_components.insert(entity, effect.effect_trigger_id);
         hierarchy.insert(entity, effect.triggers.clone());
     }
 
@@ -336,6 +331,7 @@ pub fn apply_deferred_effects(
                         let effect = handle.get_mut::<Effect>().unwrap();
                         let type_registry = type_registry.read();
                         if let Some(type_registration) = type_registry.get(effect.params_type) {
+                            /*
                             // need to get the corresponding EffectTrigger component
                             let component_id = *effect_components.get(entity).unwrap();
                             let info = world.components().get_info(component_id).unwrap();
@@ -350,6 +346,8 @@ pub fn apply_deferred_effects(
                                 &type_registry
                             );
                             effect.trigger(&params, type_registration);
+                            */
+                            (effect.function)(&params, type_registration);
                         }
                     }
                 });

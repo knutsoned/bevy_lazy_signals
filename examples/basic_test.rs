@@ -51,8 +51,9 @@ fn init(world: &mut World) {
 
         // simple effect that logs its trigger(s) whenever one changes
         // TODO try determining the TypeInfo of the params in the system and pass that in
-        let effect_propagator: Box<dyn EffectFn<EffectParams>> = Box::new(|params| {
+        let effect_propagator: Box<dyn EffectFn> = Box::new(|params, type_registration| {
             info!("converting params {:?}", params);
+            info!("-type_registration: {:?}", type_registration);
 
             /*
             //let params = get_tuple::<EffectParams>(&params, type_registration);
@@ -74,8 +75,6 @@ fn init(world: &mut World) {
             // TODO read param 1
 
             // TODO something with those values
-
-            Some(Ok(()))
         });
 
         // trigger an effect from the signal
