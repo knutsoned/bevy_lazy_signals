@@ -46,7 +46,6 @@ fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
     info!("created test signal 2, entity {:?}", test_signal2);
 
     // simple effect that logs its trigger(s) whenever one changes
-    // TODO try determining the TypeInfo of the params in the system and pass that in
     let effect_propagator: Box<dyn EffectFn> = Box::new(|params| {
         // convert DynamicTuple to concrete tuple
         let params = get_tuple_from_params::<EffectParams>(params);
