@@ -13,34 +13,6 @@ use bevy::{
 
 use crate::signals::*;
 
-/*
-pub fn make_signals_trait_object<'a, T: Reflect>(
-    mut_untyped: &'a mut MutUntyped,
-    type_id: &TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) -> &'a mut T {
-    // this method does not currently work as it would require being able to pass a trait as T
-
-    // convert into a pointer
-    let ptr_mut = mut_untyped.as_mut();
-
-    // the reflect_data is used to build a strategy to dereference a pointer to the component
-    let reflect_data = type_registry.get(*type_id).unwrap();
-
-    // we're going to get a pointer to the component, so we'll need this
-    let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap().clone();
-
-    // safety: `value` implements reflected trait U, what for `ReflectFromPtr` was made
-    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
-
-    // nanu nanu
-    <dyn Reflect>
-        ::downcast_mut::<T>(value)
-        .map(|value| value as &mut T)
-        .unwrap()
-}
-*/
-
 // given a mutable reference to a LazyImmutable component instance, make an UntypedObservable
 pub fn make_observable<'a>(
     mut_untyped: &'a mut MutUntyped,
