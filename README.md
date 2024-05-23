@@ -1,4 +1,4 @@
-# bevy_signals
+# bevy_lazy_signals
 
 Primitives and examples for integrating bevy_ecs with signals.
 
