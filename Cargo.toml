@@ -1,20 +1,16 @@
 [package]
-name = "bevy_signals"
+name = "bevy_lazy_signals"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#bevy_app = { version = "0.14.0-dev", git = "https://github.com/bevyengine/bevy", rev = "5c3ae32" }
-#bevy_ecs = { version = "0.14.0-dev", git = "https://github.com/bevyengine/bevy", rev = "5c3ae32" }
-#bevy_reflect = { version = "0.14.0-dev", git = "https://github.com/bevyengine/bevy", rev = "5c3ae32" }
-#bevy_utils = { version = "0.14.0-dev", git = "https://github.com/bevyengine/bevy", rev = "5c3ae32" }
 thiserror = "1.0.59"
 
 [dependencies.bevy]
 version = "0.14.0-dev"
 git = "https://github.com/bevyengine/bevy"
-rev = "5c3ae32"
-default-features = false
-features = ["bevy_core_pipeline","bevy_winit","multi-threaded"]
+rev = "ec01c2d"
+#default-features = false
+#features = ["bevy_core_pipeline", "bevy_winit", "multi_threaded"]

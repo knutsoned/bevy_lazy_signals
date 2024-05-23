@@ -18,7 +18,7 @@ pub mod prelude {
 
 /// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.
 ///
-// Convenience typedefs.
+///Convenience typedefs.
 pub type SignalsStr = &'static str;
 pub type ImmutableBool = LazyImmutable<bool>;
 pub type ImmutableInt = LazyImmutable<u32>;
@@ -26,6 +26,7 @@ pub type ImmutableFloat = LazyImmutable<f64>;
 pub type ImmutableStr = LazyImmutable<SignalsStr>;
 pub type ImmutableUnit = LazyImmutable<()>;
 
+/// System set used by plugin to run reference implementation.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SignalsSystemSet;
 

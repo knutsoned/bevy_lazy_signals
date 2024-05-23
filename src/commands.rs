@@ -41,7 +41,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
             computed,
             function,
             sources,
-            param_tuple: PhantomData,
+            params_type: PhantomData,
             result_type: PhantomData,
         });
     }
@@ -56,7 +56,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
             effect,
             function,
             triggers,
-            param_tuple: PhantomData,
+            params_type: PhantomData,
         });
     }
 
@@ -87,15 +87,12 @@ pub struct CreateComputedCommand<P: SignalsParams, R: SignalsData> {
     computed: Entity,
     function: Box<dyn PropagatorFn>,
     sources: Vec<Entity>,
-    param_tuple: PhantomData<P>,
+    params_type: PhantomData<P>,
     result_type: PhantomData<R>,
 }
 
 impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
-        // FIXME need to register type for EffectTrigger<P>
-        // that ain't happenin so do we still need types of P and R?
-
         let immutable_state_id = world.init_component::<LazyImmutable<R>>();
 
         world
@@ -105,9 +102,9 @@ impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
                 LazyImmutable::<R>::new(None),
                 Memo {
                     function: self.function,
-                    params_type: TypeId::of::<P>(),
-                    return_type: TypeId::of::<R>(),
                     sources: self.sources,
+                    params_type: TypeId::of::<P>(),
+                    result_type: TypeId::of::<R>(),
                     immutable_state_id,
                 },
                 RebuildSubscribers,
@@ -120,7 +117,7 @@ pub struct CreateEffectCommand<P: SignalsParams> {
     effect: Entity,
     function: Box<dyn EffectFn>,
     triggers: Vec<Entity>,
-    param_tuple: PhantomData<P>,
+    params_type: PhantomData<P>,
 }
 
 impl<P: SignalsParams> Command for CreateEffectCommand<P> {
@@ -131,8 +128,8 @@ impl<P: SignalsParams> Command for CreateEffectCommand<P> {
             .insert((
                 Effect {
                     function: self.function,
-                    params_type: TypeId::of::<P>(),
                     triggers: self.triggers,
+                    params_type: TypeId::of::<P>(),
                 },
                 RebuildSubscribers,
             ));

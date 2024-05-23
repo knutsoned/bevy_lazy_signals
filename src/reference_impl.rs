@@ -236,7 +236,7 @@ pub fn calculate_memos(
     trace!("MEMOS");
     // need exclusive world access here to update memos immediately and need to write to resource
     world.resource_scope(
-        |world, mut _signals: Mut<SignalsResource>| {
+        |_world, mut _signals: Mut<SignalsResource>| {
             // run each Memo function to recalculate memo, adding sources to the running set
 
             // *** update the data in the cell
@@ -304,12 +304,12 @@ pub fn apply_deferred_effects(
             }
 
             world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
+                let type_registry = type_registry.read();
                 // prepare the params
                 let mut params = DynamicTuple::default();
                 for (source, component_id) in component_id_set.iter() {
                     // should be able to call the value method via reflection
                     let type_id = component_info.get(*component_id).unwrap().type_id().unwrap();
-                    let type_registry = type_registry.read();
 
                     // FIXME throw an error if the params don't line up
                     if let Some(mut source) = world.get_entity_mut(*source) {
@@ -329,26 +329,7 @@ pub fn apply_deferred_effects(
                 world.resource_scope(|world, mut _signals: Mut<SignalsResource>| {
                     if let Some(mut handle) = world.get_entity_mut(entity) {
                         let effect = handle.get_mut::<Effect>().unwrap();
-                        let type_registry = type_registry.read();
-                        if let Some(type_registration) = type_registry.get(effect.params_type) {
-                            /*
-                            // need to get the corresponding EffectTrigger component
-                            let component_id = *effect_components.get(entity).unwrap();
-                            let info = world.components().get_info(component_id).unwrap();
-                            let type_id = info.type_id().unwrap();
-
-                            // do the component and type id stuff to the effect trigger component
-                            let mut handle = world.entity_mut(entity);
-                            let mut mut_untyped = handle.get_mut_by_id(component_id).unwrap();
-                            let effect = make_effect_trigger(
-                                &mut mut_untyped,
-                                &type_id,
-                                &type_registry
-                            );
-                            effect.trigger(&params, type_registration);
-                            */
-                            (effect.function)(&params, type_registration);
-                        }
+                        (effect.function)(&params);
                     }
                 });
             });

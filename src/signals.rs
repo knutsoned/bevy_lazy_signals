@@ -3,7 +3,7 @@ use std::any::TypeId;
 use bevy::{
     ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
     prelude::*,
-    reflect::{ DynamicTuple, GetTypeRegistration, Tuple, TypeRegistration },
+    reflect::{ DynamicTuple, GetTypeRegistration, Tuple },
 };
 
 use thiserror::Error;
@@ -112,15 +112,14 @@ pub trait SignalsObservable {
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
 /// It should call value instead of read to make sure it is re-subscribed to its sources!
 /// If the target entity is not supplied, the function is assumed to execute side effects only.
-pub trait PropagatorFn: Send + Sync + Fn(&DynamicTuple, &TypeRegistration, &Entity, &ComponentId) {}
-impl<T: Send + Sync + Fn(&DynamicTuple, &TypeRegistration, &Entity, &ComponentId)> PropagatorFn
-for T {}
+pub trait PropagatorFn: Send + Sync + Fn(&DynamicTuple, &Entity, &ComponentId) {}
+impl<T: Send + Sync + Fn(&DynamicTuple, &Entity, &ComponentId)> PropagatorFn for T {}
 
 // TODO provide a to_effect to allow a propagator to be used as an effect?
 
 /// This is the same basic thing but this fn just runs side-effects so no value is returned
-pub trait EffectFn: Send + Sync + Fn(&DynamicTuple, &TypeRegistration) {}
-impl<T: Send + Sync + Fn(&DynamicTuple, &TypeRegistration)> EffectFn for T {}
+pub trait EffectFn: Send + Sync + Fn(&DynamicTuple) {}
+impl<T: Send + Sync + Fn(&DynamicTuple)> EffectFn for T {}
 
 /// ## Component Structs
 /// An Immutable is known as a cell in a propagator network. It may also be referred to as state.
@@ -304,9 +303,9 @@ pub struct SendSignal;
 #[derive(Component)]
 pub struct Memo {
     pub function: Box<dyn PropagatorFn>,
-    pub params_type: TypeId,
-    pub return_type: TypeId,
     pub sources: Vec<Entity>,
+    pub params_type: TypeId,
+    pub result_type: TypeId,
     pub immutable_state_id: ComponentId,
 }
 
@@ -319,8 +318,8 @@ pub struct ComputeMemo;
 #[derive(Component)]
 pub struct Effect {
     pub function: Box<dyn EffectFn>,
-    pub params_type: TypeId,
     pub triggers: Vec<Entity>,
+    pub params_type: TypeId,
 }
 
 /// A DeferredEffect component marks an Effect function that needs to run.
@@ -354,4 +353,9 @@ pub type ErrorSet = SparseSet<Entity, SignalsError>;
 /// Create an empty sparse set for storing Entities by ID.
 pub fn empty_set() -> EntitySet {
     EntitySet::new()
+}
+
+/// Convenience function to convert DynamicTuples into a concrete type.
+pub fn get_tuple_from_params<T: SignalsParams>(tuple: &DynamicTuple) -> T {
+    <T as FromReflect>::from_reflect(tuple).unwrap()
 }

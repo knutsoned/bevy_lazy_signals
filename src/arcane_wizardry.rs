@@ -39,60 +39,6 @@ pub fn make_signals_trait_object<'a, T: Reflect>(
         .map(|value| value as &mut T)
         .unwrap()
 }
-
-// given a mutable reference to a LazyImmutable component instance, make a SignalsEffect
-pub fn make_effect_trigger<'a>(
-    mut_untyped: &'a mut MutUntyped,
-    type_id: &TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) -> &'a mut dyn SignalsEffect {
-    // convert into a pointer
-    let ptr_mut = mut_untyped.as_mut();
-
-    // the reflect_data is used to build a strategy to dereference a pointer to the component
-    let reflect_data = type_registry.get(*type_id).unwrap();
-
-    // we're going to get a pointer to the component, so we'll need this
-    let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap().clone();
-
-    // safety: `value` implements reflected trait `SignalsEffect`, what for `ReflectFromPtr`
-    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
-
-    // consume mass quantities
-    let reflect_signals_effect = type_registry
-        .get_type_data::<ReflectSignalsEffect>(value.type_id())
-        .unwrap();
-
-    // nanu nanu
-    reflect_signals_effect.get_mut(value).unwrap()
-}
-
-// given a mutable reference to a LazyImmutable component instance, make an UntypedObservable
-pub fn make_propagator_trigger<'a>(
-    mut_untyped: &'a mut MutUntyped,
-    type_id: &TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) -> &'a mut dyn SignalsMemo {
-    // convert into a pointer
-    let ptr_mut = mut_untyped.as_mut();
-
-    // the reflect_data is used to build a strategy to dereference a pointer to the component
-    let reflect_data = type_registry.get(*type_id).unwrap();
-
-    // we're going to get a pointer to the component, so we'll need this
-    let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap().clone();
-
-    // safety: `value` implements reflected trait `SignalsMemo`, what for `ReflectFromPtr`
-    let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
-
-    // the sun grew dark and cold
-    let reflect_signals_memo = type_registry
-        .get_type_data::<ReflectSignalsMemo>(value.type_id())
-        .unwrap();
-
-    // the seas boiled
-    reflect_signals_memo.get_mut(value).unwrap()
-}
 */
 
 // given a mutable reference to a LazyImmutable component instance, make an UntypedObservable
