@@ -3,7 +3,7 @@ use std::any::TypeId;
 use bevy::{
     ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
     prelude::*,
-    reflect::{ DynamicTuple, GetTypeRegistration, Tuple },
+    reflect::{ DynamicTuple, GetTypeRegistration, Tuple, TypeRegistration },
 };
 
 use thiserror::Error;
@@ -115,7 +115,7 @@ pub trait SignalsMemo {
 /// Object-safe trait for triggering effects without knowing their types.
 #[reflect_trait]
 pub trait SignalsEffect {
-    fn trigger(&mut self);
+    fn trigger(&mut self, params: &DynamicTuple, type_registration: &TypeRegistration);
 }
 
 /// A Propagator function aggregates (merges) data from multiple cells to store in a bound cell.
@@ -353,8 +353,8 @@ pub struct EffectTrigger<P: SignalsParams> {
 }
 
 impl<P: SignalsParams> SignalsEffect for EffectTrigger<P> {
-    fn trigger(&mut self) {
-        todo!()
+    fn trigger(&mut self, params: &DynamicTuple, type_registration: &TypeRegistration) {
+        info!("effect triggered for {:?} of type registration {:?}", params, type_registration);
     }
 }
 

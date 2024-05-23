@@ -93,8 +93,11 @@ pub struct CreateComputedCommand<P: SignalsParams, R: SignalsData> {
 
 impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
+        // FIXME need to register type for EffectTrigger<P>
+
         let immutable_state_id = world.init_component::<LazyImmutable<R>>();
         let propagator_trigger_id = world.init_component::<PropagatorTrigger<P, R>>();
+
         world
             .get_entity_mut(self.computed)
             .unwrap()
@@ -125,7 +128,10 @@ pub struct CreateEffectCommand<P: SignalsParams> {
 
 impl<P: SignalsParams> Command for CreateEffectCommand<P> {
     fn apply(self, world: &mut World) {
+        // FIXME need to register type for EffectTrigger<P>
+
         let effect_trigger_id = world.init_component::<EffectTrigger<P>>();
+
         world
             .get_entity_mut(self.effect)
             .unwrap()

@@ -19,7 +19,7 @@ fn process_subs(
     if let Some(source) = world.get_entity(*source) {
         // get the source Immutable component
         if let Some(immutable_state) = source.get::<ImmutableState>() {
-            // ...as an UntypedObservable
+            // ...as a SignalsObservable
             component_id = Some(immutable_state.component_id);
             if let Some(info) = world.components().get_info(component_id.unwrap()) {
                 type_id = info.type_id();
@@ -63,6 +63,7 @@ pub fn init_effects(
         for (entity, triggers) in entities.iter() {
             // loop through the sources
             for source in triggers.iter() {
+                // FIXME should this be done with some kind of unsafe entity cell?
                 process_subs(world, entity, source, &type_registry);
             }
 
@@ -90,6 +91,7 @@ pub fn init_propagators(
         for (entity, sources) in entities.iter() {
             // loop through the sources
             for source in sources.iter() {
+                // FIXME should this be done with some kind of unsafe entity cell?
                 process_subs(world, entity, source, &type_registry);
             }
 
@@ -138,43 +140,41 @@ pub fn send_signals(
                 let mut signal_to_send = world.entity_mut(*entity);
 
                 // use the type_id from the component info, YOLO
-                if let Some(info) = component_info.get(component_id) {
-                    if let Some(type_id) = info.type_id() {
-                        // the type_id matches the concrete type of the Signal's generic Immutable
+                let info = component_info.get(component_id).unwrap();
+                let type_id = info.type_id().unwrap();
+                // the type_id matches the concrete type of the Signal's generic Immutable
 
-                        // it comes from ComponentInfo which is retrieved from the ECS world
+                // it comes from ComponentInfo which is retrieved from the ECS world
 
-                        // the component_id is saved when command to make concrete Immutable runs
+                // the component_id is saved when command to make concrete Immutable runs
 
-                        // merge the next data value and return a list of subscribers to the change
-                        // and whether these subscribers should be triggered too
-                        let subs = the_abyss_gazes_into_you(
-                            &mut signal_to_send,
-                            &component_id,
-                            &type_id,
-                            &type_registry
-                        );
+                // merge the next data value and return a list of subscribers to the change
+                // and whether these subscribers should be triggered too
+                let subs = the_abyss_gazes_into_you(
+                    &mut signal_to_send,
+                    &component_id,
+                    &type_id,
+                    &type_registry
+                );
 
-                        let triggered = subs.1;
-                        let subs = subs.0;
+                let triggered = subs.1;
+                let subs = subs.0;
 
-                        // if the merge returns a non-zero length list of subscribers, it changed
-                        // (for our purposes, anyway)
-                        if !triggered && !subs.is_empty() {
-                            signals.changed.insert(*entity, ());
-                        }
+                // if the merge returns a non-zero length list of subscribers, it changed
+                // (for our purposes, anyway)
+                if !triggered && !subs.is_empty() {
+                    signals.changed.insert(*entity, ());
+                }
 
-                        // add subscribers to the next running set
-                        for subscriber in subs.into_iter() {
-                            signals.next_running.insert(subscriber, ());
-                            info!("-added subscriber {:?} to running set", subscriber);
+                // add subscribers to the next running set
+                for subscriber in subs.into_iter() {
+                    signals.next_running.insert(subscriber, ());
+                    info!("-added subscriber {:?} to running set", subscriber);
 
-                            // if these subs were triggered, they need to be marked triggered too
-                            if triggered {
-                                // add each one to the triggered set
-                                signals.triggered.insert(subscriber, ());
-                            }
-                        }
+                    // if these subs were triggered, they need to be marked triggered too
+                    if triggered {
+                        // add each one to the triggered set
+                        signals.triggered.insert(subscriber, ());
                     }
                 }
 
@@ -264,8 +264,10 @@ pub fn apply_deferred_effects(
     let mut effects = empty_set();
 
     // collapse the query or get world concurrency errors
+    let mut effect_components = ComponentIdSet::new();
     let mut hierarchy = EntityHierarchySet::new();
     for (entity, effect) in query_effects.iter(world) {
+        effect_components.insert(entity, effect.effect_trigger_id);
         hierarchy.insert(entity, effect.triggers.clone());
     }
 
@@ -289,7 +291,7 @@ pub fn apply_deferred_effects(
     // write
     for entity in effects.indices() {
         if let Some(sources) = hierarchy.get(entity) {
-            info!("-found effect with sources {:?}", sources);
+            info!("-found effect with triggers {:?}", sources);
 
             // add the source component ID to the set (probably could be optimized)
             let mut component_id_set = ComponentIdSet::new();
@@ -299,7 +301,7 @@ pub fn apply_deferred_effects(
             for source in sources.iter() {
                 let immutable = world.entity(*source).get::<ImmutableState>().unwrap();
                 let component_id = immutable.component_id;
-                trace!("-found a trigger with component ID {:?}", component_id);
+                info!("-found a trigger with component ID {:?}", component_id);
                 component_id_set.insert(*source, component_id);
                 if let Some(info) = world.components().get_info(component_id) {
                     component_info.insert(component_id, info.clone());
@@ -329,27 +331,25 @@ pub fn apply_deferred_effects(
                 }
 
                 // actually run the effect
-                world.resource_scope(|world, mut signals: Mut<SignalsResource>| {
+                world.resource_scope(|world, mut _signals: Mut<SignalsResource>| {
                     if let Some(mut handle) = world.get_entity_mut(entity) {
                         let effect = handle.get_mut::<Effect>().unwrap();
-
                         let type_registry = type_registry.read();
-                        if let Some(registration) = type_registry.get(effect.params_type) {
-                            // assign the TypeId we saved at creation to the DynamicTuple we just made
-                            trace!("params tuple type info: {:?}", registration.type_info());
-                            //params.set_represented_type(Some(registration.type_info()));
+                        if let Some(type_registration) = type_registry.get(effect.params_type) {
+                            // need to get the corresponding EffectTrigger component
+                            let component_id = *effect_components.get(entity).unwrap();
+                            let info = world.components().get_info(component_id).unwrap();
+                            let type_id = info.type_id().unwrap();
 
-                            // FIXME need to get the corresponding EffectTrigger component and fire it
-
-                            // then call the EffectFn with the gathered params
-                            /*
-                            if let Some(result) = (effect.function)(&params) {
-                                if result.is_err() {
-                                    // add any error to the error set
-                                    signals.errors.insert(entity, result.err().unwrap());
-                                }
-                            }
-                            */
+                            // do the component and type id stuff to the effect trigger component
+                            let mut handle = world.entity_mut(entity);
+                            let mut mut_untyped = handle.get_mut_by_id(component_id).unwrap();
+                            let effect = make_effect_trigger(
+                                &mut mut_untyped,
+                                &type_id,
+                                &type_registry
+                            );
+                            effect.trigger(&params, type_registration);
                         }
                     }
                 });
