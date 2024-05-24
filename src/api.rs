@@ -1,6 +1,16 @@
-use bevy::prelude::*;
+use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
 
 use crate::{ commands::LazySignalsCommandsExt, framework::* };
+
+/// Convenience function to get a field directly from a DynamicTuple.
+pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Option<&T> {
+    tuple.get_field::<T>(index) // returns None if type doesn't match
+}
+
+/// Convenience function to convert DynamicTuples into a concrete type.
+pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
+    <T as FromReflect>::from_reflect(tuple).unwrap()
+}
 
 /// ## Main Signal primitive factory.
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.

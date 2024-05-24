@@ -1,10 +1,6 @@
 use std::{ any::TypeId, sync::RwLockReadGuard };
 
-use bevy::{
-    ecs::component::ComponentId,
-    prelude::*,
-    reflect::{ DynamicTuple, GetTupleField, TypeRegistry },
-};
+use bevy::{ ecs::component::ComponentId, prelude::*, reflect::{ DynamicTuple, TypeRegistry } };
 
 use crate::{ arcane_wizardry::*, framework::* };
 
@@ -81,16 +77,6 @@ impl Default for LazySignalsResource {
             errors: ErrorSet::new(),
         }
     }
-}
-
-/// Convenience function to get a field directly from a DynamicTuple.
-pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Option<&T> {
-    tuple.get_field::<T>(index) // returns None if type doesn't match
-}
-
-/// Convenience function to convert DynamicTuples into a concrete type.
-pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
-    it_s_full_of_stars::<T>(tuple)
 }
 
 /// Convenience function to subscribe an entity to a source.

@@ -146,8 +146,3 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
     // please clap
     observable.copy_data(*target, params);
 }
-
-// this will copy the data out of the DynamicTuple proxy and into an actual, concrete tuple
-pub(crate) fn it_s_full_of_stars<T>(tuple: &DynamicTuple) -> T where T: LazySignalsParams {
-    <T as FromReflect>::from_reflect(tuple).unwrap()
-}

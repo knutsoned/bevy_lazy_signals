@@ -1,11 +1,6 @@
 use bevy::prelude::*;
 
-use bevy_lazy_signals::{
-    api::LazySignal,
-    framework::*,
-    reference_impl::make_tuple,
-    LazySignalsPlugin,
-};
+use bevy_lazy_signals::{ api::{ make_tuple, LazySignal }, framework::*, LazySignalsPlugin };
 
 // this just keeps track of all the LazySignals primitives. just need the entity.
 #[derive(Resource, Default)]
