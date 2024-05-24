@@ -9,7 +9,7 @@ effort to create a Signal built-in that will provide a common API to support a r
 For Bevy, such a library could help efforts to integrate UI frameworks, enable networking, support
 scripting, scene editing, and file operations.
 
-See also: [Architecture](ARCHITECTURE.md)
+See also: [Architecture](architecture.md) and [Rationale](rationale.md)
 
 ## Dependencies
 
@@ -30,17 +30,17 @@ See also: [Architecture](ARCHITECTURE.md)
 
 ## General Usage
 
-The SignalsPlugin will register a SignalsResource which is the main entry point.
+The LazySignalsPlugin will register a LazySignalsResource which is the main entry point.
 Within a system, get the resource as a parameter, then create signals, updating them later.
 For basic usage, an application specific resource may track the entities:
 
-TODO: actually test this
+TODO: actually test this (see [basic_test](examples/basic_test.rs) for working, tested code)
 
 ```
 use bevy::prelude::*;
-use bevy_signals::{ commands::SignalsCommandsExt, signals::Signal };
+use bevy_lazy_signals::{ api::LazySignal, framework::*, LazySignalsPlugin };
 
-#[derive(Default, Resource)]
+#[derive(Resource, Default)]
 struct ConfigResource {
     x_axis: Option<Entity>,
     y_axis: Option<Entity>,
@@ -50,8 +50,8 @@ struct ConfigResource {
 
 fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     // note these will not be ready for use until the commands actually run
-    config.x_axis = Signal.state::<f32>(0.0, commands);
-    config.y_axis = Signal.state::<f32>(0.0, commands);
+    config.x_axis = LazySignal.state::<f32>(0.0, commands);
+    config.y_axis = LazySignal.state::<f32>(0.0, commands);
 
     // here we start with an empty Entity (more useful if we already spawned the entity elsewhere)
     config.action_button = commands.spawn_empty().id();
@@ -65,12 +65,12 @@ fn signals_update_system(
     mut commands: Commands
 ) {
     // assume we have somehow read x and y values of the gamepad stick and assigned them to x and y
-    Signal.send(config.x_axis, x, commands);
-    Signal.send(config.y_axis, y, commands);
+    LazySignal.send(config.x_axis, x, commands);
+    LazySignal.send(config.y_axis, y, commands);
 
     // signals aren't processed right away, so the signals are still the original value
-    let prev_x = Signal.read::<f32>(config.x_axis, world);
-    let prev_y = Signal.read::<f32>(config.y_axis, world);
+    let prev_x = LazySignal.read::<f32>(config.x_axis, world);
+    let prev_y = LazySignal.read::<f32>(config.y_axis, world);
 
     // let's force the action button to true to simulate pressing the button but use custom command
     commands.send_signal::<bool>(config.action_button, true);
