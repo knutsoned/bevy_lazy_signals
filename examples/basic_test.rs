@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use bevy_lazy_signals::{
-    api::*,
-    factory::LazySignal,
+    api::LazySignal,
+    framework::*,
     reference_impl::make_tuple,
     LazySignalsPlugin,
 };

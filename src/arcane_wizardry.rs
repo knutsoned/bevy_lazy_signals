@@ -11,7 +11,7 @@ use bevy::{
     reflect::{ DynamicTuple, ReflectFromPtr, TypeRegistry },
 };
 
-use crate::api::*;
+use crate::framework::*;
 
 // given a mutable reference to a LazyImmutable component instance, make an UntypedObservable
 pub fn make_observable<'a>(

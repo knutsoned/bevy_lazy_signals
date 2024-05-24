@@ -2,7 +2,7 @@ use std::{ any::TypeId, marker::PhantomData };
 
 use bevy::{ ecs::world::Command, prelude::* };
 
-use crate::api::*;
+use crate::framework::*;
 
 /// Convenience extension to use each Command directly from Commands instance.
 pub trait LazySignalsCommandsExt {
