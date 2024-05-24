@@ -7,6 +7,7 @@ use bevy_lazy_signals::{
     LazySignalsPlugin,
 };
 
+// this just keeps track of all the LazySignals primitives. just need the entity.
 #[derive(Resource, Default)]
 struct MyTestResource {
     pub signal1: Option<Entity>,
@@ -14,6 +15,7 @@ struct MyTestResource {
     pub effect: Option<Entity>,
 }
 
+// concrete tuple type to safely work with the DynamicTuple coming out of the LazySignals systems
 type MyEffectParams = (Option<bool>, Option<LazySignalsStr>);
 
 fn main() {
@@ -53,10 +55,10 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         let params = make_tuple::<MyEffectParams>(params);
 
         // read param 0
-        let boolean = params.0;
+        let boolean = params.0.unwrap();
 
         // read param 1
-        let string = params.1;
+        let string = params.1.unwrap();
 
         info!("got {:?} and {:?} from params", boolean, string);
     });
