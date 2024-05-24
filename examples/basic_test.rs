@@ -25,6 +25,7 @@ fn main() {
         // .register_type::<LazyImmutable<MyType>>()
         .init_resource::<MyTestResource>()
         // also register type aliases for computed and effect param tuples
+        // FIXME can this be done automatically when the Computed or Effect is created?
         .register_type::<MyEffectParams>()
         .add_plugins(LazySignalsPlugin)
         // don't need to add systems to process signals since we're using the plugin
