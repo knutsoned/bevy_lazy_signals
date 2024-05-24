@@ -299,12 +299,13 @@ impl<T: LazySignalsData> LazySignalsObservable for LazyImmutable<T> {
     }
 }
 
+/// An ImmutableState stores the ComponentId of an LazyImmutable<T> with concrete T.
 #[derive(Component)]
 pub struct ImmutableState {
     pub component_id: ComponentId,
 }
 
-/// A SendSignal component marks an Immutable cell as having a next_value.
+/// A SendSignal component marks a LazyImmutable cell as having a next_value.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct SendSignal;
@@ -319,7 +320,7 @@ pub struct Computed {
     pub immutable_state_id: ComponentId,
 }
 
-/// A ComputeMemo component marks a LazyImmutable that needs to be computed.
+/// A ComputeMemo component marks a Computed that needs computin.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct ComputeMemo;
@@ -337,7 +338,7 @@ pub struct Effect {
 #[component(storage = "SparseSet")]
 pub struct DeferredEffect;
 
-/// Marks a Propagator as needing to subscribe to its dependencies.
+/// Marks a Computed or Effect as needing to subscribe to its dependencies.
 /// This normally only happens within the framework internals on create.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
