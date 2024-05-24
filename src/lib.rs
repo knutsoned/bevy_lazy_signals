@@ -37,11 +37,11 @@ impl Plugin for LazySignalsPlugin {
         // add the systems to process signals, memos, and effects
         app.init_resource::<LazySignalsResource>()
             // custom Immutable types must be manually registered
-            .register_type::<ImmutableBool>()
-            .register_type::<ImmutableInt>()
-            .register_type::<ImmutableFloat>()
-            .register_type::<ImmutableStr>()
-            .register_type::<ImmutableUnit>()
+            .register_type::<LazyImmutableBool>()
+            .register_type::<LazyImmutableInt>()
+            .register_type::<LazyImmutableFloat>()
+            .register_type::<LazyImmutableStr>()
+            .register_type::<LazyImmutableUnit>()
             .add_systems(
                 PreUpdate, // could be PostUpdate or whatever else (probably not Update)
                 // defaults to PreUpdate since it is assumed the UI will process right after Update

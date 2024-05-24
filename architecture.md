@@ -1,5 +1,7 @@
 # Architecture
 
+This whole thing probably needs to be rewritten.
+
 ## Overview
 
 First, a distinction between semantic structures (Signal, Memo, Effect) and component types

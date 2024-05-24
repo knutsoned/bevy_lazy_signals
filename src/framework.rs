@@ -10,13 +10,14 @@ use thiserror::Error;
 
 /// # Signals framework
 /// ## Types
-///Convenience typedefs.
 pub type LazySignalsStr = &'static str;
-pub type ImmutableBool = LazyImmutable<bool>;
-pub type ImmutableInt = LazyImmutable<u32>;
-pub type ImmutableFloat = LazyImmutable<f64>;
-pub type ImmutableStr = LazyImmutable<LazySignalsStr>;
-pub type ImmutableUnit = LazyImmutable<()>;
+
+/// Convenience typedefs.
+pub type LazyImmutableBool = LazyImmutable<bool>;
+pub type LazyImmutableInt = LazyImmutable<u32>;
+pub type LazyImmutableFloat = LazyImmutable<f64>;
+pub type LazyImmutableStr = LazyImmutable<LazySignalsStr>;
+pub type LazyImmutableUnit = LazyImmutable<()>;
 
 /// Result type for handling error conditions in consumer code.
 pub type LazySignalsResult<R> = Option<Result<R, LazySignalsError>>;
@@ -120,6 +121,10 @@ pub trait LazySignalsObservable {
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
 /// It should call value instead of read to make sure it is re-subscribed to its sources!
 /// If the target entity is not supplied, the function is assumed to execute side effects only.
+///
+/// The DynamicTuple is an argument list whose internal types match the Option<T> of each source.
+/// The entity is where the result will be stored, where this instance of the function lives.
+/// The component_id is the type of the LazyImmutable where the result will be stored.
 pub trait PropagatorFn: Send + Sync + Fn(&DynamicTuple, &Entity, &ComponentId) {}
 impl<T: Send + Sync + Fn(&DynamicTuple, &Entity, &ComponentId)> PropagatorFn for T {}
 
@@ -316,7 +321,7 @@ pub struct Computed {
     pub function: Box<dyn PropagatorFn>,
     pub sources: Vec<Entity>,
     pub params_type: TypeId,
-    pub result_type: TypeId,
+    pub result_type: TypeId, // FIXME is this needed?
     pub immutable_state_id: ComponentId,
 }
 

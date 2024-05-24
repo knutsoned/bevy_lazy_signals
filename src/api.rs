@@ -1,4 +1,4 @@
-use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
+use bevy::{ ecs::component::ComponentId, prelude::*, reflect::{ DynamicTuple, GetTupleField } };
 
 use crate::{ commands::LazySignalsCommandsExt, framework::* };
 
@@ -11,6 +11,13 @@ pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Opti
 pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
     <T as FromReflect>::from_reflect(tuple).unwrap()
 }
+
+/// Convenience function to store a result in an entity.
+pub fn store_result<T: LazySignalsData>(
+    data: Option<T>,
+    entity: &Entity,
+    component_id: &ComponentId
+) {}
 
 /// ## Main Signal primitive factory.
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
