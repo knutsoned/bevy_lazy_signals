@@ -91,7 +91,7 @@ pub fn init_effects(
 
 pub fn init_memos(
     world: &mut World,
-    query_propagators: &mut QueryState<(Entity, &Memo), With<RebuildSubscribers>>
+    query_propagators: &mut QueryState<(Entity, &Computed), With<RebuildSubscribers>>
 ) {
     // collapse the query or get world concurrency errors
     let mut entities = EntityHierarchySet::new();
@@ -227,7 +227,7 @@ pub fn send_signals(
                             subscriber.insert(DeferredEffect);
                             info!("-scheduled effect");
                         }
-                        if subscriber.contains::<Memo>() {
+                        if subscriber.contains::<Computed>() {
                             // it is a memo, so mark it for recalculation by adding ComputeMemo
                             subscriber.insert(ComputeMemo);
                             info!("-marked memo for computation");
@@ -245,9 +245,9 @@ pub fn send_signals(
     });
 }
 
-pub fn calculate_memos(
+pub fn compute_memos(
     world: &mut World,
-    _query_memos: &mut QueryState<(Entity, &Memo), With<ComputeMemo>>
+    _query_memos: &mut QueryState<(Entity, &Computed), With<ComputeMemo>>
 ) {
     trace!("MEMOS");
     // need exclusive world access here to update memos immediately and need to write to resource

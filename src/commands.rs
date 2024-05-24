@@ -100,7 +100,7 @@ impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand
             .unwrap()
             .insert((
                 LazyImmutable::<R>::new(None),
-                Memo {
+                Computed {
                     function: self.function,
                     sources: self.sources,
                     params_type: TypeId::of::<P>(),

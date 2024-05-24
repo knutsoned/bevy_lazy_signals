@@ -308,8 +308,9 @@ pub struct ImmutableState {
 #[component(storage = "SparseSet")]
 pub struct SendSignal;
 
+/// A Computed is a Propagator that memoizes its result in a LazyImmutable.
 #[derive(Component)]
-pub struct Memo {
+pub struct Computed {
     pub function: Box<dyn PropagatorFn>,
     pub sources: Vec<Entity>,
     pub params_type: TypeId,
@@ -317,12 +318,12 @@ pub struct Memo {
     pub immutable_state_id: ComponentId,
 }
 
-/// A ComputeMemo component marks an Immutable that needs to be computed.
+/// A ComputeMemo component marks a LazyImmutable that needs to be computed.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct ComputeMemo;
 
-/// An effect is a Propagator endpoint that returns no value and just runs side-effects.
+/// An Effect is a Propagator-like endpoint that returns no value and just runs side-effects.
 #[derive(Component)]
 pub struct Effect {
     pub function: Box<dyn EffectFn>,
