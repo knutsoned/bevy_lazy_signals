@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ ecs::schedule::SystemConfigs, prelude::* };
 
 mod arcane_wizardry;
 
@@ -9,36 +9,40 @@ pub mod factory;
 pub mod reference_impl;
 use reference_impl::*;
 
-pub mod signals;
-use signals::*;
+pub mod api;
+use api::*;
 
 pub mod prelude {
-    pub use crate::{ factory::*, signals::*, SignalsPlugin, SignalsResource };
+    pub use crate::{ api::*, factory::*, LazySignalsPlugin, LazySignalsResource };
 }
 
 /// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.
 ///
 ///Convenience typedefs.
-pub type SignalsStr = &'static str;
+pub type LazySignalsStr = &'static str;
 pub type ImmutableBool = LazyImmutable<bool>;
 pub type ImmutableInt = LazyImmutable<u32>;
 pub type ImmutableFloat = LazyImmutable<f64>;
-pub type ImmutableStr = LazyImmutable<SignalsStr>;
+pub type ImmutableStr = LazyImmutable<LazySignalsStr>;
 pub type ImmutableUnit = LazyImmutable<()>;
 
 /// System set used by plugin to run reference implementation.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SignalsSystemSet;
+pub struct LazySignalsSystemSet;
+
+pub fn lazy_signals_system_chain() -> SystemConfigs {
+    (init_effects, init_memos, send_signals, apply_deferred_effects).chain()
+}
 
 /// Plugin to initialize the resource and system schedule.
-pub struct SignalsPlugin;
+pub struct LazySignalsPlugin;
 
-impl Plugin for SignalsPlugin {
+impl Plugin for LazySignalsPlugin {
     fn build(&self, app: &mut App) {
         // NOTE: the user application will need to register each custom Immutable<T> for reflection
 
         // add the systems to process signals, memos, and effects
-        app.init_resource::<SignalsResource>()
+        app.init_resource::<LazySignalsResource>()
             // custom Immutable types must be manually registered
             .register_type::<ImmutableBool>()
             .register_type::<ImmutableInt>()
@@ -50,16 +54,14 @@ impl Plugin for SignalsPlugin {
                 PreUpdate, // could be PostUpdate or whatever else (probably not Update)
                 // defaults to PreUpdate since it is assumed the UI will process right after Update
                 // PostUpdate is a good place to read any events from the main app and send signals
-                (init_effects, init_memos, send_signals, apply_deferred_effects)
-                    .chain()
-                    .in_set(SignalsSystemSet)
+                lazy_signals_system_chain().in_set(LazySignalsSystemSet)
             );
     }
 }
 
 /// Shared reactive context resource.
 #[derive(Resource)]
-pub struct SignalsResource {
+pub struct LazySignalsResource {
     /// Tracks triggered entities (Signals to send even if their value did not change).
     pub triggered: EntitySet,
 
@@ -86,7 +88,7 @@ pub struct SignalsResource {
 }
 
 /// This is a singleton that represents the "global state." It is used during internal updates.
-impl SignalsResource {
+impl LazySignalsResource {
     /// Call this at the start of each run to make sure everything is fresh.
     fn init(&mut self) {
         self.triggered.clear();
@@ -113,7 +115,7 @@ impl SignalsResource {
     }
 }
 
-impl Default for SignalsResource {
+impl Default for LazySignalsResource {
     fn default() -> Self {
         Self {
             triggered: empty_set(),

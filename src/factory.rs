@@ -1,12 +1,14 @@
 use bevy::prelude::*;
 
-use crate::{ commands::*, signals::* };
+use crate::{ commands::*, api::* };
 
 /// ## Main Signal primitive factory.
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
 pub struct Signal;
 impl Signal {
-    pub fn computed<P: SignalsParams, R: SignalsData>(
+    // FIXME do we really need this P anymore?
+    // this R?
+    pub fn computed<P: LazySignalsParams, R: LazySignalsData>(
         &self,
         propagator: Box<dyn PropagatorFn>,
         sources: Vec<Entity>,
@@ -17,7 +19,8 @@ impl Signal {
         entity
     }
 
-    pub fn effect<P: SignalsParams>(
+    // FIXME do we really need this P anymore?
+    pub fn effect<P: LazySignalsParams>(
         &self,
         effect: Box<dyn EffectFn>,
         triggers: Vec<Entity>,
@@ -28,11 +31,11 @@ impl Signal {
         entity
     }
 
-    pub fn read<R: SignalsData>(
+    pub fn read<R: LazySignalsData>(
         &self,
         immutable: Option<Entity>,
         world: &World
-    ) -> SignalsResult<R> {
+    ) -> LazySignalsResult<R> {
         match immutable {
             Some(immutable) => {
                 let entity = world.entity(immutable);
@@ -40,26 +43,31 @@ impl Signal {
                     Some(observable) => observable.read(),
 
                     // TODO maybe add some kind of config option to ignore errors and return a default
-                    None => Some(Err(SignalsError::ReadError(immutable))),
+                    None => Some(Err(LazySignalsError::ReadError(immutable))),
                 }
             }
-            None => Some(Err(SignalsError::NoSignalError)),
+            None => Some(Err(LazySignalsError::NoSignalError)),
         }
     }
 
-    pub fn send<T: SignalsData>(&self, signal: Option<Entity>, data: T, commands: &mut Commands) {
+    pub fn send<T: LazySignalsData>(
+        &self,
+        signal: Option<Entity>,
+        data: T,
+        commands: &mut Commands
+    ) {
         if let Some(signal) = signal {
             commands.send_signal::<T>(signal, data);
         }
     }
 
-    pub fn state<T: SignalsData>(&self, data: T, commands: &mut Commands) -> Entity {
+    pub fn state<T: LazySignalsData>(&self, data: T, commands: &mut Commands) -> Entity {
         let state = commands.spawn_empty().id();
         commands.create_state::<T>(state, data);
         state
     }
 
-    pub fn trigger<T: SignalsData>(
+    pub fn trigger<T: LazySignalsData>(
         &self,
         signal: Option<Entity>,
         data: T,
@@ -70,12 +78,12 @@ impl Signal {
         }
     }
 
-    pub fn value<R: SignalsData>(
+    pub fn value<R: LazySignalsData>(
         &self,
         immutable: Option<Entity>,
         caller: Entity,
         world: &mut World
-    ) -> SignalsResult<R> {
+    ) -> LazySignalsResult<R> {
         match immutable {
             Some(immutable) => {
                 let mut entity = world.entity_mut(immutable);
@@ -83,10 +91,10 @@ impl Signal {
                     Some(mut observable) => { observable.value(caller) }
 
                     // TODO maybe add some kind of config option to ignore errors and return default
-                    None => Some(Err(SignalsError::ReadError(immutable))),
+                    None => Some(Err(LazySignalsError::ReadError(immutable))),
                 }
             }
-            None => Some(Err(SignalsError::NoSignalError)),
+            None => Some(Err(LazySignalsError::NoSignalError)),
         }
     }
 }

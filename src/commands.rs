@@ -2,12 +2,12 @@ use std::{ any::TypeId, marker::PhantomData };
 
 use bevy::{ ecs::world::Command, prelude::* };
 
-use crate::signals::*;
+use crate::api::*;
 
 /// Convenience extension to use each Command directly from Commands instance.
 pub trait SignalsCommandsExt {
     /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
-    fn create_computed<P: SignalsParams, R: SignalsData>(
+    fn create_computed<P: LazySignalsParams, R: LazySignalsData>(
         &mut self,
         computed: Entity,
         function: Box<dyn PropagatorFn>,
@@ -15,7 +15,7 @@ pub trait SignalsCommandsExt {
     );
 
     /// Command to create an effect (Propagator with no Immutable) from the given entity.
-    fn create_effect<P: SignalsParams>(
+    fn create_effect<P: LazySignalsParams>(
         &mut self,
         effect: Entity,
         function: Box<dyn EffectFn>,
@@ -23,15 +23,15 @@ pub trait SignalsCommandsExt {
     );
 
     /// Command to create a state (Immutable with no Propagator) from the given entity.
-    fn create_state<T: SignalsData>(&mut self, state: Entity, data: T);
+    fn create_state<T: LazySignalsData>(&mut self, state: Entity, data: T);
 
-    fn send_signal<T: SignalsData>(&mut self, signal: Entity, data: T);
+    fn send_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T);
 
-    fn trigger_signal<T: SignalsData>(&mut self, signal: Entity, data: T);
+    fn trigger_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T);
 }
 
 impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
-    fn create_computed<P: SignalsParams, R: SignalsData>(
+    fn create_computed<P: LazySignalsParams, R: LazySignalsData>(
         &mut self,
         computed: Entity,
         function: Box<dyn PropagatorFn>,
@@ -46,7 +46,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
         });
     }
 
-    fn create_effect<P: SignalsParams>(
+    fn create_effect<P: LazySignalsParams>(
         &mut self,
         effect: Entity,
         function: Box<dyn EffectFn>,
@@ -60,21 +60,21 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
         });
     }
 
-    fn create_state<T: SignalsData>(&mut self, state: Entity, data: T) {
+    fn create_state<T: LazySignalsData>(&mut self, state: Entity, data: T) {
         self.add(CreateStateCommand {
             state,
             data,
         });
     }
 
-    fn send_signal<T: SignalsData>(&mut self, signal: Entity, data: T) {
+    fn send_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T) {
         self.add(SendSignalCommand {
             signal,
             data,
         });
     }
 
-    fn trigger_signal<T: SignalsData>(&mut self, signal: Entity, data: T) {
+    fn trigger_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T) {
         self.add(TriggerSignalCommand {
             signal,
             data,
@@ -83,7 +83,7 @@ impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
 }
 
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
-pub struct CreateComputedCommand<P: SignalsParams, R: SignalsData> {
+pub struct CreateComputedCommand<P: LazySignalsParams, R: LazySignalsData> {
     computed: Entity,
     function: Box<dyn PropagatorFn>,
     sources: Vec<Entity>,
@@ -91,7 +91,7 @@ pub struct CreateComputedCommand<P: SignalsParams, R: SignalsData> {
     result_type: PhantomData<R>,
 }
 
-impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
+impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
         let immutable_state_id = world.init_component::<LazyImmutable<R>>();
 
@@ -113,14 +113,14 @@ impl<P: SignalsParams, R: SignalsData> Command for CreateComputedCommand<P, R> {
 }
 
 /// Command to create an effect (Propagator with no memo) from the given entity.
-pub struct CreateEffectCommand<P: SignalsParams> {
+pub struct CreateEffectCommand<P: LazySignalsParams> {
     effect: Entity,
     function: Box<dyn EffectFn>,
     triggers: Vec<Entity>,
     params_type: PhantomData<P>,
 }
 
-impl<P: SignalsParams> Command for CreateEffectCommand<P> {
+impl<P: LazySignalsParams> Command for CreateEffectCommand<P> {
     fn apply(self, world: &mut World) {
         world
             .get_entity_mut(self.effect)
@@ -137,12 +137,12 @@ impl<P: SignalsParams> Command for CreateEffectCommand<P> {
 }
 
 /// Command to create a state (Immutable) from the given entity.
-pub struct CreateStateCommand<T: SignalsData> {
+pub struct CreateStateCommand<T: LazySignalsData> {
     state: Entity,
     data: T,
 }
 
-impl<T: SignalsData> Command for CreateStateCommand<T> {
+impl<T: LazySignalsData> Command for CreateStateCommand<T> {
     fn apply(self, world: &mut World) {
         // store the ComponentId so we can reflect the LazyImmutable
         let component_id = world.init_component::<LazyImmutable<T>>();
@@ -157,12 +157,12 @@ impl<T: SignalsData> Command for CreateStateCommand<T> {
 }
 
 /// Command to send a Signal (i.e. update an Immutable during the next tick) to the given entity.
-pub struct SendSignalCommand<T: SignalsData> {
+pub struct SendSignalCommand<T: LazySignalsData> {
     signal: Entity,
     data: T,
 }
 
-impl<T: SignalsData> Command for SendSignalCommand<T> {
+impl<T: LazySignalsData> Command for SendSignalCommand<T> {
     fn apply(self, world: &mut World) {
         trace!("SendSignalCommand {:?}", self.signal);
         // we're less sure the signal actually exists, but don't panic if not
@@ -182,12 +182,12 @@ impl<T: SignalsData> Command for SendSignalCommand<T> {
 }
 
 /// Command to trigger a Signal (i.e. send signal even if value unchanged) to the given entity.
-pub struct TriggerSignalCommand<T: SignalsData> {
+pub struct TriggerSignalCommand<T: LazySignalsData> {
     signal: Entity,
     data: T,
 }
 
-impl<T: SignalsData> Command for TriggerSignalCommand<T> {
+impl<T: LazySignalsData> Command for TriggerSignalCommand<T> {
     fn apply(self, world: &mut World) {
         trace!("TriggerSignalCommand {:?}", self.signal);
         // we're less sure the signal actually exists, but don't panic if not

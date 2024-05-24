@@ -2,7 +2,7 @@ use std::{ any::TypeId, sync::RwLockReadGuard };
 
 use bevy::{ ecs::component::ComponentId, prelude::*, reflect::{ DynamicTuple, TypeRegistry } };
 
-use crate::{ arcane_wizardry::*, signals::*, SignalsResource };
+use crate::{ arcane_wizardry::*, api::*, LazySignalsResource };
 
 /// This is the reference user API, patterned after the TC39 proposal.
 fn process_subs(
@@ -108,7 +108,7 @@ pub fn send_signals(
     trace!("SIGNALS");
 
     // Phase One: find all the updated signals and schedule their direct subscribers to run
-    world.resource_scope(|world, mut signals: Mut<SignalsResource>| {
+    world.resource_scope(|world, mut signals: Mut<LazySignalsResource>| {
         // initialize sets
         signals.init();
 
@@ -236,7 +236,7 @@ pub fn calculate_memos(
     trace!("MEMOS");
     // need exclusive world access here to update memos immediately and need to write to resource
     world.resource_scope(
-        |_world, mut _signals: Mut<SignalsResource>| {
+        |_world, mut _signals: Mut<LazySignalsResource>| {
             // run each Memo function to recalculate memo, adding sources to the running set
 
             // *** update the data in the cell
@@ -267,7 +267,7 @@ pub fn apply_deferred_effects(
     }
 
     // read
-    world.resource_scope(|world, signals: Mut<SignalsResource>| {
+    world.resource_scope(|world, signals: Mut<LazySignalsResource>| {
         for (entity, triggers) in hierarchy.iter() {
             // only run an effect if at least one of its triggers is in the changed set
             for source in triggers {
@@ -326,7 +326,7 @@ pub fn apply_deferred_effects(
                 }
 
                 // actually run the effect
-                world.resource_scope(|world, mut _signals: Mut<SignalsResource>| {
+                world.resource_scope(|world, mut _signals: Mut<LazySignalsResource>| {
                     if let Some(mut handle) = world.get_entity_mut(entity) {
                         let effect = handle.get_mut::<Effect>().unwrap();
                         (effect.function)(&params);

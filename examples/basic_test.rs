@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
 use bevy_lazy_signals::{
+    api::{ make_tuple, EffectFn },
     factory::Signal,
-    signals::{ get_tuple_from_params, EffectFn },
-    SignalsPlugin,
-    SignalsStr,
+    LazySignalsPlugin,
+    LazySignalsStr,
 };
 
 #[derive(Resource, Default)]
@@ -14,7 +14,7 @@ struct TestResource {
     pub effect: Option<Entity>,
 }
 
-type EffectParams = (Option<bool>, Option<SignalsStr>);
+type EffectParams = (Option<bool>, Option<LazySignalsStr>);
 
 fn main() {
     App::new()
@@ -23,7 +23,7 @@ fn main() {
         // .register_type::<Immutable<MyType>>()
         // also register type aliases for computed and effect param tuples
         .register_type::<EffectParams>()
-        .add_plugins(SignalsPlugin)
+        .add_plugins(LazySignalsPlugin)
         .init_resource::<TestResource>()
         .add_systems(Startup, init)
         .add_systems(Update, send_some_signals)
@@ -48,7 +48,7 @@ fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
     // simple effect that logs its trigger(s) whenever one changes
     let effect_propagator: Box<dyn EffectFn> = Box::new(|params| {
         // convert DynamicTuple to concrete tuple
-        let params = get_tuple_from_params::<EffectParams>(params);
+        let params = make_tuple::<EffectParams>(params);
 
         // read param 0
         let boolean = params.0;
@@ -63,6 +63,7 @@ fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
     test.effect = Some(
         Signal.effect::<EffectParams>(
             // closure to call when the effect is triggered
+            // TODO see if there is some adapter function to wrap an fn that takes tuple as param
             effect_propagator,
             // type of each trigger must match type at same tuple position
             vec![test_signal1, test_signal2],

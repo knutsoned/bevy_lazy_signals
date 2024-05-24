@@ -11,14 +11,14 @@ use bevy::{
     reflect::{ DynamicTuple, ReflectFromPtr, TypeRegistry },
 };
 
-use crate::signals::*;
+use crate::api::*;
 
 // given a mutable reference to a LazyImmutable component instance, make an UntypedObservable
 pub fn make_observable<'a>(
     mut_untyped: &'a mut MutUntyped,
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
-) -> &'a mut dyn SignalsObservable {
+) -> &'a mut dyn LazySignalsObservable {
     // convert into a pointer
     let ptr_mut = mut_untyped.as_mut();
 
@@ -33,7 +33,7 @@ pub fn make_observable<'a>(
 
     // the sun grew dark and cold
     let reflect_untyped_observable = type_registry
-        .get_type_data::<ReflectSignalsObservable>(value.type_id())
+        .get_type_data::<ReflectLazySignalsObservable>(value.type_id())
         .unwrap();
 
     // the seas boiled

@@ -11,12 +11,12 @@ use thiserror::Error;
 /// # Signals framework
 /// ## Types
 /// Result type for handling error conditions in consumer code.
-pub type SignalsResult<R> = Option<Result<R, SignalsError>>;
+pub type LazySignalsResult<R> = Option<Result<R, LazySignalsError>>;
 
 /// ## Enums
 /// Read error.
 #[derive(Error, Clone, Copy, PartialEq, Reflect, Debug)]
-pub enum SignalsError {
+pub enum LazySignalsError {
     /// An attempt was made to reference a Signal entity that does not have the right components.
     #[error["Signal does not exist"]]
     NoSignalError,
@@ -32,7 +32,7 @@ pub enum SignalsError {
 
 // ## Traits
 /// An item of data for use with Immutables.
-pub trait SignalsData: Copy +
+pub trait LazySignalsData: Copy +
     FromReflect +
     GetTypeRegistration +
     PartialEq +
@@ -41,7 +41,7 @@ pub trait SignalsData: Copy +
     Sync +
     TypePath +
     'static {}
-impl<T> SignalsData
+impl<T> LazySignalsData
     for T
     where
         T: Copy +
@@ -55,30 +55,30 @@ impl<T> SignalsData
             'static {}
 
 /// A tuple containing parameters for a computed memo or effect.
-pub trait SignalsParams: SignalsData + Tuple {}
-impl<T> SignalsParams for T where T: SignalsData + Tuple {}
+pub trait LazySignalsParams: LazySignalsData + Tuple {}
+impl<T> LazySignalsParams for T where T: LazySignalsData + Tuple {}
 
 /// An item of data backed by a Bevy entity with a set of subscribers.
 /// Additional methods in UntypedObservable would be here but you can't have generic trait objects.
-pub trait SignalsImmutable: Send + Sync + 'static {
-    type DataType: SignalsData;
+pub trait LazySignalsImmutable: Send + Sync + 'static {
+    type DataType: LazySignalsData;
 
     // TODO add a get that returns a result after safely calling read
 
     // TODO add a get_value that returns a result after safely calling value
 
     /// Called by a consumer to provide a new value for the lazy update system to merge.
-    fn merge_next(&mut self, next: SignalsResult<Self::DataType>, trigger: bool);
+    fn merge_next(&mut self, next: LazySignalsResult<Self::DataType>, trigger: bool);
 
     /// Get the current value.
-    fn read(&self) -> SignalsResult<Self::DataType>;
+    fn read(&self) -> LazySignalsResult<Self::DataType>;
 
     /// Get the current value, subscribing an entity if provided (mostly used internally).
-    fn value(&mut self, caller: Entity) -> SignalsResult<Self::DataType>;
+    fn value(&mut self, caller: Entity) -> LazySignalsResult<Self::DataType>;
 }
 
 #[reflect_trait]
-pub trait SignalsObservable {
+pub trait LazySignalsObservable {
     /// Called by a lazy update system to apply the new value of a signal.
     /// This is a main thing to implement if you're trying to use reflection.
     /// The ref impl uses this to update the Immutable values without knowing the type.
@@ -134,10 +134,10 @@ impl<T: Send + Sync + Fn(&DynamicTuple)> EffectFn for T {}
 ///
 /// This Immutable is lazy. Other forms are left as an exercise for the reader.
 #[derive(Component, Reflect)]
-#[reflect(Component, SignalsObservable)]
-pub struct LazyImmutable<T: SignalsData> {
-    data: SignalsResult<T>,
-    next_value: SignalsResult<T>,
+#[reflect(Component, LazySignalsObservable)]
+pub struct LazyImmutable<T: LazySignalsData> {
+    data: LazySignalsResult<T>,
+    next_value: LazySignalsResult<T>,
     triggered: bool,
     #[reflect(ignore)]
     subscribers: EntitySet,
@@ -145,11 +145,11 @@ pub struct LazyImmutable<T: SignalsData> {
     next_subscribers: EntitySet,
 }
 
-impl<T: SignalsData> LazyImmutable<T> {
-    pub fn new(data: SignalsResult<T>) -> Self {
+impl<T: LazySignalsData> LazyImmutable<T> {
+    pub fn new(data: LazySignalsResult<T>) -> Self {
         Self {
             data,
-            next_value: Some(Err(SignalsError::NoNextValue)),
+            next_value: Some(Err(LazySignalsError::NoNextValue)),
             triggered: false,
             subscribers: empty_set(),
             next_subscribers: empty_set(),
@@ -157,25 +157,25 @@ impl<T: SignalsData> LazyImmutable<T> {
     }
 }
 
-impl<T: SignalsData> SignalsImmutable for LazyImmutable<T> {
+impl<T: LazySignalsData> LazySignalsImmutable for LazyImmutable<T> {
     type DataType = T;
 
-    fn merge_next(&mut self, next_value: SignalsResult<T>, triggered: bool) {
+    fn merge_next(&mut self, next_value: LazySignalsResult<T>, triggered: bool) {
         self.next_value = next_value;
         self.triggered = triggered;
     }
 
-    fn read(&self) -> SignalsResult<Self::DataType> {
+    fn read(&self) -> LazySignalsResult<Self::DataType> {
         self.data
     }
 
-    fn value(&mut self, caller: Entity) -> SignalsResult<Self::DataType> {
+    fn value(&mut self, caller: Entity) -> LazySignalsResult<Self::DataType> {
         self.subscribe(caller);
         self.read()
     }
 }
 
-impl<T: SignalsData> SignalsObservable for LazyImmutable<T> {
+impl<T: LazySignalsData> LazySignalsObservable for LazyImmutable<T> {
     fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple) {
         let data = match self.data {
             Some(data) =>
@@ -239,7 +239,7 @@ impl<T: SignalsData> SignalsObservable for LazyImmutable<T> {
                     doo_eet = true;
                 }
             }
-            Some(Err(SignalsError::NoNextValue)) => {
+            Some(Err(LazySignalsError::NoNextValue)) => {
                 // don't clobber the data with a null placeholder (different from None)
                 doo_eet = false;
             }
@@ -256,7 +256,7 @@ impl<T: SignalsData> SignalsObservable for LazyImmutable<T> {
         // overwrite the value
         if doo_eet {
             self.data = self.next_value;
-            self.next_value = Some(Err(SignalsError::NoNextValue));
+            self.next_value = Some(Err(LazySignalsError::NoNextValue));
         }
 
         // return a list of subscribers
@@ -348,7 +348,7 @@ pub type EntityHierarchySet = SparseSet<Entity, Vec<Entity>>;
 pub type EntitySet = SparseSet<Entity, ()>;
 
 /// Set of internal errors when running computed (propagator) and effect functions.
-pub type ErrorSet = SparseSet<Entity, SignalsError>;
+pub type ErrorSet = SparseSet<Entity, LazySignalsError>;
 
 /// Create an empty sparse set for storing Entities by ID.
 pub fn empty_set() -> EntitySet {
@@ -356,6 +356,6 @@ pub fn empty_set() -> EntitySet {
 }
 
 /// Convenience function to convert DynamicTuples into a concrete type.
-pub fn get_tuple_from_params<T: SignalsParams>(tuple: &DynamicTuple) -> T {
+pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
     <T as FromReflect>::from_reflect(tuple).unwrap()
 }
