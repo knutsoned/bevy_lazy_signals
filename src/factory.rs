@@ -1,13 +1,11 @@
 use bevy::prelude::*;
 
-use crate::{ commands::*, api::* };
+use crate::{ commands::LazySignalsCommandsExt, api::* };
 
 /// ## Main Signal primitive factory.
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
-pub struct Signal;
-impl Signal {
-    // FIXME do we really need this P anymore?
-    // this R?
+pub struct LazySignal;
+impl LazySignal {
     pub fn computed<P: LazySignalsParams, R: LazySignalsData>(
         &self,
         propagator: Box<dyn PropagatorFn>,
@@ -19,7 +17,6 @@ impl Signal {
         entity
     }
 
-    // FIXME do we really need this P anymore?
     pub fn effect<P: LazySignalsParams>(
         &self,
         effect: Box<dyn EffectFn>,

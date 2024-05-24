@@ -1,54 +1,56 @@
 use bevy::prelude::*;
 
 use bevy_lazy_signals::{
-    api::{ make_tuple, EffectFn },
-    factory::Signal,
+    api::*,
+    factory::LazySignal,
+    reference_impl::make_tuple,
     LazySignalsPlugin,
-    LazySignalsStr,
 };
 
 #[derive(Resource, Default)]
-struct TestResource {
+struct MyTestResource {
     pub signal1: Option<Entity>,
     pub signal2: Option<Entity>,
     pub effect: Option<Entity>,
 }
 
-type EffectParams = (Option<bool>, Option<LazySignalsStr>);
+type MyEffectParams = (Option<bool>, Option<LazySignalsStr>);
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        // NOTE: the user application will need to register each custom Immutable<T> for reflection
-        // .register_type::<Immutable<MyType>>()
+        // NOTE: the user application will need to register each custom LazyImmutable<T> for reflection
+        // .register_type::<LazyImmutable<MyType>>()
+        .init_resource::<MyTestResource>()
         // also register type aliases for computed and effect param tuples
-        .register_type::<EffectParams>()
+        .register_type::<MyEffectParams>()
         .add_plugins(LazySignalsPlugin)
-        .init_resource::<TestResource>()
+        // don't need to add systems to process signals since we're using the plugin
         .add_systems(Startup, init)
         .add_systems(Update, send_some_signals)
         .add_systems(Last, status)
         .run();
 }
 
-fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
-    // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
+fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
+    // create a signal (you need to register data types if not bool, i32, f64, or &str)
     // (see SignalsPlugin)
 
-    // this will derive an Immutable<T> type based in the first parameter type
+    // this will derive an Immutable<T> type based on the first parameter type
     // in this case Immutable<bool> is already registered so we're cool
-    let test_signal1 = Signal.state(false, &mut commands);
+    let test_signal1 = LazySignal.state(false, &mut commands);
     test.signal1 = Some(test_signal1);
     info!("created test signal 1, entity {:?}", test_signal1);
 
-    let test_signal2 = Signal.state("test", &mut commands);
+    // for strings the only thing I've gotten to work so far is &'static str
+    let test_signal2 = LazySignal.state("test", &mut commands);
     test.signal2 = Some(test_signal2);
     info!("created test signal 2, entity {:?}", test_signal2);
 
     // simple effect that logs its trigger(s) whenever one changes
     let effect_propagator: Box<dyn EffectFn> = Box::new(|params| {
         // convert DynamicTuple to concrete tuple
-        let params = make_tuple::<EffectParams>(params);
+        let params = make_tuple::<MyEffectParams>(params);
 
         // read param 0
         let boolean = params.0;
@@ -61,11 +63,12 @@ fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
 
     // trigger an effect from the signal
     test.effect = Some(
-        Signal.effect::<EffectParams>(
+        LazySignal.effect::<MyEffectParams>(
             // closure to call when the effect is triggered
             // TODO see if there is some adapter function to wrap an fn that takes tuple as param
             effect_propagator,
             // type of each trigger must match type at same tuple position
+            // it's not unsafe; it just won't work if we screw this up
             vec![test_signal1, test_signal2],
             &mut commands
         )
@@ -73,13 +76,13 @@ fn init(mut test: ResMut<TestResource>, mut commands: Commands) {
     info!("created test effect, entity {:?}", test.effect);
 }
 
-fn send_some_signals(test: Res<TestResource>, mut commands: Commands) {
+fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
     trace!("sending 'true' to {:?}", test.signal1);
-    Signal.send(test.signal1, true, &mut commands);
+    LazySignal.send(test.signal1, true, &mut commands);
 }
 
-fn status(world: &World, test: Res<TestResource>) {
-    match Signal.read::<bool>(test.signal1, world) {
+fn status(world: &World, test: Res<MyTestResource>) {
+    match LazySignal.read::<bool>(test.signal1, world) {
         Some(Ok(value)) => {
             trace!("value: {}", value);
         }

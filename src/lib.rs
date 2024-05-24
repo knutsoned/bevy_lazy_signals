@@ -18,19 +18,12 @@ pub mod prelude {
 
 /// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.
 ///
-///Convenience typedefs.
-pub type LazySignalsStr = &'static str;
-pub type ImmutableBool = LazyImmutable<bool>;
-pub type ImmutableInt = LazyImmutable<u32>;
-pub type ImmutableFloat = LazyImmutable<f64>;
-pub type ImmutableStr = LazyImmutable<LazySignalsStr>;
-pub type ImmutableUnit = LazyImmutable<()>;
-
 /// System set used by plugin to run reference implementation.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LazySignalsSystemSet;
 
-pub fn lazy_signals_system_chain() -> SystemConfigs {
+/// Convenience function to make it easy to run the LazySignals systems when needed.
+pub fn lazy_signals_default_systems() -> SystemConfigs {
     (init_effects, init_memos, send_signals, apply_deferred_effects).chain()
 }
 
@@ -39,7 +32,7 @@ pub struct LazySignalsPlugin;
 
 impl Plugin for LazySignalsPlugin {
     fn build(&self, app: &mut App) {
-        // NOTE: the user application will need to register each custom Immutable<T> for reflection
+        // NOTE: the user application will need to register each custom LazyImmutable<T> for reflection
 
         // add the systems to process signals, memos, and effects
         app.init_resource::<LazySignalsResource>()
@@ -49,12 +42,11 @@ impl Plugin for LazySignalsPlugin {
             .register_type::<ImmutableFloat>()
             .register_type::<ImmutableStr>()
             .register_type::<ImmutableUnit>()
-            //.register_component_as::<dyn LazyMergeable, LazyImmutable<>>()
             .add_systems(
                 PreUpdate, // could be PostUpdate or whatever else (probably not Update)
                 // defaults to PreUpdate since it is assumed the UI will process right after Update
                 // PostUpdate is a good place to read any events from the main app and send signals
-                lazy_signals_system_chain().in_set(LazySignalsSystemSet)
+                lazy_signals_default_systems().in_set(LazySignalsSystemSet)
             );
     }
 }
@@ -101,7 +93,7 @@ impl LazySignalsResource {
         self.errors.clear();
     }
 
-    // if there is anext_running set, move it into the running set and empty it
+    // if there is a next_running set, move it into the running set and empty it
     pub fn merge_running(&mut self) -> bool {
         if self.next_running.is_empty() {
             false

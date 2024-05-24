@@ -119,6 +119,10 @@ pub(crate) fn the_abyss_gazes_into_you(
     // give me warp in the factor of uh 5, 6, 7, 8
     let triggered = observable.is_triggered();
     let subs = observable.merge();
+
+    // TODO make an enum for the return type
+    // TODO also figure out how to pass errors up from functions
+    //      without having to handle the error in each function
     (subs, triggered)
 }
 
@@ -141,4 +145,9 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
 
     // please clap
     observable.copy_data(*target, params);
+}
+
+// this will copy the data out of the DynamicTuple proxy and into an actual, concrete tuple
+pub(crate) fn it_s_full_of_stars<T>(tuple: &DynamicTuple) -> T where T: LazySignalsParams {
+    <T as FromReflect>::from_reflect(tuple).unwrap()
 }

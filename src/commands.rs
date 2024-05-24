@@ -5,7 +5,7 @@ use bevy::{ ecs::world::Command, prelude::* };
 use crate::api::*;
 
 /// Convenience extension to use each Command directly from Commands instance.
-pub trait SignalsCommandsExt {
+pub trait LazySignalsCommandsExt {
     /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
     fn create_computed<P: LazySignalsParams, R: LazySignalsData>(
         &mut self,
@@ -30,7 +30,7 @@ pub trait SignalsCommandsExt {
     fn trigger_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T);
 }
 
-impl<'w, 's> SignalsCommandsExt for Commands<'w, 's> {
+impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
     fn create_computed<P: LazySignalsParams, R: LazySignalsData>(
         &mut self,
         computed: Entity,
@@ -136,7 +136,7 @@ impl<P: LazySignalsParams> Command for CreateEffectCommand<P> {
     }
 }
 
-/// Command to create a state (Immutable) from the given entity.
+/// Command to create a state (LazyImmutableImmutable) from the given entity.
 pub struct CreateStateCommand<T: LazySignalsData> {
     state: Entity,
     data: T,
@@ -144,7 +144,7 @@ pub struct CreateStateCommand<T: LazySignalsData> {
 
 impl<T: LazySignalsData> Command for CreateStateCommand<T> {
     fn apply(self, world: &mut World) {
-        // store the ComponentId so we can reflect the LazyImmutable
+        // store the ComponentId so we can reflect the LazyImmutable later
         let component_id = world.init_component::<LazyImmutable<T>>();
         world
             .get_entity_mut(self.state)
@@ -156,7 +156,7 @@ impl<T: LazySignalsData> Command for CreateStateCommand<T> {
     }
 }
 
-/// Command to send a Signal (i.e. update an Immutable during the next tick) to the given entity.
+/// Command to send a Signal (i.e. update a LazyImmutable during the next tick) to the given entity.
 pub struct SendSignalCommand<T: LazySignalsData> {
     signal: Entity,
     data: T,

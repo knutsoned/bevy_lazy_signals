@@ -10,6 +10,14 @@ use thiserror::Error;
 
 /// # Signals framework
 /// ## Types
+///Convenience typedefs.
+pub type LazySignalsStr = &'static str;
+pub type ImmutableBool = LazyImmutable<bool>;
+pub type ImmutableInt = LazyImmutable<u32>;
+pub type ImmutableFloat = LazyImmutable<f64>;
+pub type ImmutableStr = LazyImmutable<LazySignalsStr>;
+pub type ImmutableUnit = LazyImmutable<()>;
+
 /// Result type for handling error conditions in consumer code.
 pub type LazySignalsResult<R> = Option<Result<R, LazySignalsError>>;
 
@@ -353,9 +361,4 @@ pub type ErrorSet = SparseSet<Entity, LazySignalsError>;
 /// Create an empty sparse set for storing Entities by ID.
 pub fn empty_set() -> EntitySet {
     EntitySet::new()
-}
-
-/// Convenience function to convert DynamicTuples into a concrete type.
-pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
-    <T as FromReflect>::from_reflect(tuple).unwrap()
 }

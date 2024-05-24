@@ -1,10 +1,26 @@
 use std::{ any::TypeId, sync::RwLockReadGuard };
 
-use bevy::{ ecs::component::ComponentId, prelude::*, reflect::{ DynamicTuple, TypeRegistry } };
+use bevy::{
+    ecs::component::ComponentId,
+    prelude::*,
+    reflect::{ DynamicTuple, GetTupleField, TypeRegistry },
+};
 
 use crate::{ arcane_wizardry::*, api::*, LazySignalsResource };
 
 /// This is the reference user API, patterned after the TC39 proposal.
+///
+/// Convenience function to get a field directly from a DynamicTuple.
+pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Option<&T> {
+    tuple.get_field::<T>(index) // returns None if type doesn't match
+}
+
+/// Convenience function to convert DynamicTuples into a concrete type.
+pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
+    it_s_full_of_stars::<T>(tuple)
+}
+
+/// Convenience function to subscribe an entity to a source.
 fn process_subs(
     world: &mut World,
     entity: &Entity,
@@ -308,10 +324,11 @@ pub fn apply_deferred_effects(
                 // prepare the params
                 let mut params = DynamicTuple::default();
                 for (source, component_id) in component_id_set.iter() {
-                    // should be able to call the value method via reflection
                     let type_id = component_info.get(*component_id).unwrap().type_id().unwrap();
 
-                    // FIXME throw an error if the params don't line up
+                    // call the copy_data method via reflection
+                    // this will append the source data to the params tuple
+                    // FIXME indicate an error if the params don't line up?
                     if let Some(mut source) = world.get_entity_mut(*source) {
                         // insert arcane wizardry here
                         ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
