@@ -120,6 +120,8 @@ fn process_subs(
 /// ## Systems
 /// These systems are meant to be run in tight sequence, preferably like the plugin demonstrates.
 /// Any commands in each system must be applied before proceeding to the next.
+///
+/// FIXME should we actually just trigger everything that is marked instead of faking it?
 pub fn init_effects(
     world: &mut World,
     query_effects: &mut QueryState<(Entity, &Effect), With<RebuildSubscribers>>
@@ -148,6 +150,7 @@ pub fn init_effects(
     });
 }
 
+/// FIXME we should actually just compute everything that is marked instead of faking it
 pub fn init_memos(
     world: &mut World,
     query_propagators: &mut QueryState<(Entity, &Computed), With<RebuildSubscribers>>

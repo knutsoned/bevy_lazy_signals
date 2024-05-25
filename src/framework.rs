@@ -125,14 +125,30 @@ pub trait LazySignalsObservable {
 /// The DynamicTuple is an argument list whose internal types match the Option<T> of each source.
 /// The entity is where the result will be stored, where this instance of the function lives.
 /// The component_id is the type of the LazyImmutable where the result will be stored.
-pub trait PropagatorFn: Send + Sync + Fn(&DynamicTuple, &Entity, &ComponentId) {}
-impl<T: Send + Sync + Fn(&DynamicTuple, &Entity, &ComponentId)> PropagatorFn for T {}
+pub trait PropagatorFn: Send + Sync + FnMut(&DynamicTuple, &Entity, &ComponentId, &mut World) {}
+impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &ComponentId, &mut World)> PropagatorFn for T {}
+
+// Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
+// The return type is Option<SignalsData> which can then be memoized.
+pub trait PropagatorClosure<P: LazySignalsParams, R: LazySignalsData>: Send +
+    Sync +
+    'static +
+    Fn(P) -> Option<R> {}
+impl<
+    P: LazySignalsParams,
+    R: LazySignalsData,
+    T: Send + Sync + 'static + Fn(P) -> Option<R>
+> PropagatorClosure<P, R> for T {}
 
 // TODO provide a to_effect to allow a propagator to be used as an effect?
 
 /// This is the same basic thing but this fn just runs side-effects so no value is returned
 pub trait EffectFn: Send + Sync + Fn(&DynamicTuple) {}
 impl<T: Send + Sync + Fn(&DynamicTuple)> EffectFn for T {}
+
+// Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
+pub trait EffectClosure<P: LazySignalsParams>: Send + Sync + 'static + Fn(P) {}
+impl<P: LazySignalsParams, T: Send + Sync + 'static + Fn(P)> EffectClosure<P> for T {}
 
 /// ## Component Structs
 /// A LazyImmutable is known as a cell in a propagator network. It may also be referred to as state.

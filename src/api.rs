@@ -7,6 +7,23 @@ pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Opti
     tuple.get_field::<T>(index) // returns None if type doesn't match
 }
 
+pub fn make_effect_from<P: LazySignalsParams>(
+    closure: Box<dyn EffectClosure<P>>
+) -> Box<dyn EffectFn> {
+    Box::new(move |tuple| {
+        closure(make_tuple::<P>(tuple));
+    })
+}
+
+pub fn make_propagator_from<P: LazySignalsParams, R: LazySignalsData>(
+    closure: Box<dyn PropagatorClosure<P, R>>
+) -> Box<dyn PropagatorFn> {
+    Box::new(move |tuple, entity, component_id, world| {
+        let result = closure(make_tuple::<P>(tuple));
+        store_result(result, entity, component_id, world);
+    })
+}
+
 /// Convenience function to convert DynamicTuples into a concrete type.
 pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
     <T as FromReflect>::from_reflect(tuple).unwrap()
@@ -16,32 +33,33 @@ pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
 pub fn store_result<T: LazySignalsData>(
     data: Option<T>,
     entity: &Entity,
-    component_id: &ComponentId
+    component_id: &ComponentId,
+    world: &mut World
 ) {}
 
 /// ## Main Signal primitive factory.
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
-pub struct LazySignal;
-impl LazySignal {
+pub struct LazySignals;
+impl LazySignals {
     pub fn computed<P: LazySignalsParams, R: LazySignalsData>(
         &self,
-        propagator: Box<dyn PropagatorFn>,
+        propagator_closure: Box<dyn PropagatorClosure<P, R>>,
         sources: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
         let entity = commands.spawn_empty().id();
-        commands.create_computed::<P, R>(entity, propagator, sources);
+        commands.create_computed::<P, R>(entity, make_propagator_from(propagator_closure), sources);
         entity
     }
 
     pub fn effect<P: LazySignalsParams>(
         &self,
-        effect: Box<dyn EffectFn>,
+        effect_closure: Box<dyn EffectClosure<P>>,
         triggers: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
         let entity = commands.spawn_empty().id();
-        commands.create_effect::<P>(entity, effect, triggers);
+        commands.create_effect::<P>(entity, make_effect_from(effect_closure), triggers);
         entity
     }
 

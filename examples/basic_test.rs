@@ -1,10 +1,6 @@
 use bevy::prelude::*;
 
-use bevy_lazy_signals::{
-    api::{ make_tuple, store_result, LazySignal },
-    framework::*,
-    LazySignalsPlugin,
-};
+use bevy_lazy_signals::{ api::LazySignals, framework::*, LazySignalsPlugin };
 
 // this just keeps track of all the LazySignals primitives. just need the entity.
 #[derive(Resource, Default)]
@@ -46,23 +42,18 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
     // this will derive an Immutable<T> type based on the first parameter type
     // in this case Immutable<bool> is already registered so we're cool
-    let test_signal1 = LazySignal.state(false, &mut commands);
+    let test_signal1 = LazySignals.state(false, &mut commands);
     test.signal1 = Some(test_signal1);
     info!("created test signal 1, entity {:?}", test_signal1);
 
     // for strings the only thing I've gotten to work so far is &str
     // (usually &'static str but just &str if used as a PropagatorFn result type)
-    let test_signal2 = LazySignal.state("Congrats, you logged in somehow", &mut commands);
+    let test_signal2 = LazySignals.state("Congrats, you logged in somehow", &mut commands);
     test.signal2 = Some(test_signal2);
     info!("created test signal 2, entity {:?}", test_signal2);
 
     // simple effect that logs its trigger(s) whenever one changes
-    let effect1_fn: Box<dyn EffectFn> = Box::new(|params| {
-        // convert DynamicTuple to concrete tuple
-        // here we don't know what the params will be used for and don't care
-        // all we know is we are printing them
-        let params = make_tuple::<MyClosureParams>(params);
-
+    let effect1_fn: Box<dyn EffectClosure<MyClosureParams>> = Box::new(|params| {
         // read param 0
         let boolean = params.0.unwrap();
 
@@ -74,9 +65,8 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
     // trigger an effect from the signal
     test.effect1 = Some(
-        LazySignal.effect::<MyClosureParams>(
+        LazySignals.effect::<MyClosureParams>(
             // closure to call when the effect is triggered
-            // TODO see if there is some adapter function to wrap an fn that takes tuple as param
             effect1_fn,
             // type of each trigger must match type at same tuple position
             // it's not unsafe; it just won't work if we screw this up
@@ -86,11 +76,16 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     );
     info!("created test effect 1, entity {:?}", test.effect1);
 
-    // simple computed that shows a supplied value or an error message
-    let computed1_fn: Box<dyn PropagatorFn> = Box::new(|params, entity, component_id| {
+    // simple closure that shows a supplied value or an error message
+
+    // this closure could be used multiple times with different entities holding the memoized value
+    // and different sources
+    let computed1_fn: Box<dyn PropagatorClosure<MyAuthParams, &str>> = Box::new(|params| {
         // here we are specifically using the MyAuthParams alias to make it easier to tell what
         // these params are for, at the expense of making it easier to find the main definition
-        let params = make_tuple::<MyAuthParams>(params);
+
+        // MyAuthParams, MyClosureParams, (Option<bool>, Option<LazySignalsStr>), and
+        // (Option<bool>, Option<&str>) are interchangeable when defining propagators and effects
 
         // default error message
         let mut value = "You are not authorized to view this";
@@ -107,11 +102,12 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             }
         }
 
-        store_result(Some(value), entity, component_id);
+        info!("computed1 value: {}", value);
+        Some(value)
     });
 
     // simple computed to store the string value or an error, depending on the bool
-    let test_computed1 = LazySignal.computed::<MyAuthParams, &str>(
+    let test_computed1 = LazySignals.computed::<MyAuthParams, &str>(
         computed1_fn,
         vec![test_signal1, test_signal2], // sending either signal triggers a recompute
         &mut commands
@@ -121,11 +117,11 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
 fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
     trace!("sending 'true' to {:?}", test.signal1);
-    LazySignal.send(test.signal1, true, &mut commands);
+    LazySignals.send(test.signal1, true, &mut commands);
 }
 
 fn status(world: &World, test: Res<MyTestResource>) {
-    match LazySignal.read::<bool>(test.signal1, world) {
+    match LazySignals.read::<bool>(test.signal1, world) {
         Some(Ok(value)) => {
             trace!("value: {}", value);
         }

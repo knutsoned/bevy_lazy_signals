@@ -9,7 +9,7 @@ effort to create a Signal built-in that will provide a common API to support a r
 For Bevy, such a library could help efforts to integrate UI frameworks, enable networking, support
 scripting, scene editing, and file operations.
 
-See also: [Architecture](architecture.md) and [Rationale](rationale.md)
+See also: [Architecture](architecture.md) and (more detailed) [Rationale](rationale.md)
 
 ## Dependencies
 
