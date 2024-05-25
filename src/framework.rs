@@ -143,12 +143,13 @@ impl<
 // TODO provide a to_effect to allow a propagator to be used as an effect?
 
 /// This is the same basic thing but this fn just runs side-effects so no value is returned
-pub trait EffectFn: Send + Sync + Fn(&DynamicTuple) {}
-impl<T: Send + Sync + Fn(&DynamicTuple)> EffectFn for T {}
+pub trait EffectFn: Send + Sync + FnMut(&DynamicTuple, &mut World) {}
+impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World)> EffectFn for T {}
 
 // Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
-pub trait EffectClosure<P: LazySignalsParams>: Send + Sync + 'static + Fn(P) {}
-impl<P: LazySignalsParams, T: Send + Sync + 'static + Fn(P)> EffectClosure<P> for T {}
+pub trait EffectClosure<P: LazySignalsParams>: Send + Sync + 'static + FnMut(P, &mut World) {}
+impl<P: LazySignalsParams, T: Send + Sync + 'static + FnMut(P, &mut World)> EffectClosure<P>
+for T {}
 
 /// ## Component Structs
 /// A LazyImmutable is known as a cell in a propagator network. It may also be referred to as state.

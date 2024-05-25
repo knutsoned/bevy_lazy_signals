@@ -45,7 +45,11 @@ impl Plugin for LazySignalsPlugin {
             .add_systems(
                 PreUpdate, // could be PostUpdate or whatever else (probably not Update)
                 // defaults to PreUpdate since it is assumed the UI will process right after Update
+
                 // PostUpdate is a good place to read any events from the main app and send signals
+                // for the next tick to handle
+
+                // should be able to call these systems as often as needed between schedules
                 lazy_signals_default_systems().in_set(LazySignalsSystemSet)
             );
     }

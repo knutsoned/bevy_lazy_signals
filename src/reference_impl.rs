@@ -406,9 +406,13 @@ pub fn apply_deferred_effects(
 
                 // actually run the effect
                 world.resource_scope(|world, mut _signals: Mut<LazySignalsResource>| {
-                    if let Some(mut handle) = world.get_entity_mut(entity) {
-                        let effect = handle.get_mut::<Effect>().unwrap();
-                        (effect.function)(&params);
+                    let world = world.as_unsafe_world_cell();
+                    if let Some(handle) = world.get_entity(entity) {
+                        // safety: the entity must not be edited through the &mut World? not sure
+                        unsafe {
+                            let mut effect = handle.get_mut::<Effect>().unwrap();
+                            (effect.function)(&params, world.world_mut());
+                        }
                     }
                 });
             });

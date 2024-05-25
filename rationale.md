@@ -8,7 +8,7 @@ of constraints, forces, and goals was assembled:
   values, without needing exclusive world access.
 - Implement a variation of an immutable propagator network that is glitch-free.
 - Fully leverage the ECS to avoid OOP in favor of indexed entites, system queries, and reflection.
-- Minimize dependency on other internal Bevy features, except for the prelude and bevy_reflect.
+- Minimize dependency on other internal Bevy features, except prelude, bevy_ecs, and bevy_reflect.
 - Minimize external dependencies (thiserror is probably overkill).
 - Optimize performance at the cost of roughly doubling some of the data storage via sparse sets.
 - Avoid the use of an intrusive global state in favor of a Bevy resource that tracks the internals.

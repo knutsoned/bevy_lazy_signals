@@ -8,10 +8,10 @@ pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Opti
 }
 
 pub fn make_effect_from<P: LazySignalsParams>(
-    closure: Box<dyn EffectClosure<P>>
+    mut closure: Box<dyn EffectClosure<P>>
 ) -> Box<dyn EffectFn> {
-    Box::new(move |tuple| {
-        closure(make_tuple::<P>(tuple));
+    Box::new(move |tuple, world| {
+        closure(make_tuple::<P>(tuple), world);
     })
 }
 

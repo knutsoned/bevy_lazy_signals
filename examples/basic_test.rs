@@ -2,6 +2,23 @@ use bevy::prelude::*;
 
 use bevy_lazy_signals::{ api::LazySignals, framework::*, LazySignalsPlugin };
 
+// simple resource to simulate a service that tracks whether a user is logged in or not
+#[derive(Resource, Default)]
+struct MyExampleAuthResource {
+    logged_in: bool,
+}
+impl MyExampleAuthResource {
+    fn is_logged_in(&self) -> bool {
+        self.logged_in
+    }
+    fn notify_logged_in(&mut self) {
+        self.logged_in = true;
+    }
+    fn notify_logged_out(&mut self) {
+        self.logged_in = false;
+    }
+}
+
 // this just keeps track of all the LazySignals primitives. just need the entity.
 #[derive(Resource, Default)]
 struct MyTestResource {
@@ -22,12 +39,16 @@ type MyAuthParams = MyClosureParams;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        // resource to simulate something external to update
+        .init_resource::<MyExampleAuthResource>()
+        // resource to hold the entity ID of each lazy signals primitive
+        .init_resource::<MyTestResource>()
         // NOTE: the user application will need to register each custom LazyImmutable<T> for reflection
         // .register_type::<LazyImmutable<MyType>>()
-        .init_resource::<MyTestResource>()
         // also register type aliases for computed and effect param tuples
         // FIXME can this be done automatically when the Computed or Effect is created?
         .register_type::<MyClosureParams>()
+        // add the plugin so the signal processing systems run
         .add_plugins(LazySignalsPlugin)
         // don't need to add systems to process signals since we're using the plugin
         .add_systems(Startup, init)
@@ -42,6 +63,8 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
     // this will derive an Immutable<T> type based on the first parameter type
     // in this case Immutable<bool> is already registered so we're cool
+
+    // in this example, signal1 is sent whenever a user logs in or logs out
     let test_signal1 = LazySignals.state(false, &mut commands);
     test.signal1 = Some(test_signal1);
     info!("created test signal 1, entity {:?}", test_signal1);
@@ -53,14 +76,24 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     info!("created test signal 2, entity {:?}", test_signal2);
 
     // simple effect that logs its trigger(s) whenever one changes
-    let effect1_fn: Box<dyn EffectClosure<MyClosureParams>> = Box::new(|params| {
+    let effect1_fn: Box<dyn EffectClosure<MyClosureParams>> = Box::new(|params, world| {
         // read param 0
-        let boolean = params.0.unwrap();
+        let logged_in = params.0.unwrap();
 
         // read param 1
-        let string = params.1.unwrap();
+        let logged_in_msg = params.1.unwrap();
 
-        info!("got {} and {} from params", boolean, string);
+        info!("got {} and {} from params", logged_in, logged_in_msg);
+
+        // we have exclusive world access. in this case, we update a value in a resource
+        world.resource_scope(|_world, mut example_auth_resource: Mut<MyExampleAuthResource>| {
+            // keep our resource in sync with our signal
+            if logged_in {
+                example_auth_resource.notify_logged_in()
+            } else {
+                example_auth_resource.notify_logged_out()
+            }
+        });
     });
 
     // trigger an effect from the signal
@@ -113,6 +146,8 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         &mut commands
     );
     test.computed1 = Some(test_computed1);
+
+    info!("init complete");
 }
 
 fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
@@ -120,7 +155,13 @@ fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
     LazySignals.send(test.signal1, true, &mut commands);
 }
 
-fn status(world: &World, test: Res<MyTestResource>) {
+fn status(
+    world: &World,
+    example_auth_resource: Res<MyExampleAuthResource>,
+    test: Res<MyTestResource>
+) {
+    trace!("logged in: {}", example_auth_resource.is_logged_in());
+
     match LazySignals.read::<bool>(test.signal1, world) {
         Some(Ok(value)) => {
             trace!("value: {}", value);
