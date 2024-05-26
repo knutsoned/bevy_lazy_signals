@@ -46,7 +46,7 @@ fn main() {
         // NOTE: the user application will need to register each custom LazyImmutable<T> for reflection
         // .register_type::<LazyImmutable<MyType>>()
         // also register type aliases for computed and effect param tuples
-        // FIXME can this be done automatically when the Computed or Effect is created?
+        // FIXME can this be done automatically when the Propagator or Effect is created?
         .register_type::<MyClosureParams>()
         // add the plugin so the signal processing systems run
         .add_plugins(LazySignalsPlugin)
@@ -59,10 +59,10 @@ fn main() {
 
 fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // create a signal (you need to register data types if not bool, i32, f64, or &str)
-    // (see SignalsPlugin)
+    // (see LazySignalsPlugin)
 
-    // this will derive an Immutable<T> type based on the first parameter type
-    // in this case Immutable<bool> is already registered so we're cool
+    // this will derive a LazyImmutable<T> type based on the first parameter type
+    // in this case LazyImmutable<bool> is already registered so we're cool
 
     // in this example, signal1 is sent whenever a user logs in or logs out
     let test_signal1 = LazySignals.state(false, &mut commands);
@@ -70,7 +70,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     info!("created test signal 1, entity {:?}", test_signal1);
 
     // for strings the only thing I've gotten to work so far is &str
-    // (usually &'static str but just &str if used as a PropagatorFn result type)
+    // (usually &'static str but just &str if used as a Propagator result type)
     let test_signal2 = LazySignals.state("Congrats, you logged in somehow", &mut commands);
     test.signal2 = Some(test_signal2);
     info!("created test signal 2, entity {:?}", test_signal2);
@@ -96,7 +96,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         });
     });
 
-    // trigger an effect from the signal
+    // set up to trigger an effect from the signals
     test.effect1 = Some(
         LazySignals.effect::<MyClosureParams>(
             // closure to call when the effect is triggered

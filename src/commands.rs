@@ -6,7 +6,7 @@ use crate::framework::*;
 
 /// Convenience extension to use each Command directly from Commands instance.
 pub trait LazySignalsCommandsExt {
-    /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
+    /// Command to create a computed memo (LazyImmutable plus Propagator) from the given entity.
     fn create_computed<P: LazySignalsParams, R: LazySignalsData>(
         &mut self,
         computed: Entity,
@@ -14,7 +14,7 @@ pub trait LazySignalsCommandsExt {
         sources: Vec<Entity>
     );
 
-    /// Command to create an effect (Propagator with no Immutable) from the given entity.
+    /// Command to create an effect (Effect with no LazyImmutable) from the given entity.
     fn create_effect<P: LazySignalsParams>(
         &mut self,
         effect: Entity,
@@ -22,7 +22,7 @@ pub trait LazySignalsCommandsExt {
         triggers: Vec<Entity>
     );
 
-    /// Command to create a state (Immutable with no Propagator) from the given entity.
+    /// Command to create a state (LazyImmutable with no Effect or Propagator) from the given entity.
     fn create_state<T: LazySignalsData>(&mut self, state: Entity, data: T);
 
     // Command to send a signal if the data value is different from the current value.

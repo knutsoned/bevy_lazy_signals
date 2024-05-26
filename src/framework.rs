@@ -334,7 +334,7 @@ pub struct ImmutableState {
 #[component(storage = "SparseSet")]
 pub struct SendSignal;
 
-/// A Computed is a Propagator that memoizes its result in a LazyImmutable.
+/// A ComputedImmutable is a Propagator that memoizes its result in a LazyImmutable.
 #[derive(Component)]
 pub struct ComputedImmutable {
     pub function: Box<dyn PropagatorContext>,
@@ -344,12 +344,12 @@ pub struct ComputedImmutable {
     pub immutable_state_id: ComponentId,
 }
 
-/// A ComputeMemo component marks a Computed that needs computin.
+/// A ComputeMemo component marks a ComputedImmutable that needs computin.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct ComputeMemo;
 
-/// An Effect is a Propagator-like endpoint that returns no value and just runs side-effects.
+/// A LazyEffect is a Propagator-like endpoint that returns no value and just runs side-effects.
 #[derive(Component)]
 pub struct LazyEffect {
     pub function: Box<dyn EffectContext>,
@@ -357,12 +357,12 @@ pub struct LazyEffect {
     pub params_type: TypeId,
 }
 
-/// A DeferredEffect component marks an Effect function that needs to run.
+/// A DeferredEffect component marks an LazyEffect function that needs to run.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct DeferredEffect;
 
-/// Marks a Computed or Effect as needing to subscribe to its dependencies.
+/// Marks a ComputedImmutable or LazyEffect as needing to subscribe to its dependencies.
 /// This normally only happens within the framework internals on create.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
