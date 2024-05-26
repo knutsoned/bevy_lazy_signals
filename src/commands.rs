@@ -10,7 +10,7 @@ pub trait LazySignalsCommandsExt {
     fn create_computed<P: LazySignalsParams, R: LazySignalsData>(
         &mut self,
         computed: Entity,
-        function: Box<dyn PropagatorFn>,
+        function: Box<dyn PropagatorContext>,
         sources: Vec<Entity>
     );
 
@@ -18,15 +18,17 @@ pub trait LazySignalsCommandsExt {
     fn create_effect<P: LazySignalsParams>(
         &mut self,
         effect: Entity,
-        function: Box<dyn EffectFn>,
+        function: Box<dyn EffectContext>,
         triggers: Vec<Entity>
     );
 
     /// Command to create a state (Immutable with no Propagator) from the given entity.
     fn create_state<T: LazySignalsData>(&mut self, state: Entity, data: T);
 
+    // Command to send a signal if the data value is different from the current value.
     fn send_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T);
 
+    // Command to send a signal even if the data value is unchanged.
     fn trigger_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T);
 }
 
@@ -34,7 +36,7 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
     fn create_computed<P: LazySignalsParams, R: LazySignalsData>(
         &mut self,
         computed: Entity,
-        function: Box<dyn PropagatorFn>,
+        function: Box<dyn PropagatorContext>,
         sources: Vec<Entity>
     ) {
         self.add(CreateComputedCommand::<P, R> {
@@ -49,7 +51,7 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
     fn create_effect<P: LazySignalsParams>(
         &mut self,
         effect: Entity,
-        function: Box<dyn EffectFn>,
+        function: Box<dyn EffectContext>,
         triggers: Vec<Entity>
     ) {
         self.add(CreateEffectCommand::<P> {
@@ -85,7 +87,7 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
 pub struct CreateComputedCommand<P: LazySignalsParams, R: LazySignalsData> {
     computed: Entity,
-    function: Box<dyn PropagatorFn>,
+    function: Box<dyn PropagatorContext>,
     sources: Vec<Entity>,
     params_type: PhantomData<P>,
     result_type: PhantomData<R>,
@@ -100,7 +102,7 @@ impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand
             .unwrap()
             .insert((
                 LazyImmutable::<R>::new(None),
-                Computed {
+                ComputedImmutable {
                     function: self.function,
                     sources: self.sources,
                     params_type: TypeId::of::<P>(),
@@ -115,7 +117,7 @@ impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand
 /// Command to create an effect (Propagator with no memo) from the given entity.
 pub struct CreateEffectCommand<P: LazySignalsParams> {
     effect: Entity,
-    function: Box<dyn EffectFn>,
+    function: Box<dyn EffectContext>,
     triggers: Vec<Entity>,
     params_type: PhantomData<P>,
 }
@@ -126,7 +128,7 @@ impl<P: LazySignalsParams> Command for CreateEffectCommand<P> {
             .get_entity_mut(self.effect)
             .unwrap()
             .insert((
-                Effect {
+                LazyEffect {
                     function: self.function,
                     triggers: self.triggers,
                     params_type: TypeId::of::<P>(),

@@ -125,12 +125,15 @@ pub trait LazySignalsObservable {
 /// The DynamicTuple is an argument list whose internal types match the Option<T> of each source.
 /// The entity is where the result will be stored, where this instance of the function lives.
 /// The component_id is the type of the LazyImmutable where the result will be stored.
-pub trait PropagatorFn: Send + Sync + FnMut(&DynamicTuple, &Entity, &ComponentId, &mut World) {}
-impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &ComponentId, &mut World)> PropagatorFn for T {}
+pub trait PropagatorContext: Send +
+    Sync +
+    FnMut(&DynamicTuple, &Entity, &ComponentId, &mut World) {}
+impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &ComponentId, &mut World)> PropagatorContext
+for T {}
 
 // Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
 // The return type is Option<SignalsData> which can then be memoized.
-pub trait PropagatorClosure<P: LazySignalsParams, R: LazySignalsData>: Send +
+pub trait Propagator<P: LazySignalsParams, R: LazySignalsData>: Send +
     Sync +
     'static +
     Fn(P) -> Option<R> {}
@@ -138,18 +141,17 @@ impl<
     P: LazySignalsParams,
     R: LazySignalsData,
     T: Send + Sync + 'static + Fn(P) -> Option<R>
-> PropagatorClosure<P, R> for T {}
+> Propagator<P, R> for T {}
 
 // TODO provide a to_effect to allow a propagator to be used as an effect?
 
 /// This is the same basic thing but this fn just runs side-effects so no value is returned
-pub trait EffectFn: Send + Sync + FnMut(&DynamicTuple, &mut World) {}
-impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World)> EffectFn for T {}
+pub trait EffectContext: Send + Sync + FnMut(&DynamicTuple, &mut World) {}
+impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World)> EffectContext for T {}
 
 // Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
-pub trait EffectClosure<P: LazySignalsParams>: Send + Sync + 'static + FnMut(P, &mut World) {}
-impl<P: LazySignalsParams, T: Send + Sync + 'static + FnMut(P, &mut World)> EffectClosure<P>
-for T {}
+pub trait Effect<P: LazySignalsParams>: Send + Sync + 'static + FnMut(P, &mut World) {}
+impl<P: LazySignalsParams, T: Send + Sync + 'static + FnMut(P, &mut World)> Effect<P> for T {}
 
 /// ## Component Structs
 /// A LazyImmutable is known as a cell in a propagator network. It may also be referred to as state.
@@ -334,8 +336,8 @@ pub struct SendSignal;
 
 /// A Computed is a Propagator that memoizes its result in a LazyImmutable.
 #[derive(Component)]
-pub struct Computed {
-    pub function: Box<dyn PropagatorFn>,
+pub struct ComputedImmutable {
+    pub function: Box<dyn PropagatorContext>,
     pub sources: Vec<Entity>,
     pub params_type: TypeId,
     pub result_type: TypeId, // FIXME is this needed?
@@ -349,8 +351,8 @@ pub struct ComputeMemo;
 
 /// An Effect is a Propagator-like endpoint that returns no value and just runs side-effects.
 #[derive(Component)]
-pub struct Effect {
-    pub function: Box<dyn EffectFn>,
+pub struct LazyEffect {
+    pub function: Box<dyn EffectContext>,
     pub triggers: Vec<Entity>,
     pub params_type: TypeId,
 }

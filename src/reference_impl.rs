@@ -124,7 +124,7 @@ fn process_subs(
 /// FIXME should we actually just trigger everything that is marked instead of faking it?
 pub fn init_effects(
     world: &mut World,
-    query_effects: &mut QueryState<(Entity, &Effect), With<RebuildSubscribers>>
+    query_effects: &mut QueryState<(Entity, &LazyEffect), With<RebuildSubscribers>>
 ) {
     // collapse the query or get world concurrency errors
     let mut entities = EntityHierarchySet::new();
@@ -153,7 +153,7 @@ pub fn init_effects(
 /// FIXME we should actually just compute everything that is marked instead of faking it
 pub fn init_memos(
     world: &mut World,
-    query_propagators: &mut QueryState<(Entity, &Computed), With<RebuildSubscribers>>
+    query_propagators: &mut QueryState<(Entity, &ComputedImmutable), With<RebuildSubscribers>>
 ) {
     // collapse the query or get world concurrency errors
     let mut entities = EntityHierarchySet::new();
@@ -284,12 +284,12 @@ pub fn send_signals(
 
                     // what kind of subscriber is this?
                     if let Some(mut subscriber) = world.get_entity_mut(runner) {
-                        if subscriber.contains::<Effect>() {
+                        if subscriber.contains::<LazyEffect>() {
                             // it is an effect, so schedule the effect by adding DeferredEffect
                             subscriber.insert(DeferredEffect);
                             info!("-scheduled effect");
                         }
-                        if subscriber.contains::<Computed>() {
+                        if subscriber.contains::<ComputedImmutable>() {
                             // it is a memo, so mark it for recalculation by adding ComputeMemo
                             subscriber.insert(ComputeMemo);
                             info!("-marked memo for computation");
@@ -309,7 +309,7 @@ pub fn send_signals(
 
 pub fn compute_memos(
     world: &mut World,
-    _query_memos: &mut QueryState<(Entity, &Computed), With<ComputeMemo>>
+    _query_memos: &mut QueryState<(Entity, &ComputedImmutable), With<ComputeMemo>>
 ) {
     trace!("MEMOS");
     // need exclusive world access here to update memos immediately and need to write to resource
@@ -333,7 +333,7 @@ pub fn compute_memos(
 
 pub fn apply_deferred_effects(
     world: &mut World,
-    query_effects: &mut QueryState<(Entity, &Effect), With<DeferredEffect>>
+    query_effects: &mut QueryState<(Entity, &LazyEffect), With<DeferredEffect>>
 ) {
     trace!("EFFECTS");
     let mut effects = empty_set();
@@ -408,9 +408,11 @@ pub fn apply_deferred_effects(
                 world.resource_scope(|world, mut _signals: Mut<LazySignalsResource>| {
                     let world = world.as_unsafe_world_cell();
                     if let Some(handle) = world.get_entity(entity) {
-                        // safety: the entity must not be edited through the &mut World? not sure
+                        // safety (from the docs):
+                        // -the UnsafeEntityCell has permission to access the component mutably
+                        // -no other references to the component exist at the same time
                         unsafe {
-                            let mut effect = handle.get_mut::<Effect>().unwrap();
+                            let mut effect = handle.get_mut::<LazyEffect>().unwrap();
                             (effect.function)(&params, world.world_mut());
                         }
                     }

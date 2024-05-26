@@ -8,16 +8,16 @@ pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Opti
 }
 
 pub fn make_effect_from<P: LazySignalsParams>(
-    mut closure: Box<dyn EffectClosure<P>>
-) -> Box<dyn EffectFn> {
+    mut closure: Box<dyn Effect<P>>
+) -> Box<dyn EffectContext> {
     Box::new(move |tuple, world| {
         closure(make_tuple::<P>(tuple), world);
     })
 }
 
 pub fn make_propagator_from<P: LazySignalsParams, R: LazySignalsData>(
-    closure: Box<dyn PropagatorClosure<P, R>>
-) -> Box<dyn PropagatorFn> {
+    closure: Box<dyn Propagator<P, R>>
+) -> Box<dyn PropagatorContext> {
     Box::new(move |tuple, entity, component_id, world| {
         let result = closure(make_tuple::<P>(tuple));
         store_result(result, entity, component_id, world);
@@ -43,7 +43,7 @@ pub struct LazySignals;
 impl LazySignals {
     pub fn computed<P: LazySignalsParams, R: LazySignalsData>(
         &self,
-        propagator_closure: Box<dyn PropagatorClosure<P, R>>,
+        propagator_closure: Box<dyn Propagator<P, R>>,
         sources: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
@@ -54,7 +54,7 @@ impl LazySignals {
 
     pub fn effect<P: LazySignalsParams>(
         &self,
-        effect_closure: Box<dyn EffectClosure<P>>,
+        effect_closure: Box<dyn Effect<P>>,
         triggers: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {

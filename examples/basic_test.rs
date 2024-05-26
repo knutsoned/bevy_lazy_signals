@@ -76,7 +76,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     info!("created test signal 2, entity {:?}", test_signal2);
 
     // simple effect that logs its trigger(s) whenever one changes
-    let effect1_fn: Box<dyn EffectClosure<MyClosureParams>> = Box::new(|params, world| {
+    let effect1_fn: Box<dyn Effect<MyClosureParams>> = Box::new(|params, world| {
         // read param 0
         let logged_in = params.0.unwrap();
 
@@ -113,7 +113,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
     // this closure could be used multiple times with different entities holding the memoized value
     // and different sources
-    let computed1_fn: Box<dyn PropagatorClosure<MyAuthParams, &str>> = Box::new(|params| {
+    let computed1_fn: Box<dyn Propagator<MyAuthParams, &str>> = Box::new(|params| {
         // here we are specifically using the MyAuthParams alias to make it easier to tell what
         // these params are for, at the expense of making it easier to find the main definition
 
