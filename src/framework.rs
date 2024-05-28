@@ -76,11 +76,14 @@ pub trait LazySignalsImmutable: Send + Sync + 'static {
 
     // TODO add a get_value that returns a result after safely calling value
 
-    /// Called by a consumer to provide a new value for the lazy update system to merge.
+    /// Called by a developer to provide a new value for the lazy update system to merge.
     fn merge_next(&mut self, next: LazySignalsResult<Self::DataType>, trigger: bool);
 
     /// Get the current value.
     fn read(&self) -> LazySignalsResult<Self::DataType>;
+
+    /// Immediately update a new value without triggering any subscribers (mostly used internally).
+    fn update(&mut self, next: LazySignalsResult<Self::DataType>);
 
     /// Get the current value, subscribing an entity if provided (mostly used internally).
     fn value(&mut self, caller: Entity) -> LazySignalsResult<Self::DataType>;
@@ -90,7 +93,7 @@ pub trait LazySignalsImmutable: Send + Sync + 'static {
 pub trait LazySignalsObservable {
     /// Called by a lazy update system to apply the new value of a signal.
     /// This is a main thing to implement if you're trying to use reflection.
-    /// The ref impl uses this to update the LazyImmutable values without knowing the type.
+    /// The ref impl uses this to update the LazySignalsImmutable values without knowing the type.
     /// These are also part of sending a Signal.
     ///
     /// Copy the data into a dynamic tuple of params for the Effect or Propagator to consume.
@@ -124,15 +127,12 @@ pub trait LazySignalsObservable {
 ///
 /// The DynamicTuple is an argument list whose internal types match the Option<T> of each source.
 /// The entity is where the result will be stored, where this instance of the function lives.
-/// The component_id is the type of the LazyImmutable where the result will be stored.
-pub trait PropagatorContext: Send +
-    Sync +
-    FnMut(&DynamicTuple, &Entity, &ComponentId, &mut World) {}
-impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &ComponentId, &mut World)> PropagatorContext
-for T {}
+/// The component_id is the type of the LazySignalsImmutable where the result will be stored.
+pub trait PropagatorContext: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World) {}
+impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World)> PropagatorContext for T {}
 
 // Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
-// The return type is Option<SignalsData> which can then be memoized.
+// The return type is Option<LazySignalsData> which can then be memoized.
 pub trait Propagator<P: LazySignalsParams, R: LazySignalsData>: Send +
     Sync +
     'static +
@@ -205,6 +205,10 @@ impl<T: LazySignalsData> LazySignalsImmutable for LazyImmutable<T> {
     fn value(&mut self, caller: Entity) -> LazySignalsResult<Self::DataType> {
         self.subscribe(caller);
         self.read()
+    }
+
+    fn update(&mut self, next: LazySignalsResult<Self::DataType>) {
+        self.data = next;
     }
 }
 
@@ -340,8 +344,7 @@ pub struct ComputedImmutable {
     pub function: Box<dyn PropagatorContext>,
     pub sources: Vec<Entity>,
     pub params_type: TypeId,
-    pub result_type: TypeId, // FIXME is this needed?
-    pub immutable_state_id: ComponentId,
+    pub dirty: bool,
 }
 
 /// A ComputeMemo component marks a ComputedImmutable that needs computin.
@@ -353,6 +356,7 @@ pub struct ComputeMemo;
 #[derive(Component)]
 pub struct LazyEffect {
     pub function: Box<dyn EffectContext>,
+    pub sources: Vec<Entity>,
     pub triggers: Vec<Entity>,
     pub params_type: TypeId,
 }

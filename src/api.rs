@@ -1,4 +1,4 @@
-use bevy::{ ecs::component::ComponentId, prelude::*, reflect::{ DynamicTuple, GetTupleField } };
+use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
 
 use crate::{ commands::LazySignalsCommandsExt, framework::* };
 
@@ -7,7 +7,7 @@ pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Opti
     tuple.get_field::<T>(index) // returns None if type doesn't match
 }
 
-pub fn make_effect_from<P: LazySignalsParams>(
+pub fn make_effect_with<P: LazySignalsParams>(
     mut closure: Box<dyn Effect<P>>
 ) -> Box<dyn EffectContext> {
     Box::new(move |tuple, world| {
@@ -15,12 +15,12 @@ pub fn make_effect_from<P: LazySignalsParams>(
     })
 }
 
-pub fn make_propagator_from<P: LazySignalsParams, R: LazySignalsData>(
+pub fn make_propagator_with<P: LazySignalsParams, R: LazySignalsData>(
     closure: Box<dyn Propagator<P, R>>
 ) -> Box<dyn PropagatorContext> {
-    Box::new(move |tuple, entity, component_id, world| {
+    Box::new(move |tuple, entity, world| {
         let result = closure(make_tuple::<P>(tuple));
-        store_result(result, entity, component_id, world);
+        store_result(result, entity, world);
     })
 }
 
@@ -30,12 +30,11 @@ pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
 }
 
 /// Convenience function to store a result in an entity.
-pub fn store_result<T: LazySignalsData>(
-    data: Option<T>,
-    entity: &Entity,
-    component_id: &ComponentId,
-    world: &mut World
-) {}
+pub fn store_result<T: LazySignalsData>(data: Option<T>, entity: &Entity, world: &mut World) {
+    let mut binding = world.entity_mut(*entity);
+    let mut bucket = binding.get_mut::<LazyImmutable<T>>().unwrap();
+    bucket.update(data.map(|data| Ok(data)));
+}
 
 /// ## Main Signal primitive factory.
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
@@ -48,18 +47,19 @@ impl LazySignals {
         commands: &mut Commands
     ) -> Entity {
         let entity = commands.spawn_empty().id();
-        commands.create_computed::<P, R>(entity, make_propagator_from(propagator_closure), sources);
+        commands.create_computed::<P, R>(entity, make_propagator_with(propagator_closure), sources);
         entity
     }
 
     pub fn effect<P: LazySignalsParams>(
         &self,
         effect_closure: Box<dyn Effect<P>>,
+        sources: Vec<Entity>,
         triggers: Vec<Entity>,
         commands: &mut Commands
     ) -> Entity {
         let entity = commands.spawn_empty().id();
-        commands.create_effect::<P>(entity, make_effect_from(effect_closure), triggers);
+        commands.create_effect::<P>(entity, make_effect_with(effect_closure), sources, triggers);
         entity
     }
 

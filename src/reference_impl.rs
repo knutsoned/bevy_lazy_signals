@@ -126,20 +126,21 @@ pub fn init_effects(
     world: &mut World,
     query_effects: &mut QueryState<(Entity, &LazyEffect), With<RebuildSubscribers>>
 ) {
+    // FIXME add support for triggers
     // collapse the query or get world concurrency errors
     let mut entities = EntityHierarchySet::new();
     for (entity, prop) in query_effects.iter(world) {
-        info!("-preparing sources for {:?}", entity);
-        entities.insert(entity, prop.triggers.clone());
+        info!("-preparing sources for effect {:?}", entity);
+        entities.insert(entity, prop.sources.clone());
     }
 
     world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
         let type_registry = type_registry.read();
 
         // run the subscribe method on each Effect.triggers, passing the Entity
-        for (entity, triggers) in entities.iter() {
+        for (entity, sources) in entities.iter() {
             // loop through the sources
-            for source in triggers.iter() {
+            for source in sources.iter() {
                 // FIXME should this be done with some kind of unsafe entity cell?
                 process_subs(world, entity, source, &type_registry);
             }
@@ -158,7 +159,7 @@ pub fn init_memos(
     // collapse the query or get world concurrency errors
     let mut entities = EntityHierarchySet::new();
     for (entity, prop) in query_propagators.iter(world) {
-        info!("-preparing sources for {:?}", entity);
+        info!("-preparing sources for memo {:?}", entity);
         entities.insert(entity, prop.sources.clone());
     }
 
@@ -309,26 +310,31 @@ pub fn send_signals(
 
 pub fn compute_memos(
     world: &mut World,
-    _query_memos: &mut QueryState<(Entity, &ComputedImmutable), With<ComputeMemo>>
+    query_memos: &mut QueryState<(Entity, &ComputedImmutable), With<ComputeMemo>>
 ) {
     trace!("MEMOS");
-    // need exclusive world access here to update memos immediately and need to write to resource
-    world.resource_scope(
-        |_world, mut _signals: Mut<LazySignalsResource>| {
-            // run each Memo function to recalculate memo, adding sources to the running set
+    // need exclusive world access here to update memos immediately
 
-            // *** update the data in the cell
+    // run each Propagator function to recalculate memo, adding it and sources to the running set
+    // do not run this Propagator if already in the processed set
+    // do not add a source if source already in the processed set
 
-            // add the Memo to the processed set
+    // if a source is marked dirty, add it to the running set
 
-            // add to the changed set if the value actually changed
+    // main loop: evaluate highest index,
+    // evaluate that source as above
 
-            // remove the Memo component
+    // if all sources are up to date, then recompute
 
-            // merge all next_subscribers sets into subscribers
+    // *** update the data in the cell
 
-        }
-    );
+    // add the ComputedImmutable to the processed set
+
+    // add to the changed set if the value actually changed
+
+    // remove the ComputeMemo component
+
+    // merge all next_subscribers sets into subscribers
 }
 
 pub fn apply_deferred_effects(
@@ -338,20 +344,21 @@ pub fn apply_deferred_effects(
     trace!("EFFECTS");
     let mut effects = empty_set();
 
+    // FIXME add support for triggers
     // collapse the query or get world concurrency errors
     let mut hierarchy = EntityHierarchySet::new();
     for (entity, effect) in query_effects.iter(world) {
-        hierarchy.insert(entity, effect.triggers.clone());
+        hierarchy.insert(entity, effect.sources.clone());
     }
 
     // read
     world.resource_scope(|world, signals: Mut<LazySignalsResource>| {
-        for (entity, triggers) in hierarchy.iter() {
+        for (entity, sources) in hierarchy.iter() {
             // only run an effect if at least one of its triggers is in the changed set
-            for source in triggers {
+            for source in sources {
                 info!("-checking changed set for trigger {:?}", source);
                 if signals.changed.contains(*source) {
-                    info!("-running effect {:?} with triggers {:?}", entity, triggers);
+                    info!("-running effect {:?} with sources {:?}", entity, sources);
                     effects.insert(*entity, ());
                 }
             }

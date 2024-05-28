@@ -19,6 +19,7 @@ pub trait LazySignalsCommandsExt {
         &mut self,
         effect: Entity,
         function: Box<dyn EffectContext>,
+        sources: Vec<Entity>,
         triggers: Vec<Entity>
     );
 
@@ -52,11 +53,13 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
         &mut self,
         effect: Entity,
         function: Box<dyn EffectContext>,
+        sources: Vec<Entity>,
         triggers: Vec<Entity>
     ) {
         self.add(CreateEffectCommand::<P> {
             effect,
             function,
+            sources,
             triggers,
             params_type: PhantomData,
         });
@@ -95,8 +98,6 @@ pub struct CreateComputedCommand<P: LazySignalsParams, R: LazySignalsData> {
 
 impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
-        let immutable_state_id = world.init_component::<LazyImmutable<R>>();
-
         world
             .get_entity_mut(self.computed)
             .unwrap()
@@ -106,8 +107,7 @@ impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand
                     function: self.function,
                     sources: self.sources,
                     params_type: TypeId::of::<P>(),
-                    result_type: TypeId::of::<R>(),
-                    immutable_state_id,
+                    dirty: false,
                 },
                 RebuildSubscribers,
             ));
@@ -118,6 +118,7 @@ impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand
 pub struct CreateEffectCommand<P: LazySignalsParams> {
     effect: Entity,
     function: Box<dyn EffectContext>,
+    sources: Vec<Entity>,
     triggers: Vec<Entity>,
     params_type: PhantomData<P>,
 }
@@ -130,6 +131,7 @@ impl<P: LazySignalsParams> Command for CreateEffectCommand<P> {
             .insert((
                 LazyEffect {
                     function: self.function,
+                    sources: self.sources,
                     triggers: self.triggers,
                     params_type: TypeId::of::<P>(),
                 },

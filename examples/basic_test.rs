@@ -101,9 +101,11 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         LazySignals.effect::<MyClosureParams>(
             // closure to call when the effect is triggered
             effect1_fn,
-            // type of each trigger must match type at same tuple position
-            // it's not unsafe; it just won't work if we screw this up
+            // type of each source must match type at same tuple position
+            // it's not unsafe(?); it just won't work if we screw this up
             vec![test_signal1, test_signal2], // sending either signal triggers the effect
+            // explicit triggers are not added to the params tuple like sources
+            Vec::<Entity>::default(),
             &mut commands
         )
     );
