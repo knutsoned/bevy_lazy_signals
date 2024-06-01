@@ -167,11 +167,11 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
         // read param 0
         let logged_in = params.0?;
+        info!("got logged_in: {} from params", logged_in);
 
         // read param 1
         let logged_in_msg = params.1?;
-
-        info!("got {} and {} from params", logged_in, logged_in_msg);
+        info!("got logged_in_msg: {} from params", logged_in_msg);
 
         end_effect()
     });

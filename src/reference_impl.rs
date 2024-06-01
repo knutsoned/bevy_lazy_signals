@@ -317,6 +317,8 @@ pub fn send_signals(
                                 component_id,
                                 type_id
                             );
+
+                            // get a list of subscribers
                             let subs = this_is_bat_country(
                                 &mut subscriber,
                                 &component_id,
@@ -401,6 +403,11 @@ pub fn apply_deferred_effects(
             }
             if actually_run {
                 effects.insert(*entity, ());
+            } else {
+                // FIXME make sure if effects are deferred but not run that they still refresh
+                // otherwise they will not be notified next time
+                for source in sources {
+                }
             }
 
             // remove the DeferredEffect component
