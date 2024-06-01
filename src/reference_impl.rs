@@ -351,16 +351,26 @@ pub fn apply_deferred_effects(
         hierarchy.insert(entity, effect.sources.clone());
     }
 
-    // read
+    // read (mostly)
     world.resource_scope(|world, signals: Mut<LazySignalsResource>| {
         for (entity, sources) in hierarchy.iter() {
             // only run an effect if at least one of its triggers is in the changed set
-            for source in sources {
-                info!("-checking changed set for trigger {:?}", source);
-                if signals.changed.contains(*source) {
-                    info!("-running effect {:?} with sources {:?}", entity, sources);
-                    effects.insert(*entity, ());
+            // OR if it has been explicitly triggered
+            let mut actually_run = false;
+            if signals.triggered.contains(*entity) {
+                info!("-triggering effect {:?}", entity);
+                actually_run = true;
+            } else {
+                for source in sources {
+                    info!("-checking changed set for trigger {:?}", source);
+                    if signals.changed.contains(*source) {
+                        info!("-running effect {:?} with sources {:?}", entity, sources);
+                        actually_run = true;
+                    }
                 }
+            }
+            if actually_run {
+                effects.insert(*entity, ());
             }
 
             // remove the DeferredEffect component
@@ -371,7 +381,7 @@ pub fn apply_deferred_effects(
     // write
     for entity in effects.indices() {
         if let Some(sources) = hierarchy.get(entity) {
-            info!("-found effect with triggers {:?}", sources);
+            info!("-found effect with sources {:?}", sources);
 
             // add the source component ID to the set (probably could be optimized)
             let mut component_id_set = ComponentIdSet::new();
@@ -381,7 +391,7 @@ pub fn apply_deferred_effects(
             for source in sources.iter() {
                 let immutable = world.entity(*source).get::<ImmutableState>().unwrap();
                 let component_id = immutable.component_id;
-                info!("-found a trigger with component ID {:?}", component_id);
+                info!("-found a source with component ID {:?}", component_id);
                 component_id_set.insert(*source, component_id);
                 if let Some(info) = world.components().get_info(component_id) {
                     component_info.insert(component_id, info.clone());
@@ -421,6 +431,8 @@ pub fn apply_deferred_effects(
                         // -no other references to the component exist at the same time
                         unsafe {
                             let mut effect = handle.get_mut::<LazyEffect>().unwrap();
+
+                            // I think this world must not be used to mutate the effect, not sure
                             (effect.function)(&params, world.world_mut());
                         }
                     }

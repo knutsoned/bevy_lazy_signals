@@ -28,6 +28,7 @@ struct MyTestResource {
     pub effect2: Option<Entity>,
     pub signal1: Option<Entity>,
     pub signal2: Option<Entity>,
+    pub signal3: Option<Entity>,
 }
 
 // concrete tuple type to safely work with the DynamicTuple coming out of the LazySignals systems
@@ -74,6 +75,11 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     let test_signal2 = LazySignals.state("Congrats, you logged in somehow", &mut commands);
     test.signal2 = Some(test_signal2);
     info!("created test signal 2, entity {:?}", test_signal2);
+
+    // for an effect trigger, we don't care about the value, only that it changed
+    // we could use a regular signal but something like a button click might not need a type
+    let test_signal3 = LazySignals.state((), &mut commands);
+    test.signal3 = Some(test_signal3);
 
     // simple effect that logs its trigger(s) whenever one changes
     let effect1_fn: Box<dyn Effect<MyClosureParams>> = Box::new(|params, world| {
@@ -177,12 +183,15 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             // type of each source must match type at same tuple position
             // it's not unsafe(?); it just won't work if we screw this up
             vec![test_signal1, test_computed1], // sending either signal triggers the effect
-            // explicit triggers are not added to the params tuple like sources
-            Vec::<Entity>::default(),
+            // triggering this signal will run the effect without passing its value to the closure
+            // (it still sends the value of the sources as usual)
+            vec![test_signal3],
             &mut commands
         )
     );
     info!("created test effect 2, entity {:?}", test.effect2);
+
+    // TODO test an effect with triggers only and no sources
 
     let computed2_fn: Box<dyn Propagator<MyAuthParams, &str>> = Box::new(|params| {
         // default error message
