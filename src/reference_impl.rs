@@ -404,10 +404,15 @@ pub fn apply_deferred_effects(
             if actually_run {
                 effects.insert(*entity, ());
             } else {
-                // FIXME make sure if effects are deferred but not run that they still refresh
-                // otherwise they will not be notified next time
-                for source in sources {
-                }
+                world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
+                    let type_registry = type_registry.read();
+
+                    // make sure if effects are deferred but not run that they still refresh
+                    // otherwise they will not be notified next time
+                    for source in sources {
+                        process_subs(world, entity, source, &type_registry);
+                    }
+                });
             }
 
             // remove the DeferredEffect component
