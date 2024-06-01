@@ -68,18 +68,19 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // in this example, signal1 is sent whenever a user logs in or logs out
     let test_signal1 = LazySignals.state(false, &mut commands);
     test.signal1 = Some(test_signal1);
-    info!("created test signal 1, entity {:?}", test_signal1);
+    info!("created test signal 1, entity {:#?}", test_signal1);
 
     // for strings the only thing I've gotten to work so far is &str
     // (usually &'static str but just &str if used as a Propagator result type)
     let test_signal2 = LazySignals.state("Congrats, you logged in somehow", &mut commands);
     test.signal2 = Some(test_signal2);
-    info!("created test signal 2, entity {:?}", test_signal2);
+    info!("created test signal 2, entity {:#?}", test_signal2);
 
     // for an effect trigger, we don't care about the value, only that it changed
     // we could use a regular signal but something like a button click might not need a type
     let test_signal3 = LazySignals.state((), &mut commands);
     test.signal3 = Some(test_signal3);
+    info!("created test signal 3, entity {:#?}", test_signal3);
 
     // simple effect that logs its trigger(s) whenever one changes
     let effect1_fn: Box<dyn Effect<MyClosureParams>> = Box::new(|params, world| {
@@ -117,7 +118,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             &mut commands
         )
     );
-    info!("created test effect 1, entity {:?}", test.effect1);
+    info!("created test effect 1, entity {:#?}", test.effect1);
 
     // simple closure that shows a supplied value or an error message
 
@@ -158,7 +159,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         &mut commands
     );
     test.computed1 = Some(test_computed1);
-    info!("created test computed 1, entity {:?}", test.computed1);
+    info!("created test computed 1, entity {:#?}", test.computed1);
 
     // TODO maybe we should provide variants of Effect that take &World and no world so it isn't exclusive all the time
     let effect2_fn: Box<dyn Effect<MyClosureParams>> = Box::new(|params, _world| {
@@ -189,7 +190,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             &mut commands
         )
     );
-    info!("created test effect 2, entity {:?}", test.effect2);
+    info!("created test effect 2, entity {:#?}", test.effect2);
 
     // TODO test an effect with triggers only and no sources
 
@@ -208,7 +209,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         info!("computed2 value: {}", value);
         Some(Ok(value))
     });
-    info!("created test computed 2, entity {:?}", test.computed2);
+    info!("created test computed 2, entity {:#?}", test.computed2);
 
     // simple computed to store the string value or an error, depending on the bool
     let test_computed2 = LazySignals.computed::<MyAuthParams, &str>(

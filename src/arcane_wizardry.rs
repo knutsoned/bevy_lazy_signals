@@ -42,30 +42,30 @@ pub fn make_observable<'a>(
 
 // add a subscriber
 pub(crate) fn enter_malkovich_world(
-    source: &mut EntityWorldMut,
+    entity: &mut EntityWorldMut,
     subscriber: &Entity,
     component_id: &ComponentId,
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) {
-    let entity = source.id();
+    let entity_id = entity.id();
 
     // the following boilerplate required due to rules about returning local variables
 
     // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
+    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
 
     // ...and convert that into a trait object
     let observable = make_observable(&mut mut_untyped, type_id, type_registry);
 
     // make it so!
-    info!("-subscribing {:?} to {:?}", subscriber, entity);
+    info!("-subscribing {:?} to {:?}", subscriber, entity_id);
     observable.subscribe(*subscriber);
 }
 
 // get a copy of the list of subscribers
 pub(crate) fn this_is_bat_country(
-    source: &mut EntityWorldMut,
+    entity: &mut EntityWorldMut,
     component_id: &ComponentId,
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
@@ -73,7 +73,7 @@ pub(crate) fn this_is_bat_country(
     // the following boilerplate required due to rules about returning local variables
 
     // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
+    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
 
     // ...and convert that into a trait object
     let observable = make_observable(&mut mut_untyped, type_id, type_registry);
@@ -84,7 +84,7 @@ pub(crate) fn this_is_bat_country(
 
 // merge subscribers
 pub(crate) fn long_live_the_new_flesh(
-    source: &mut EntityWorldMut,
+    entity: &mut EntityWorldMut,
     component_id: &ComponentId,
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
@@ -92,7 +92,7 @@ pub(crate) fn long_live_the_new_flesh(
     // the following boilerplate required due to rules about returning local variables
 
     // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
+    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
 
     // ...and convert that into a trait object
     let observable = make_observable(&mut mut_untyped, type_id, type_registry);
@@ -103,7 +103,7 @@ pub(crate) fn long_live_the_new_flesh(
 
 // mut (apply the next value to) the Immutable
 pub(crate) fn the_abyss_gazes_into_you(
-    source: &mut EntityWorldMut,
+    entity: &mut EntityWorldMut,
     component_id: &ComponentId,
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
@@ -111,7 +111,7 @@ pub(crate) fn the_abyss_gazes_into_you(
     // the following boilerplate required due to rules about returning local variables
 
     // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
+    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
 
     // ...and convert that into a trait object
     let observable = make_observable(&mut mut_untyped, type_id, type_registry);
@@ -128,7 +128,7 @@ pub(crate) fn the_abyss_gazes_into_you(
 
 // copy untyped data into a dynamic tuple
 pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
-    source: &mut EntityWorldMut,
+    entity: &mut EntityWorldMut,
     target: &Entity,
     params: &mut DynamicTuple,
     component_id: &ComponentId,
@@ -138,7 +138,7 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
     // the following boilerplate required due to rules about returning local variables
 
     // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
+    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
 
     // ...and convert that into a trait object
     let observable = make_observable(&mut mut_untyped, type_id, type_registry);
@@ -147,9 +147,10 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
     observable.copy_data(*target, params);
 }
 
+/*
 // copy None for a typed Option<T> into a dynamic tuple
 pub(crate) fn thus_spoke_zarathustra(
-    source: &mut EntityWorldMut,
+    entity: &mut EntityWorldMut,
     params: &mut DynamicTuple,
     component_id: &ComponentId,
     type_id: &TypeId,
@@ -158,7 +159,7 @@ pub(crate) fn thus_spoke_zarathustra(
     // the following boilerplate required due to rules about returning local variables
 
     // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
+    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
 
     // ...and convert that into a trait object
     let observable = make_observable(&mut mut_untyped, type_id, type_registry);
@@ -166,3 +167,4 @@ pub(crate) fn thus_spoke_zarathustra(
     // BUM bum BUM bum BUM bum BUM bum
     observable.append_none(params);
 }
+*/

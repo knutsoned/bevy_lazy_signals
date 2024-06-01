@@ -79,6 +79,21 @@ impl Default for LazySignalsResource {
     }
 }
 
+fn add_subs(subs: &[Entity], triggered: bool, signals: &mut Mut<LazySignalsResource>) {
+    // add subscribers to the next running set
+    for subscriber in subs.iter() {
+        let subscriber = *subscriber;
+        signals.next_running.insert(subscriber, ());
+        info!("-added subscriber {:?} to running set", subscriber);
+
+        // if these subs were triggered, they need to be marked triggered too
+        if triggered {
+            // add each one to the triggered set
+            signals.triggered.insert(subscriber, ());
+        }
+    }
+}
+
 /// Convenience function to subscribe an entity to a source.
 fn process_subs(
     world: &mut World,
@@ -200,7 +215,7 @@ pub fn send_signals(
         // build component id -> info map
         for (entity, immutable) in query_signals.iter(world) {
             let component_id = immutable.component_id;
-            trace!("-found a signal with component ID {:?}", component_id);
+            trace!("-found a signal with component ID {:#?}", component_id);
             component_id_set.insert(entity, component_id);
             if let Some(info) = world.components().get_info(component_id) {
                 component_info.insert(component_id, info.clone());
@@ -238,24 +253,18 @@ pub fn send_signals(
 
                 let triggered = subs.1;
                 let subs = subs.0;
+                let entity = *entity;
 
-                // if the merge returns a non-zero length list of subscribers, it changed
-                // (for our purposes, anyway)
-                if !triggered && !subs.is_empty() {
-                    signals.changed.insert(*entity, ());
+                // if triggered, add to triggered set
+                if triggered {
+                    signals.triggered.insert(entity, ());
+                } else if !subs.is_empty() {
+                    // OR if the merge returns a non-zero length list of subscribers, it changed
+                    // (for our purposes, anyway)
+                    signals.changed.insert(entity, ());
                 }
 
-                // add subscribers to the next running set
-                for subscriber in subs.into_iter() {
-                    signals.next_running.insert(subscriber, ());
-                    info!("-added subscriber {:?} to running set", subscriber);
-
-                    // if these subs were triggered, they need to be marked triggered too
-                    if triggered {
-                        // add each one to the triggered set
-                        signals.triggered.insert(subscriber, ());
-                    }
-                }
+                add_subs(&subs, triggered, &mut signals);
 
                 // mark as processed
                 signal_to_send.remove::<SendSignal>();
@@ -263,16 +272,18 @@ pub fn send_signals(
 
             // Phase Two: fire notifications up the subscriber tree
 
+            let mut count = 0;
             // as long as there is a next_running set, move next_running set into the current one
             while signals.merge_running() {
+                count += 1;
+                info!("Sending signals iteration {}", count);
+
                 // make a local copy of the running set
                 let mut running = empty_set();
                 for runner in signals.running.indices() {
-                    info!("we've got a runner: {:?}", runner);
-
                     // skip if already in processed set
                     if !signals.processed.contains(runner) {
-                        info!("...adding to running set");
+                        info!("...adding {:#?} to running set", runner);
 
                         running.insert(runner, ());
                     }
@@ -288,15 +299,34 @@ pub fn send_signals(
                         if subscriber.contains::<LazyEffect>() {
                             // it is an effect, so schedule the effect by adding DeferredEffect
                             subscriber.insert(DeferredEffect);
-                            info!("-scheduled effect");
+                            info!("-scheduled effect {:#?}", runner);
                         }
                         if subscriber.contains::<ComputedImmutable>() {
                             // it is a memo, so mark it for recalculation by adding ComputeMemo
                             subscriber.insert(ComputeMemo);
-                            info!("-marked memo for computation");
+                            info!("-marked memo {:#?} for computation", runner);
 
-                            // FIXME computed has its own subscribers, so add those to the next_running set
+                            let component_id = subscriber
+                                .get::<ImmutableState>()
+                                .unwrap().component_id;
+                            let type_id = subscriber
+                                .get::<ComputedImmutable>()
+                                .unwrap().lazy_immutable_type;
+                            info!(
+                                "--got component_id {:?} and type_id {:?}",
+                                component_id,
+                                type_id
+                            );
+                            let subs = this_is_bat_country(
+                                &mut subscriber,
+                                &component_id,
+                                &type_id,
+                                &type_registry
+                            );
+
+                            // computed has its own subscribers, so add those to the next_running set
                             // and mark triggered if appropriate
+                            add_subs(&subs, signals.triggered.contains(runner), &mut signals);
                         }
                     }
                 }
@@ -358,13 +388,13 @@ pub fn apply_deferred_effects(
             // OR if it has been explicitly triggered
             let mut actually_run = false;
             if signals.triggered.contains(*entity) {
-                info!("-triggering effect {:?}", entity);
+                info!("-triggering effect {:#?}", entity);
                 actually_run = true;
             } else {
                 for source in sources {
-                    info!("-checking changed set for trigger {:?}", source);
+                    info!("-checking changed set for trigger {:#?}", source);
                     if signals.changed.contains(*source) {
-                        info!("-running effect {:?} with sources {:?}", entity, sources);
+                        info!("-running effect {:#?} with sources {:#?}", entity, sources);
                         actually_run = true;
                     }
                 }
@@ -381,7 +411,7 @@ pub fn apply_deferred_effects(
     // write
     for entity in effects.indices() {
         if let Some(sources) = hierarchy.get(entity) {
-            info!("-found effect with sources {:?}", sources);
+            info!("-found effect with sources {:#?}", sources);
 
             // add the source component ID to the set (probably could be optimized)
             let mut component_id_set = ComponentIdSet::new();
@@ -391,7 +421,7 @@ pub fn apply_deferred_effects(
             for source in sources.iter() {
                 let immutable = world.entity(*source).get::<ImmutableState>().unwrap();
                 let component_id = immutable.component_id;
-                info!("-found a source with component ID {:?}", component_id);
+                info!("-found a source with component ID {:#?}", component_id);
                 component_id_set.insert(*source, component_id);
                 if let Some(info) = world.components().get_info(component_id) {
                     component_info.insert(component_id, info.clone());

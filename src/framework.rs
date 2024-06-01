@@ -359,6 +359,7 @@ pub struct ComputedImmutable {
     pub function: Box<dyn PropagatorContext>,
     pub sources: Vec<Entity>,
     pub params_type: TypeId,
+    pub lazy_immutable_type: TypeId,
     pub dirty: bool,
 }
 

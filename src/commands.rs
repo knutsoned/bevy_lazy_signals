@@ -111,6 +111,7 @@ impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand
                     function: self.function,
                     sources: self.sources,
                     params_type: TypeId::of::<P>(),
+                    lazy_immutable_type: TypeId::of::<LazyImmutable<R>>(),
                     dirty: false,
                 },
                 RebuildSubscribers,
