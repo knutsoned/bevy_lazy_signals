@@ -4,7 +4,7 @@ use bevy::{ ecs::component::ComponentId, prelude::*, reflect::{ DynamicTuple, Ty
 
 use crate::{ arcane_wizardry::*, framework::* };
 
-/// This is the reference user API, patterned after the TC39 proposal.
+/// These are the reference user API systems, patterned after the TC39 proposal.
 ///
 /// Shared reactive context resource, aka global state.
 /// This tracks long-running effects across ticks but otherwise should start fresh each cycle.
@@ -392,7 +392,8 @@ pub fn apply_deferred_effects(
                 let type_registry = type_registry.read();
                 // prepare the params
                 let mut params = DynamicTuple::default();
-                for (source, component_id) in component_id_set.iter() {
+                for source in sources.iter() {
+                    let component_id = component_id_set.get(*source).unwrap();
                     let type_id = component_info.get(*component_id).unwrap().type_id().unwrap();
 
                     // call the copy_data method via reflection

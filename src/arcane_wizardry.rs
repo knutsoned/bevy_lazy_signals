@@ -146,3 +146,23 @@ pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
     // please clap
     observable.copy_data(*target, params);
 }
+
+// copy None for a typed Option<T> into a dynamic tuple
+pub(crate) fn thus_spoke_zarathustra(
+    source: &mut EntityWorldMut,
+    params: &mut DynamicTuple,
+    component_id: &ComponentId,
+    type_id: &TypeId,
+    type_registry: &RwLockReadGuard<TypeRegistry>
+) {
+    // the following boilerplate required due to rules about returning local variables
+
+    // get the source Immutable component as an ECS change detection handle
+    let mut mut_untyped = source.get_mut_by_id(*component_id).unwrap();
+
+    // ...and convert that into a trait object
+    let observable = make_observable(&mut mut_untyped, type_id, type_registry);
+
+    // BUM bum BUM bum BUM bum BUM bum
+    observable.append_none(params);
+}

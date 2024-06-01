@@ -10,6 +10,7 @@ use thiserror::Error;
 
 /// # Signals framework
 /// ## Types
+/// could not get &String to work
 pub type LazySignalsStr = &'static str;
 
 /// Convenience typedefs.
@@ -17,7 +18,7 @@ pub type LazyImmutableBool = LazyImmutable<bool>;
 pub type LazyImmutableInt = LazyImmutable<u32>;
 pub type LazyImmutableFloat = LazyImmutable<f64>;
 pub type LazyImmutableStr = LazyImmutable<LazySignalsStr>;
-pub type LazyImmutableUnit = LazyImmutable<()>;
+pub type LazyImmutableUnit = LazyImmutable<()>; // triggers
 
 /// Result type for handling error conditions in consumer code.
 pub type LazySignalsResult<R> = Option<Result<R, LazySignalsError>>;
@@ -96,6 +97,9 @@ pub trait LazySignalsObservable {
     /// The ref impl uses this to update the LazySignalsImmutable values without knowing the type.
     /// These are also part of sending a Signal.
     ///
+    /// Add None to the params.
+    fn append_none(&mut self, params: &mut DynamicTuple);
+
     /// Copy the data into a dynamic tuple of params for the Effect or Propagator to consume.
     fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple);
 
@@ -136,22 +140,29 @@ impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World)> PropagatorConte
 pub trait Propagator<P: LazySignalsParams, R: LazySignalsData>: Send +
     Sync +
     'static +
-    Fn(P) -> Option<R> {}
+    Fn(P) -> LazySignalsResult<R> {}
 impl<
     P: LazySignalsParams,
     R: LazySignalsData,
-    T: Send + Sync + 'static + Fn(P) -> Option<R>
+    T: Send + Sync + 'static + Fn(P) -> LazySignalsResult<R>
 > Propagator<P, R> for T {}
 
 // TODO provide a to_effect to allow a propagator to be used as an effect?
 
-/// This is the same basic thing but this fn just runs side-effects so no value is returned
+/// This is the same basic thing but this fn just runs side-effects so no value is returned.
+/// However, there is a result so we use the unit type.
 pub trait EffectContext: Send + Sync + FnMut(&DynamicTuple, &mut World) {}
 impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World)> EffectContext for T {}
 
 // Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
-pub trait Effect<P: LazySignalsParams>: Send + Sync + 'static + FnMut(P, &mut World) {}
-impl<P: LazySignalsParams, T: Send + Sync + 'static + FnMut(P, &mut World)> Effect<P> for T {}
+pub trait Effect<P: LazySignalsParams>: Send +
+    Sync +
+    'static +
+    FnMut(P, &mut World) -> LazySignalsResult<()> {}
+impl<
+    P: LazySignalsParams,
+    T: Send + Sync + 'static + FnMut(P, &mut World) -> LazySignalsResult<()>
+> Effect<P> for T {}
 
 /// ## Component Structs
 /// A LazyImmutable is known as a cell in a propagator network. It may also be referred to as state.
@@ -213,6 +224,10 @@ impl<T: LazySignalsData> LazySignalsImmutable for LazyImmutable<T> {
 }
 
 impl<T: LazySignalsData> LazySignalsObservable for LazyImmutable<T> {
+    fn append_none(&mut self, params: &mut DynamicTuple) {
+        params.insert::<Option<T>>(None);
+    }
+
     fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple) {
         let data = match self.data {
             Some(data) =>

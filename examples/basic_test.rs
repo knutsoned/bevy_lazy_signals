@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use bevy_lazy_signals::{ api::LazySignals, framework::*, LazySignalsPlugin };
+use bevy_lazy_signals::{ api::{ end_effect, LazySignals }, framework::*, LazySignalsPlugin };
 
 // simple resource to simulate a service that tracks whether a user is logged in or not
 #[derive(Resource, Default)]
@@ -23,9 +23,9 @@ impl MyExampleAuthResource {
 #[derive(Resource, Default)]
 struct MyTestResource {
     pub computed1: Option<Entity>,
-    pub _computed2: Option<Entity>,
+    pub computed2: Option<Entity>,
     pub effect1: Option<Entity>,
-    pub _effect2: Option<Entity>,
+    pub effect2: Option<Entity>,
     pub signal1: Option<Entity>,
     pub signal2: Option<Entity>,
 }
@@ -94,6 +94,8 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
                 example_auth_resource.notify_logged_out()
             }
         });
+
+        end_effect()
     });
 
     // set up to trigger an effect from the signals
@@ -122,23 +124,25 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         // MyAuthParams, MyClosureParams, (Option<bool>, Option<LazySignalsStr>), and
         // (Option<bool>, Option<&str>) are interchangeable when defining propagators and effects
 
-        // default error message
+        // default error message (only if params.0 == false)
         let mut value = "You are not authorized to view this";
 
         // if loggedIn
-        if let Some(show) = params.0 {
-            if show {
-                // show a logged in message, if one exists
-                if let Some(msg) = params.1 {
-                    value = msg;
-                } else {
-                    value = "Greetings, Starfighter";
-                }
+        // (Err or None will return Err or None, this block runs only if params.0 == true)
+        if params.0? {
+            // show a logged in message, if one exists
+            if let Some(msg) = params.1 {
+                value = msg;
+            } else {
+                value = "Greetings, Starfighter";
             }
+
+            // could also just do: value = params.1?;
+            // and bubble the error up
         }
 
         info!("computed1 value: {}", value);
-        Some(value)
+        Some(Ok(value))
     });
 
     // simple computed to store the string value or an error, depending on the bool
@@ -148,6 +152,62 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         &mut commands
     );
     test.computed1 = Some(test_computed1);
+    info!("created test computed 1, entity {:?}", test.computed1);
+
+    // TODO maybe we should provide variants of Effect that take &World and no world so it isn't exclusive all the time
+    let effect2_fn: Box<dyn Effect<MyClosureParams>> = Box::new(|params, _world| {
+        // second effect, same as the first, but use the memo as the string instead of the signal
+
+        // read param 0
+        let logged_in = params.0?;
+
+        // read param 1
+        let logged_in_msg = params.1?;
+
+        info!("got {} and {} from params", logged_in, logged_in_msg);
+
+        end_effect()
+    });
+
+    // set up to trigger an effect from the memo
+    test.effect2 = Some(
+        LazySignals.effect::<MyClosureParams>(
+            // closure to call when the effect is triggered
+            effect2_fn,
+            // type of each source must match type at same tuple position
+            // it's not unsafe(?); it just won't work if we screw this up
+            vec![test_signal1, test_computed1], // sending either signal triggers the effect
+            // explicit triggers are not added to the params tuple like sources
+            Vec::<Entity>::default(),
+            &mut commands
+        )
+    );
+    info!("created test effect 2, entity {:?}", test.effect2);
+
+    let computed2_fn: Box<dyn Propagator<MyAuthParams, &str>> = Box::new(|params| {
+        // default error message
+        let mut value = "You are not authorized to view this";
+
+        // if logged_in
+        if let Some(logged_in) = params.0 {
+            if logged_in {
+                // show a logged in message, if one exists
+                value = params.1?;
+            }
+        }
+
+        info!("computed2 value: {}", value);
+        Some(Ok(value))
+    });
+    info!("created test computed 2, entity {:?}", test.computed2);
+
+    // simple computed to store the string value or an error, depending on the bool
+    let test_computed2 = LazySignals.computed::<MyAuthParams, &str>(
+        computed2_fn,
+        vec![test_signal1, test_computed1], // sending either signal triggers a recompute
+        &mut commands
+    );
+    test.computed2 = Some(test_computed2);
 
     info!("init complete");
 }

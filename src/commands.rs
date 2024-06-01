@@ -98,11 +98,15 @@ pub struct CreateComputedCommand<P: LazySignalsParams, R: LazySignalsData> {
 
 impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
+        let component_id = world.init_component::<LazyImmutable<R>>();
         world
             .get_entity_mut(self.computed)
             .unwrap()
             .insert((
                 LazyImmutable::<R>::new(None),
+                ImmutableState {
+                    component_id,
+                },
                 ComputedImmutable {
                     function: self.function,
                     sources: self.sources,

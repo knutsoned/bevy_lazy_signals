@@ -2,6 +2,12 @@ use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
 
 use crate::{ commands::LazySignalsCommandsExt, framework::* };
 
+/// This is the reference user API, patterned after the TC39 proposal.
+
+pub fn end_effect() -> LazySignalsResult<()> {
+    Some(Ok(()))
+}
+
 /// Convenience function to get a field directly from a DynamicTuple.
 pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Option<&T> {
     tuple.get_field::<T>(index) // returns None if type doesn't match
@@ -11,7 +17,12 @@ pub fn make_effect_with<P: LazySignalsParams>(
     mut closure: Box<dyn Effect<P>>
 ) -> Box<dyn EffectContext> {
     Box::new(move |tuple, world| {
-        closure(make_tuple::<P>(tuple), world);
+        info!("-running effect context with params {:?}", tuple);
+        let result = closure(make_tuple::<P>(tuple), world);
+        if let Some(Err(error)) = result {
+            // TODO process errors
+            error!("ERROR running effect: {}", error.to_string());
+        }
     })
 }
 
@@ -19,7 +30,12 @@ pub fn make_propagator_with<P: LazySignalsParams, R: LazySignalsData>(
     closure: Box<dyn Propagator<P, R>>
 ) -> Box<dyn PropagatorContext> {
     Box::new(move |tuple, entity, world| {
+        info!("-running propagator context with params {:?}", tuple);
         let result = closure(make_tuple::<P>(tuple));
+        if let Some(Err(error)) = result {
+            // TODO process errors
+            error!("ERROR running propagator: {}", error.to_string());
+        }
         store_result(result, entity, world);
     })
 }
