@@ -7,7 +7,6 @@ use bevy::{
         entity::Entity,
         world::EntityWorldMut,
     },
-    prelude::*,
     reflect::{ DynamicTuple, ReflectFromPtr, TypeRegistry },
 };
 
@@ -48,8 +47,6 @@ pub(crate) fn enter_malkovich_world(
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
 ) {
-    let entity_id = entity.id();
-
     // the following boilerplate required due to rules about returning local variables
 
     // get the source Immutable component as an ECS change detection handle
@@ -59,7 +56,6 @@ pub(crate) fn enter_malkovich_world(
     let observable = make_observable(&mut mut_untyped, type_id, type_registry);
 
     // make it so!
-    info!("-subscribing {:?} to {:?}", subscriber, entity_id);
     observable.subscribe(*subscriber);
 }
 

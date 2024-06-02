@@ -6,14 +6,19 @@ pub mod commands;
 
 pub mod api;
 
-pub mod reference_impl;
-use reference_impl::*;
+pub mod systems;
+use systems::{
+    init::{ init_effects, init_memos },
+    signal::send_signals,
+    effect::apply_deferred_effects,
+    LazySignalsResource,
+};
 
 pub mod framework;
 use framework::*;
 
 pub mod prelude {
-    pub use crate::{ api::*, framework::*, LazySignalsPlugin };
+    pub use crate::{ api::*, framework::*, systems::*, LazySignalsPlugin };
 }
 
 /// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.
