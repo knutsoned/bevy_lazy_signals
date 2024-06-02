@@ -282,7 +282,7 @@ pub fn send_signals(
                 }
 
                 // add subscribers to the running set and mark if triggered
-                info!("SUBS for {:#?} are: {:#?}", entity, subs);
+                //info!("SUBS for {:#?} are: {:#?}", entity, subs);
                 add_subs(&subs, triggered, &mut signals);
 
                 // mark as processed
@@ -394,6 +394,7 @@ pub fn apply_deferred_effects(
     // collapse the query or get world concurrency errors
     let mut sourced_entities = EntityHierarchySet::new();
     for (entity, effect) in query_effects.iter(world) {
+        info!("processing sources for {:?}", entity);
         sourced_entities.insert(entity, effect.sources.clone());
     }
     process_effects(&sourced_entities, world);
@@ -401,6 +402,7 @@ pub fn apply_deferred_effects(
     // add support for triggers
     let mut triggered_entities = EntityHierarchySet::new();
     for (entity, effect) in query_effects.iter(world) {
+        info!("processing triggers for {:?}", entity);
         triggered_entities.insert(entity, effect.triggers.clone());
     }
     process_effects(&triggered_entities, world);
