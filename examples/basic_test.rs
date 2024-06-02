@@ -225,6 +225,9 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
     trace!("sending 'true' to {:?}", test.signal1);
     LazySignals.send(test.signal1, true, &mut commands);
+
+    trace!("triggering {:?}", test.signal3);
+    LazySignals.trigger(test.signal3, &mut commands);
 }
 
 fn status(

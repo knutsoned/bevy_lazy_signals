@@ -109,13 +109,7 @@ impl LazySignals {
         }
     }
 
-    pub fn state<T: LazySignalsData>(&self, data: T, commands: &mut Commands) -> Entity {
-        let state = commands.spawn_empty().id();
-        commands.create_state::<T>(state, data);
-        state
-    }
-
-    pub fn trigger<T: LazySignalsData>(
+    pub fn send_and_trigger<T: LazySignalsData>(
         &self,
         signal: Option<Entity>,
         data: T,
@@ -123,6 +117,18 @@ impl LazySignals {
     ) {
         if let Some(signal) = signal {
             commands.trigger_signal::<T>(signal, data);
+        }
+    }
+
+    pub fn state<T: LazySignalsData>(&self, data: T, commands: &mut Commands) -> Entity {
+        let state = commands.spawn_empty().id();
+        commands.create_state::<T>(state, data);
+        state
+    }
+
+    pub fn trigger(&self, signal: Option<Entity>, commands: &mut Commands) {
+        if let Some(signal) = signal {
+            commands.trigger_signal::<()>(signal, ());
         }
     }
 

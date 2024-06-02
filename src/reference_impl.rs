@@ -11,17 +11,23 @@ use crate::{ arcane_wizardry::*, framework::* };
 /// Main purpose is to provide "stack"-like functionality across systems in the processing chain.
 #[derive(Resource)]
 pub struct LazySignalsResource {
-    /// Tracks triggered entities (Signals to send even if their value did not change).
+    /// Tracks triggered entities (notify subscribers even if the value did not change).
     pub triggered: EntitySet,
 
     /// Tracks the currently running iteration (immutable once the iteration starts).
+    /// Used during signal sending.
     pub running: EntitySet,
 
     /// Tracks what will run after the end of the current iteration.
+    /// Used during signal sending.
     pub next_running: EntitySet,
 
     /// Tracks which memos have already been added to a running set.
+    /// Used during signal sending.
     pub processed: EntitySet,
+
+    /// Tracks the currently running computation.
+    pub compute_stack: Vec<Entity>,
 
     /// Tracks which Signals and Memos actually have changed data.
     pub changed: EntitySet,
@@ -44,6 +50,7 @@ impl LazySignalsResource {
         self.running.clear();
         self.next_running.clear();
         self.processed.clear();
+        self.compute_stack.clear();
         self.changed.clear();
         self.deferred.clear();
         // self.effects.clear(); // don't clear this, need.. to remember... what is going on
@@ -71,6 +78,7 @@ impl Default for LazySignalsResource {
             running: empty_set(),
             next_running: empty_set(),
             processed: empty_set(),
+            compute_stack: Vec::new(),
             changed: empty_set(),
             deferred: empty_set(),
             effects: empty_set(),
@@ -143,21 +151,33 @@ pub fn init_effects(
 ) {
     // FIXME add support for triggers
     // collapse the query or get world concurrency errors
-    let mut entities = EntityHierarchySet::new();
-    for (entity, prop) in query_effects.iter(world) {
+    let mut sourced_entities = EntityHierarchySet::new();
+    let mut triggered_entities = EntityHierarchySet::new();
+    for (entity, effect) in query_effects.iter(world) {
         info!("-preparing sources for effect {:?}", entity);
-        entities.insert(entity, prop.sources.clone());
+        sourced_entities.insert(entity, effect.sources.clone());
+        triggered_entities.insert(entity, effect.triggers.clone());
     }
 
     world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
         let type_registry = type_registry.read();
 
-        // run the subscribe method on each Effect.triggers, passing the Entity
-        for (entity, sources) in entities.iter() {
+        // run the subscribe method on all Effect.sources
+        for (entity, sources) in sourced_entities.iter() {
             // loop through the sources
             for source in sources.iter() {
-                // FIXME should this be done with some kind of unsafe entity cell?
                 process_subs(world, entity, source, &type_registry);
+            }
+
+            // mark as processed
+            world.get_entity_mut(*entity).unwrap().remove::<RebuildSubscribers>();
+        }
+
+        // run the subscribe method on all Effect.triggers
+        for (entity, triggers) in triggered_entities.iter() {
+            // loop through the sources
+            for trigger in triggers.iter() {
+                process_subs(world, entity, trigger, &type_registry);
             }
 
             // mark as processed
@@ -172,17 +192,17 @@ pub fn init_memos(
     query_propagators: &mut QueryState<(Entity, &ComputedImmutable), With<RebuildSubscribers>>
 ) {
     // collapse the query or get world concurrency errors
-    let mut entities = EntityHierarchySet::new();
+    let mut sourced_entities = EntityHierarchySet::new();
     for (entity, prop) in query_propagators.iter(world) {
         info!("-preparing sources for memo {:?}", entity);
-        entities.insert(entity, prop.sources.clone());
+        sourced_entities.insert(entity, prop.sources.clone());
     }
 
     world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
         let type_registry = type_registry.read();
 
         // run the subscribe method on each Propagator.sources, passing the Entity
-        for (entity, sources) in entities.iter() {
+        for (entity, sources) in sourced_entities.iter() {
             // loop through the sources
             for source in sources.iter() {
                 // FIXME should this be done with some kind of unsafe entity cell?
@@ -255,15 +275,14 @@ pub fn send_signals(
                 let subs = subs.0;
                 let entity = *entity;
 
-                // if triggered, add to triggered set
-                if triggered {
-                    signals.triggered.insert(entity, ());
-                } else if !subs.is_empty() {
-                    // OR if the merge returns a non-zero length list of subscribers, it changed
-                    // (for our purposes, anyway)
+                // if the merge returns a non-zero length list of subscribers, it changed
+                // (for our purposes, anyway)
+                if !triggered && !subs.is_empty() {
                     signals.changed.insert(entity, ());
                 }
 
+                // add subscribers to the running set and mark if triggered
+                info!("SUBS for {:#?} are: {:#?}", entity, subs);
                 add_subs(&subs, triggered, &mut signals);
 
                 // mark as processed
@@ -283,7 +302,7 @@ pub fn send_signals(
                 for runner in signals.running.indices() {
                     // skip if already in processed set
                     if !signals.processed.contains(runner) {
-                        info!("...adding {:#?} to running set", runner);
+                        trace!("...adding {:#?} to running set", runner);
 
                         running.insert(runner, ());
                     }
@@ -312,7 +331,7 @@ pub fn send_signals(
                             let type_id = subscriber
                                 .get::<ComputedImmutable>()
                                 .unwrap().lazy_immutable_type;
-                            info!(
+                            trace!(
                                 "--got component_id {:?} and type_id {:?}",
                                 component_id,
                                 type_id
@@ -345,22 +364,20 @@ pub fn compute_memos(
     query_memos: &mut QueryState<(Entity, &ComputedImmutable), With<ComputeMemo>>
 ) {
     trace!("MEMOS");
-    // need exclusive world access here to update memos immediately
-
-    // run each Propagator function to recalculate memo, adding it and sources to the running set
+    // run each Propagator function to recalculate memo, adding it and sources to the compute stack
     // do not run this Propagator if already in the processed set
     // do not add a source if source already in the processed set
 
-    // if a source is marked dirty, add it to the running set
+    // if a source is marked dirty, add it to the compute stack
 
-    // main loop: evaluate highest index,
+    // main loop: evaluate highest index (pop the stack),
     // evaluate that source as above
 
     // if all sources are up to date, then recompute
 
     // *** update the data in the cell
 
-    // add the ComputedImmutable to the processed set
+    // add the computed entity to the processed set
 
     // add to the changed set if the value actually changed
 
@@ -374,49 +391,65 @@ pub fn apply_deferred_effects(
     query_effects: &mut QueryState<(Entity, &LazyEffect), With<DeferredEffect>>
 ) {
     trace!("EFFECTS");
+    // collapse the query or get world concurrency errors
+    let mut sourced_entities = EntityHierarchySet::new();
+    for (entity, effect) in query_effects.iter(world) {
+        sourced_entities.insert(entity, effect.sources.clone());
+    }
+    process_effects(&sourced_entities, world);
+
+    // add support for triggers
+    let mut triggered_entities = EntityHierarchySet::new();
+    for (entity, effect) in query_effects.iter(world) {
+        triggered_entities.insert(entity, effect.triggers.clone());
+    }
+    process_effects(&triggered_entities, world);
+}
+
+fn process_effects(hierarchy: &EntityHierarchySet, world: &mut World) {
     let mut effects = empty_set();
 
-    // FIXME add support for triggers
-    // collapse the query or get world concurrency errors
-    let mut hierarchy = EntityHierarchySet::new();
-    for (entity, effect) in query_effects.iter(world) {
-        hierarchy.insert(entity, effect.sources.clone());
-    }
-
-    // read (mostly)
-    world.resource_scope(|world, signals: Mut<LazySignalsResource>| {
+    // read, mostly
+    world.resource_scope(|world, mut signals: Mut<LazySignalsResource>| {
         for (entity, sources) in hierarchy.iter() {
-            // only run an effect if at least one of its triggers is in the changed set
-            // OR if it has been explicitly triggered
-            let mut actually_run = false;
-            if signals.triggered.contains(*entity) {
-                info!("-triggering effect {:#?}", entity);
-                actually_run = true;
-            } else {
-                for source in sources {
-                    info!("-checking changed set for trigger {:#?}", source);
-                    if signals.changed.contains(*source) {
-                        info!("-running effect {:#?} with sources {:#?}", entity, sources);
-                        actually_run = true;
+            let entity = *entity;
+            // only run an effect if it has not been processed
+            if !signals.processed.contains(entity) {
+                // ...and at least one of its sources is in the changed set
+                // OR it has been explicitly triggered
+                let mut actually_run = false;
+                if signals.triggered.contains(entity) {
+                    info!("-triggering effect {:#?}", entity);
+                    actually_run = true;
+                } else {
+                    for source in sources {
+                        info!("-checking changed set for source {:#?}", source);
+                        if signals.changed.contains(*source) {
+                            trace!("-running effect {:#?} with sources {:#?}", entity, sources);
+                            actually_run = true;
+                        }
                     }
                 }
-            }
-            if actually_run {
-                effects.insert(*entity, ());
-            } else {
-                world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
-                    let type_registry = type_registry.read();
+                if actually_run {
+                    effects.insert(entity, ());
+                } else {
+                    world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
+                        let type_registry = type_registry.read();
 
-                    // make sure if effects are deferred but not run that they still refresh
-                    // otherwise they will not be notified next time
-                    for source in sources {
-                        process_subs(world, entity, source, &type_registry);
-                    }
-                });
-            }
+                        // make sure if effects are deferred but not run that they still refresh
+                        // otherwise they will not be notified next time
+                        for source in sources {
+                            process_subs(world, &entity, source, &type_registry);
+                        }
+                    });
+                }
 
-            // remove the DeferredEffect component
-            world.entity_mut(*entity).remove::<DeferredEffect>();
+                // add to the processed set
+                signals.processed.insert(entity, ());
+
+                // remove the DeferredEffect component
+                world.entity_mut(entity).remove::<DeferredEffect>();
+            }
         }
     });
 
@@ -433,7 +466,7 @@ pub fn apply_deferred_effects(
             for source in sources.iter() {
                 let immutable = world.entity(*source).get::<ImmutableState>().unwrap();
                 let component_id = immutable.component_id;
-                info!("-found a source with component ID {:#?}", component_id);
+                trace!("-found a source with component ID {:#?}", component_id);
                 component_id_set.insert(*source, component_id);
                 if let Some(info) = world.components().get_info(component_id) {
                     component_info.insert(component_id, info.clone());

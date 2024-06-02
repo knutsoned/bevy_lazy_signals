@@ -258,7 +258,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazyImmutable<T> {
 
         // copy the subscribers into the output vector
         subs.extend(self.subscribers.indices());
-        info!("-found subs {:?}", self.subscribers);
+        trace!("-found subs {:?}", self.subscribers);
         subs
     }
 
