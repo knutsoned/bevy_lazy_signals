@@ -3,7 +3,6 @@ use bevy::{ ecs::world::World, prelude::* };
 use crate::{
     arcane_wizardry::{ the_abyss_gazes_into_you, this_is_bat_country },
     empty_set,
-    prelude::LazySignalsResource,
     systems::add_subs_to_running,
     ComponentIdSet,
     ComponentInfoSet,
@@ -12,6 +11,7 @@ use crate::{
     DeferredEffect,
     ImmutableState,
     LazyEffect,
+    LazySignalsResource,
     SendSignal,
 };
 
@@ -80,8 +80,6 @@ pub fn send_signals(
                 if !triggered && !subs.is_empty() {
                     signals.changed.insert(entity, ());
                 }
-                info!("Sending {:?}", entity);
-                info!("-triggered: {}, subs: {:?}", triggered, subs);
 
                 // add subscribers to the running set and mark if triggered
                 //info!("SUBS for {:#?} are: {:#?}", entity, subs);
@@ -97,7 +95,7 @@ pub fn send_signals(
             // as long as there is a next_running set, move next_running set into the current one
             while signals.merge_running() {
                 count += 1;
-                info!("Sending signals iteration {}", count);
+                trace!("Sending signals iteration {}", count);
 
                 // make a local copy of the running set
                 let mut running = empty_set();
@@ -120,12 +118,12 @@ pub fn send_signals(
                         if subscriber.contains::<LazyEffect>() {
                             // it is an effect, so schedule the effect by adding DeferredEffect
                             subscriber.insert(DeferredEffect);
-                            info!("-scheduled effect {:#?}", runner);
+                            trace!("-scheduled effect {:#?}", runner);
                         }
                         if subscriber.contains::<ComputedImmutable>() {
                             // it is a memo, so mark it for recalculation by adding ComputeMemo
                             subscriber.insert(ComputeMemo);
-                            info!("-marked memo {:#?} for computation", runner);
+                            trace!("-marked memo {:#?} for computation", runner);
 
                             let component_id = subscriber
                                 .get::<ImmutableState>()

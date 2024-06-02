@@ -17,12 +17,8 @@ pub fn make_effect_with<P: LazySignalsParams>(
     mut closure: Box<dyn Effect<P>>
 ) -> Box<dyn EffectContext> {
     Box::new(move |tuple, world| {
-        info!("-running effect context with params {:?}", tuple);
-        let result = closure(make_tuple::<P>(tuple), world);
-        if let Some(Err(error)) = result {
-            // TODO process errors
-            error!("ERROR running effect: {}", error.to_string());
-        }
+        trace!("-running effect context with params {:?}", tuple);
+        closure(make_tuple::<P>(tuple), world);
     })
 }
 

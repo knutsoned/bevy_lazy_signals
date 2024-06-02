@@ -147,6 +147,9 @@ impl<
     T: Send + Sync + 'static + Fn(P) -> LazySignalsResult<R>
 > Propagator<P, R> for T {}
 
+pub trait PropagatorSubsFn: Send + Sync + Fn(&ComputedImmutable) -> Vec<Entity> {}
+impl<T: Send + Sync + Fn(&ComputedImmutable) -> Vec<Entity>> PropagatorSubsFn for T {}
+
 // TODO provide a to_effect to allow a propagator to be used as an effect?
 
 /// This is the same basic thing but this fn just runs side-effects so no value is returned.
@@ -155,14 +158,8 @@ pub trait EffectContext: Send + Sync + FnMut(&DynamicTuple, &mut World) {}
 impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World)> EffectContext for T {}
 
 // Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
-pub trait Effect<P: LazySignalsParams>: Send +
-    Sync +
-    'static +
-    FnMut(P, &mut World) -> LazySignalsResult<()> {}
-impl<
-    P: LazySignalsParams,
-    T: Send + Sync + 'static + FnMut(P, &mut World) -> LazySignalsResult<()>
-> Effect<P> for T {}
+pub trait Effect<P: LazySignalsParams>: Send + Sync + 'static + FnMut(P, &mut World) {}
+impl<P: LazySignalsParams, T: Send + Sync + 'static + FnMut(P, &mut World)> Effect<P> for T {}
 
 pub trait EffectSubsFn: Send + Sync + Fn(&LazyEffect) -> Vec<Entity> {}
 impl<T: Send + Sync + Fn(&LazyEffect) -> Vec<Entity>> EffectSubsFn for T {}
@@ -235,10 +232,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazyImmutable<T> {
         let data = match self.data {
             Some(data) =>
                 match data {
-                    Ok(data) => {
-                        info!("--inserted data into params");
-                        Some(data)
-                    }
+                    Ok(data) => { Some(data) }
 
                     // FIXME do something else with the error
                     Err(error) => {
@@ -246,10 +240,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazyImmutable<T> {
                         None
                     }
                 }
-            None => {
-                info!("--no data");
-                None
-            }
+            None => { None }
         };
         params.insert(data);
 
@@ -286,7 +277,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazyImmutable<T> {
                     trace!("data exists");
 
                     if data != next {
-                        info!("data != next");
+                        trace!("data != next");
                         doo_eet = true;
                     }
                 } else {

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use bevy_lazy_signals::{ api::{ end_effect, LazySignals }, framework::*, LazySignalsPlugin };
+use bevy_lazy_signals::{ api::LazySignals, framework::*, LazySignalsPlugin };
 
 // simple resource to simulate a service that tracks whether a user is logged in or not
 #[derive(Resource, Default)]
@@ -90,7 +90,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         // read param 1
         let logged_in_msg = params.1.unwrap();
 
-        info!("got {} and {} from params", logged_in, logged_in_msg);
+        info!("EFFECT1: got {} and {} from params", logged_in, logged_in_msg);
 
         // we have exclusive world access. in this case, we update a value in a resource
         world.resource_scope(|_world, mut example_auth_resource: Mut<MyExampleAuthResource>| {
@@ -101,8 +101,6 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
                 example_auth_resource.notify_logged_out()
             }
         });
-
-        end_effect()
     });
 
     // set up to trigger an effect from the signals
@@ -148,7 +146,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             // and bubble the error up
         }
 
-        info!("computed1 value: {}", value);
+        info!("COMPUTED1 value: {}", value);
         Some(Ok(value))
     });
 
@@ -166,14 +164,14 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         // second effect, same as the first, but use the memo as the string instead of the signal
 
         // read param 0
-        let logged_in = params.0?;
-        info!("got logged_in: {} from params", logged_in);
+        if let Some(logged_in) = params.0 {
+            info!("EFFECT2: got logged_in: {} from params", logged_in);
+        }
 
         // read param 1
-        let logged_in_msg = params.1?;
-        info!("got logged_in_msg: {} from params", logged_in_msg);
-
-        end_effect()
+        if let Some(logged_in_msg) = params.1 {
+            info!("EFFECT2: got logged_in_msg: {} from params", logged_in_msg);
+        }
     });
 
     // set up to trigger an effect from the memo
@@ -206,7 +204,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             }
         }
 
-        info!("computed2 value: {}", value);
+        info!("COMPUTED2 value: {}", value);
         Some(Ok(value))
     });
     info!("created test computed 2, entity {:#?}", test.computed2);

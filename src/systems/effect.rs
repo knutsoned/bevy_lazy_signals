@@ -3,7 +3,6 @@ use bevy::{ ecs::world::World, prelude::*, reflect::DynamicTuple };
 use crate::{
     arcane_wizardry::ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn,
     empty_set,
-    prelude::LazySignalsResource,
     systems::{ add_subs_to_hierarchy, subscribe },
     ComponentIdSet,
     ComponentInfoSet,
@@ -11,6 +10,7 @@ use crate::{
     EntityHierarchySet,
     ImmutableState,
     LazyEffect,
+    LazySignalsResource,
 };
 
 pub fn apply_deferred_effects(
@@ -39,23 +39,23 @@ pub fn apply_deferred_effects(
 
     let mut effects = empty_set();
 
-    info!("Processing effects {:#?}", hierarchy);
+    trace!("Processing effects {:#?}", hierarchy);
 
     // read, mostly
     world.resource_scope(|world, mut signals: Mut<LazySignalsResource>| {
         for (effect, sources) in hierarchy.iter() {
             let effect = *effect;
-            info!("Processing effect {:?}", effect);
+            trace!("Processing effect {:?}", effect);
 
             // only run an effect if at least one of its sources is in the changed set
             // OR it has been explicitly triggered
             let mut actually_run = false;
             if signals.triggered.contains(effect) {
-                info!("-triggering effect {:#?}", effect);
+                trace!("-triggering effect {:#?}", effect);
                 actually_run = true;
             } else {
                 for source in sources {
-                    info!("-checking changed set for source {:#?}", source);
+                    trace!("-checking changed set for source {:#?}", source);
                     if signals.changed.contains(*source) {
                         trace!("-running effect {:#?} with sources {:#?}", effect, sources);
                         actually_run = true;
@@ -77,7 +77,7 @@ pub fn apply_deferred_effects(
             world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
                 let type_registry = type_registry.read();
                 for source in sources {
-                    subscribe(world, &effect, source, &type_registry);
+                    subscribe(&effect, source, &type_registry, world);
                 }
             });
         }
@@ -86,7 +86,7 @@ pub fn apply_deferred_effects(
     // write
     for effect in effects.indices() {
         if let Some(sources) = hierarchy.get(effect) {
-            info!("-found effect with sources {:#?}", sources);
+            trace!("-found effect with sources {:#?}", sources);
 
             // add the source component ID to the set (probably could be optimized)
             let mut component_id_set = ComponentIdSet::new();
