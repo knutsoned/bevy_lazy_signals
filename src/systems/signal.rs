@@ -1,7 +1,7 @@
 use bevy::{ ecs::world::World, prelude::* };
 
 use crate::{
-    arcane_wizardry::{ the_abyss_gazes_into_you, this_is_bat_country },
+    arcane_wizardry::{ run_observable_method, the_abyss_gazes_into_you, this_is_bat_country },
     empty_set,
     systems::add_subs_to_running,
     ComponentIdSet,
@@ -64,12 +64,20 @@ pub fn send_signals(
 
                 // merge the next data value and return a list of subscribers to the change
                 // and whether these subscribers should be triggered too
-                let subs = the_abyss_gazes_into_you(
+                let subs = run_observable_method(
                     &mut signal_to_send,
+                    None,
+                    None,
                     &component_id,
                     &type_id,
-                    &type_registry
+                    &type_registry,
+                    Box::new(|observable, _params, _target| {
+                        let triggered = observable.is_triggered();
+                        let subs = observable.merge();
+                        Some((subs, triggered))
+                    })
                 );
+                let subs = subs.unwrap();
 
                 let triggered = subs.1;
                 let subs = subs.0;
@@ -148,7 +156,7 @@ pub fn send_signals(
                             // computed has its own subscribers, so add those to the next_running set
                             // and mark triggered if appropriate
                             add_subs_to_running(
-                                &subs,
+                                &subs.0,
                                 signals.triggered.contains(runner),
                                 &mut signals
                             );

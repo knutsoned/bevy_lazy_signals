@@ -164,6 +164,23 @@ impl<P: LazySignalsParams, T: Send + Sync + 'static + FnMut(P, &mut World)> Effe
 pub trait EffectSubsFn: Send + Sync + Fn(&LazyEffect) -> Vec<Entity> {}
 impl<T: Send + Sync + Fn(&LazyEffect) -> Vec<Entity>> EffectSubsFn for T {}
 
+pub trait ObservableFn: Send +
+    Sync +
+    FnMut(
+        Box<&mut dyn LazySignalsObservable>,
+        Option<&mut DynamicTuple>,
+        Option<&Entity>
+    ) -> Option<(Vec<Entity>, bool)> {}
+impl<
+    T: Send +
+        Sync +
+        FnMut(
+            Box<&mut dyn LazySignalsObservable>,
+            Option<&mut DynamicTuple>,
+            Option<&Entity>
+        ) -> Option<(Vec<Entity>, bool)>
+> ObservableFn for T {}
+
 /// ## Component Structs
 /// A LazyImmutable is known as a cell in a propagator network. It may also be referred to as state.
 /// Using the label LazyImmutable because Cell and State often mean other things.

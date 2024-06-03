@@ -31,12 +31,31 @@ pub fn make_observable<'a>(
     let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
 
     // the sun grew dark and cold
-    let reflect_untyped_observable = type_registry
+    let reflect_observable = type_registry
         .get_type_data::<ReflectLazySignalsObservable>(value.type_id())
         .unwrap();
 
     // the seas boiled
-    reflect_untyped_observable.get_mut(value).unwrap()
+    reflect_observable.get_mut(value).unwrap()
+}
+
+pub fn run_observable_method(
+    entity: &mut EntityWorldMut,
+    params: Option<&mut DynamicTuple>,
+    target: Option<&Entity>,
+    component_id: &ComponentId,
+    type_id: &TypeId,
+    type_registry: &RwLockReadGuard<TypeRegistry>,
+    mut closure: Box<dyn ObservableFn>
+) -> Option<(Vec<Entity>, bool)> {
+    // get the source LazyImmutable component as an ECS change detection handle
+    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
+
+    // ...and convert that into a trait object
+    let observable = make_observable(&mut mut_untyped, type_id, type_registry);
+
+    // run the supplied fn
+    closure(Box::new(observable), params, target)
 }
 
 // add a subscriber
@@ -130,7 +149,7 @@ pub(crate) fn this_is_bat_country(
     component_id: &ComponentId,
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
-) -> Vec<Entity> {
+) -> (Vec<Entity>, bool) {
     // the following boilerplate required due to rules about returning local variables
 
     // get the source Immutable component as an ECS change detection handle
@@ -140,7 +159,7 @@ pub(crate) fn this_is_bat_country(
     let observable = make_observable(&mut mut_untyped, type_id, type_registry);
 
     // I want to go fast!
-    observable.get_subscribers()
+    (observable.get_subscribers(), false)
 }
 
 /*
