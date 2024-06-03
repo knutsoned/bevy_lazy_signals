@@ -12,5 +12,5 @@ thiserror = "1.0.59"
 version = "0.14.0-dev"
 git = "https://github.com/bevyengine/bevy"
 rev = "ec01c2d"
-#default-features = false
-#features = ["bevy_core_pipeline", "bevy_winit", "multi_threaded"]
+default-features = false
+features = ["bevy_core_pipeline", "bevy_pbr", "bevy_winit", "multi_threaded"]
