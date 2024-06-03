@@ -13,7 +13,7 @@ use bevy::{
 use crate::framework::*;
 
 // given a mutable reference to a LazyImmutable component instance, make an UntypedObservable
-pub fn make_observable<'a>(
+pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(
     mut_untyped: &'a mut MutUntyped,
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>
@@ -52,134 +52,12 @@ pub fn run_observable_method(
     let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
 
     // ...and convert that into a trait object
-    let observable = make_observable(&mut mut_untyped, type_id, type_registry);
+    let observable = ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
+        &mut mut_untyped,
+        type_id,
+        type_registry
+    );
 
     // run the supplied fn
     closure(Box::new(observable), params, target)
 }
-
-// add a subscriber
-pub(crate) fn enter_malkovich_world(
-    entity: &mut EntityWorldMut,
-    subscriber: &Entity,
-    component_id: &ComponentId,
-    type_id: &TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) {
-    // the following boilerplate required due to rules about returning local variables
-
-    // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
-
-    // ...and convert that into a trait object
-    let observable = make_observable(&mut mut_untyped, type_id, type_registry);
-
-    // make it so!
-    observable.subscribe(*subscriber);
-}
-
-// merge subscribers
-pub(crate) fn long_live_the_new_flesh(
-    entity: &mut EntityWorldMut,
-    component_id: &ComponentId,
-    type_id: &TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) {
-    // the following boilerplate required due to rules about returning local variables
-
-    // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
-
-    // ...and convert that into a trait object
-    let observable = make_observable(&mut mut_untyped, type_id, type_registry);
-
-    // engage!
-    observable.merge_subscribers();
-}
-
-// copy untyped data into a dynamic tuple
-pub(crate) fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
-    entity: &mut EntityWorldMut,
-    target: &Entity,
-    params: &mut DynamicTuple,
-    component_id: &ComponentId,
-    type_id: &TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) {
-    // the following boilerplate required due to rules about returning local variables
-
-    // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
-
-    // ...and convert that into a trait object
-    let observable = make_observable(&mut mut_untyped, type_id, type_registry);
-
-    // please clap
-    observable.copy_data(*target, params);
-}
-
-// mut (apply the next value to) the Immutable
-pub(crate) fn the_abyss_gazes_into_you(
-    entity: &mut EntityWorldMut,
-    component_id: &ComponentId,
-    type_id: &TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) -> (Vec<Entity>, bool) {
-    // the following boilerplate required due to rules about returning local variables
-
-    // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
-
-    // ...and convert that into a trait object
-    let observable = make_observable(&mut mut_untyped, type_id, type_registry);
-
-    // give me warp in the factor of uh 5, 6, 7, 8
-    let triggered = observable.is_triggered();
-    let subs = observable.merge();
-
-    // TODO make an enum for the return type
-    // TODO also figure out how to pass errors up from functions
-    //      without having to handle the error in each function
-    (subs, triggered)
-}
-
-// get a copy of the list of subscribers
-pub(crate) fn this_is_bat_country(
-    entity: &mut EntityWorldMut,
-    component_id: &ComponentId,
-    type_id: &TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) -> (Vec<Entity>, bool) {
-    // the following boilerplate required due to rules about returning local variables
-
-    // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
-
-    // ...and convert that into a trait object
-    let observable = make_observable(&mut mut_untyped, type_id, type_registry);
-
-    // I want to go fast!
-    (observable.get_subscribers(), false)
-}
-
-/*
-// copy None for a typed Option<T> into a dynamic tuple
-pub(crate) fn thus_spoke_zarathustra(
-    entity: &mut EntityWorldMut,
-    params: &mut DynamicTuple,
-    component_id: &ComponentId,
-    type_id: &TypeId,
-    type_registry: &RwLockReadGuard<TypeRegistry>
-) {
-    // the following boilerplate required due to rules about returning local variables
-
-    // get the source Immutable component as an ECS change detection handle
-    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
-
-    // ...and convert that into a trait object
-    let observable = make_observable(&mut mut_untyped, type_id, type_registry);
-
-    // BUM bum BUM bum BUM bum BUM bum
-    observable.append_none(params);
-}
-*/

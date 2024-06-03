@@ -1,9 +1,8 @@
 use bevy::{ ecs::world::World, prelude::*, reflect::DynamicTuple };
 
 use crate::{
-    arcane_wizardry::ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn,
     empty_set,
-    systems::{ add_subs_to_hierarchy, subscribe },
+    systems::{ add_subs_to_hierarchy, run_observable_method, subscribe },
     ComponentIdSet,
     ComponentInfoSet,
     DeferredEffect,
@@ -116,13 +115,17 @@ pub fn apply_deferred_effects(
                     // FIXME indicate an error if the params don't line up?
                     if let Some(mut source) = world.get_entity_mut(*source) {
                         // insert arcane wizardry here
-                        ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
+                        run_observable_method(
                             &mut source,
-                            &effect,
-                            &mut params,
+                            Some(&mut params),
+                            Some(&effect),
                             component_id,
                             &type_id,
-                            &type_registry
+                            &type_registry,
+                            Box::new(|observable, params, target| {
+                                observable.copy_data(*target.unwrap(), params.unwrap());
+                                None
+                            })
                         );
                     }
                 }

@@ -71,11 +71,19 @@ fn subscribe(
             let component_id = &component_id.unwrap();
             let type_id = type_id.unwrap();
 
-            // call subscribe
-            enter_malkovich_world(&mut source, entity, component_id, &type_id, type_registry);
-
-            // merge subscribers just added
-            long_live_the_new_flesh(&mut source, component_id, &type_id, type_registry);
+            run_observable_method(
+                &mut source,
+                None,
+                Some(entity),
+                component_id,
+                &type_id,
+                type_registry,
+                Box::new(|observable, _params, target| {
+                    observable.subscribe(*target.unwrap());
+                    observable.merge_subscribers();
+                    None
+                })
+            );
         }
     }
 }

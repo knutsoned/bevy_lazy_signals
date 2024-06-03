@@ -1,7 +1,7 @@
 use bevy::{ ecs::world::World, prelude::* };
 
 use crate::{
-    arcane_wizardry::{ run_observable_method, the_abyss_gazes_into_you, this_is_bat_country },
+    arcane_wizardry::run_observable_method,
     empty_set,
     systems::add_subs_to_running,
     ComponentIdSet,
@@ -146,17 +146,22 @@ pub fn send_signals(
                             );
 
                             // get a list of subscribers
-                            let subs = this_is_bat_country(
+                            let subs = run_observable_method(
                                 &mut subscriber,
+                                None,
+                                None,
                                 &component_id,
                                 &type_id,
-                                &type_registry
+                                &type_registry,
+                                Box::new(|observable, _params, _target| {
+                                    Some((observable.get_subscribers(), false))
+                                })
                             );
 
                             // computed has its own subscribers, so add those to the next_running set
                             // and mark triggered if appropriate
                             add_subs_to_running(
-                                &subs.0,
+                                &subs.unwrap().0,
                                 signals.triggered.contains(runner),
                                 &mut signals
                             );
