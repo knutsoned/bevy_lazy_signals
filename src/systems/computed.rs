@@ -1,6 +1,6 @@
 use bevy::{ ecs::world::World, prelude::* };
 
-use crate::{ ComputeMemo, ComputedImmutable };
+use crate::{ arcane_wizardry::run_as_observable, framework::* };
 
 pub fn compute_memos(
     world: &mut World,

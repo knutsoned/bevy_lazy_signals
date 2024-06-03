@@ -1,8 +1,58 @@
-use bevy::{ ecs::world::World, prelude::* };
+use std::sync::RwLockReadGuard;
 
-use crate::{ ComputedImmutable, LazyEffect, RebuildSubscribers };
+use bevy::{ ecs::world::World, prelude::*, reflect::TypeRegistry };
 
-use super::{ subscribe_effect_subs, subscribe_propagator_subs };
+use crate::framework::*;
+
+use super::subscribe;
+
+fn subscribe_effect_subs(
+    query_effects: &mut QueryState<(Entity, &LazyEffect), With<RebuildSubscribers>>,
+    subs_closure: Box<dyn EffectSubsFn>,
+    type_registry: &RwLockReadGuard<TypeRegistry>,
+    world: &mut World
+) {
+    let mut hierarchy = EntityHierarchySet::new();
+
+    // run the subscribe method on all Effect.sources
+    for (entity, effect) in query_effects.iter(world) {
+        hierarchy.insert(entity, subs_closure(effect));
+    }
+
+    for (entity, subs) in hierarchy.iter() {
+        // loop through the sources
+        for source in subs.iter() {
+            subscribe(entity, source, type_registry, world);
+        }
+
+        // mark as processed
+        world.get_entity_mut(*entity).unwrap().remove::<RebuildSubscribers>();
+    }
+}
+
+fn subscribe_propagator_subs(
+    query_propagators: &mut QueryState<(Entity, &ComputedImmutable), With<RebuildSubscribers>>,
+    subs_closure: Box<dyn PropagatorSubsFn>,
+    type_registry: &RwLockReadGuard<TypeRegistry>,
+    world: &mut World
+) {
+    let mut hierarchy = EntityHierarchySet::new();
+
+    // run the subscribe method on all Effect.sources
+    for (entity, effect) in query_propagators.iter(world) {
+        hierarchy.insert(entity, subs_closure(effect));
+    }
+
+    for (entity, subs) in hierarchy.iter() {
+        // loop through the sources
+        for source in subs.iter() {
+            subscribe(entity, source, type_registry, world);
+        }
+
+        // mark as processed
+        world.get_entity_mut(*entity).unwrap().remove::<RebuildSubscribers>();
+    }
+}
 
 // FIXME should we actually just trigger everything that is marked instead of faking it?
 pub fn init_effects(

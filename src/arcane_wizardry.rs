@@ -39,7 +39,7 @@ pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(
     reflect_observable.get_mut(value).unwrap()
 }
 
-pub fn run_observable_method(
+pub fn run_as_observable(
     entity: &mut EntityWorldMut,
     params: Option<&mut DynamicTuple>,
     target: Option<&Entity>,

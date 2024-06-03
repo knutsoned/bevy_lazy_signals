@@ -1,16 +1,24 @@
 use bevy::{ ecs::world::World, prelude::*, reflect::DynamicTuple };
 
 use crate::{
+    arcane_wizardry::run_as_observable,
     empty_set,
-    systems::{ add_subs_to_hierarchy, run_observable_method, subscribe },
-    ComponentIdSet,
-    ComponentInfoSet,
-    DeferredEffect,
-    EntityHierarchySet,
-    ImmutableState,
-    LazyEffect,
+    framework::*,
+    systems::subscribe,
     LazySignalsResource,
 };
+
+fn add_subs_to_hierarchy(
+    query_effects: &mut QueryState<(Entity, &LazyEffect), With<DeferredEffect>>,
+    hierarchy: &mut EntityHierarchySet,
+    subs_closure: Box<dyn EffectSubsFn>,
+    world: &mut World
+) {
+    for (entity, effect) in query_effects.iter(world) {
+        let subs = hierarchy.get_or_insert_with(entity, || { Vec::new() });
+        subs.append(&mut subs_closure(effect));
+    }
+}
 
 pub fn apply_deferred_effects(
     world: &mut World,
@@ -115,7 +123,7 @@ pub fn apply_deferred_effects(
                     // FIXME indicate an error if the params don't line up?
                     if let Some(mut source) = world.get_entity_mut(*source) {
                         // insert arcane wizardry here
-                        run_observable_method(
+                        run_as_observable(
                             &mut source,
                             Some(&mut params),
                             Some(&effect),

@@ -1,19 +1,21 @@
 use bevy::{ ecs::world::World, prelude::* };
 
-use crate::{
-    arcane_wizardry::run_observable_method,
-    empty_set,
-    systems::add_subs_to_running,
-    ComponentIdSet,
-    ComponentInfoSet,
-    ComputeMemo,
-    ComputedImmutable,
-    DeferredEffect,
-    ImmutableState,
-    LazyEffect,
-    LazySignalsResource,
-    SendSignal,
-};
+use crate::{ arcane_wizardry::run_as_observable, empty_set, framework::*, LazySignalsResource };
+
+fn add_subs_to_running(subs: &[Entity], triggered: bool, signals: &mut Mut<LazySignalsResource>) {
+    // add subscribers to the next running set
+    for subscriber in subs.iter() {
+        let subscriber = *subscriber;
+        signals.next_running.insert(subscriber, ());
+        trace!("-added subscriber {:?} to running set", subscriber);
+
+        // if these subs were triggered, they need to be marked triggered too
+        if triggered {
+            // add each one to the triggered set
+            signals.triggered.insert(subscriber, ());
+        }
+    }
+}
 
 pub fn send_signals(
     world: &mut World,
@@ -64,7 +66,7 @@ pub fn send_signals(
 
                 // merge the next data value and return a list of subscribers to the change
                 // and whether these subscribers should be triggered too
-                let subs = run_observable_method(
+                let subs = run_as_observable(
                     &mut signal_to_send,
                     None,
                     None,
@@ -146,7 +148,7 @@ pub fn send_signals(
                             );
 
                             // get a list of subscribers
-                            let subs = run_observable_method(
+                            let subs = run_as_observable(
                                 &mut subscriber,
                                 None,
                                 None,
