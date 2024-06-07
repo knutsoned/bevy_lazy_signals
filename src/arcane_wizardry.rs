@@ -47,7 +47,7 @@ pub fn run_as_observable(
     type_id: &TypeId,
     type_registry: &RwLockReadGuard<TypeRegistry>,
     mut closure: Box<dyn ObservableFn>
-) -> Option<(Vec<Entity>, bool)> {
+) -> MaybeFlaggedEntities {
     // get the source LazyImmutable component as an ECS change detection handle
     let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
 

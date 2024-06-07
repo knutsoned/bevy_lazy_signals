@@ -8,14 +8,14 @@ use crate::{
     LazySignalsResource,
 };
 
-fn add_subs_to_hierarchy(
+fn add_subs_to_relationship(
     query_effects: &mut QueryState<(Entity, &LazyEffect), With<DeferredEffect>>,
-    hierarchy: &mut EntityHierarchySet,
+    relationship: &mut EntityRelationshipSet,
     subs_closure: Box<dyn EffectSubsFn>,
     world: &mut World
 ) {
     for (entity, effect) in query_effects.iter(world) {
-        let subs = hierarchy.get_or_insert_with(entity, || { Vec::new() });
+        let subs = relationship.get_or_insert_with(entity, || { Vec::new() });
         subs.append(&mut subs_closure(effect));
     }
 }
@@ -26,31 +26,27 @@ pub fn apply_deferred_effects(
 ) {
     trace!("EFFECTS");
     // collapse the query or get world concurrency errors
-
-    // TODO replace with a single set and append both sources and triggers
-
-    // TODO figure out why it's just not subscribing to the triggers
-    let mut hierarchy = EntityHierarchySet::new();
-    add_subs_to_hierarchy(
+    let mut relationship = EntityRelationshipSet::new();
+    add_subs_to_relationship(
         query_effects,
-        &mut hierarchy,
+        &mut relationship,
         Box::new(|x: &LazyEffect| x.sources.clone()),
         world
     );
-    add_subs_to_hierarchy(
+    add_subs_to_relationship(
         query_effects,
-        &mut hierarchy,
+        &mut relationship,
         Box::new(|x: &LazyEffect| x.triggers.clone()),
         world
     );
 
     let mut effects = empty_set();
 
-    trace!("Processing effects {:#?}", hierarchy);
+    trace!("Processing effects {:#?}", relationship);
 
     // read, mostly
     world.resource_scope(|world, mut signals: Mut<LazySignalsResource>| {
-        for (effect, sources) in hierarchy.iter() {
+        for (effect, sources) in relationship.iter() {
             let effect = *effect;
             trace!("Processing effect {:?}", effect);
 
@@ -92,7 +88,7 @@ pub fn apply_deferred_effects(
 
     // write
     for effect in effects.indices() {
-        if let Some(sources) = hierarchy.get(effect) {
+        if let Some(sources) = relationship.get(effect) {
             trace!("-found effect with sources {:#?}", sources);
 
             // add the source component ID to the set (probably could be optimized)

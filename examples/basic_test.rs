@@ -181,8 +181,8 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             effect2_fn,
             // type of each source must match type at same tuple position
             // it's not unsafe(?); it just won't work if we screw this up
-            vec![test_signal1, test_computed1], // sending either signal triggers the effect
-            // triggering this signal will run the effect without passing its value to the closure
+            vec![test_signal1, test_computed1],
+            // triggering a signal will run effects without passing the signal's value as a param
             // (it still sends the value of the sources as usual)
             vec![test_signal3],
             &mut commands
@@ -200,7 +200,9 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         if let Some(logged_in) = params.0 {
             if logged_in {
                 // show a logged in message, if one exists
-                value = params.1?;
+                if let Some(msg) = params.1 {
+                    value = msg;
+                }
             }
         }
 
@@ -212,7 +214,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // simple computed to store the string value or an error, depending on the bool
     let test_computed2 = LazySignals.computed::<MyAuthParams, &str>(
         computed2_fn,
-        vec![test_signal1, test_computed1], // sending either signal triggers a recompute
+        vec![test_signal1, test_computed1],
         &mut commands
     );
     test.computed2 = Some(test_computed2);

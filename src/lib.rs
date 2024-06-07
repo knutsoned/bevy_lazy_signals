@@ -57,6 +57,9 @@ pub struct LazySignalsResource {
     /// Tracks which Signals and Memos actually have changed data.
     pub changed: EntitySet,
 
+    /// Tracks which Signals and Memos might have changed data.
+    pub dirty: EntitySet,
+
     /// Tracks Effects to evaluate for processing.
     pub deferred: EntitySet,
 
@@ -77,6 +80,7 @@ impl LazySignalsResource {
         self.processed.clear();
         self.compute_stack.clear();
         self.changed.clear();
+        self.dirty.clear();
         self.deferred.clear();
         // self.effects.clear(); // don't clear this, need.. to remember... what is going on
         self.errors.clear();
@@ -105,6 +109,7 @@ impl Default for LazySignalsResource {
             processed: empty_set(),
             compute_stack: Vec::new(),
             changed: empty_set(),
+            dirty: empty_set(),
             deferred: empty_set(),
             effects: empty_set(),
             errors: ErrorSet::new(),

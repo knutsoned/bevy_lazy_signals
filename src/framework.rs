@@ -23,6 +23,8 @@ pub type LazyImmutableUnit = LazyImmutable<()>; // triggers
 /// Result type for handling error conditions in consumer code.
 pub type LazySignalsResult<R> = Option<Result<R, LazySignalsError>>;
 
+pub type MaybeFlaggedEntities = Option<(Vec<Entity>, bool)>;
+
 /// ## Enums
 /// Read error.
 #[derive(Error, Clone, Copy, PartialEq, Reflect, Debug)]
@@ -170,7 +172,7 @@ pub trait ObservableFn: Send +
         Box<&mut dyn LazySignalsObservable>,
         Option<&mut DynamicTuple>,
         Option<&Entity>
-    ) -> Option<(Vec<Entity>, bool)> {}
+    ) -> MaybeFlaggedEntities {}
 impl<
     T: Send +
         Sync +
@@ -178,7 +180,7 @@ impl<
             Box<&mut dyn LazySignalsObservable>,
             Option<&mut DynamicTuple>,
             Option<&Entity>
-        ) -> Option<(Vec<Entity>, bool)>
+        ) -> MaybeFlaggedEntities
 > ObservableFn for T {}
 
 /// ## Component Structs
@@ -371,7 +373,6 @@ pub struct ComputedImmutable {
     pub sources: Vec<Entity>,
     pub params_type: TypeId,
     pub lazy_immutable_type: TypeId,
-    pub dirty: bool,
 }
 
 /// A ComputeMemo component marks a ComputedImmutable that needs computin.
@@ -408,7 +409,7 @@ pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
 pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
 
 /// Set of Entity to child Entities.
-pub type EntityHierarchySet = SparseSet<Entity, Vec<Entity>>;
+pub type EntityRelationshipSet = SparseSet<Entity, Vec<Entity>>;
 
 /// Set of unique Entities
 pub type EntitySet = SparseSet<Entity, ()>;

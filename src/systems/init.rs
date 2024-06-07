@@ -12,14 +12,14 @@ fn subscribe_effect_subs(
     type_registry: &RwLockReadGuard<TypeRegistry>,
     world: &mut World
 ) {
-    let mut hierarchy = EntityHierarchySet::new();
+    let mut relationship = EntityRelationshipSet::new();
 
     // run the subscribe method on all Effect.sources
     for (entity, effect) in query_effects.iter(world) {
-        hierarchy.insert(entity, subs_closure(effect));
+        relationship.insert(entity, subs_closure(effect));
     }
 
-    for (entity, subs) in hierarchy.iter() {
+    for (entity, subs) in relationship.iter() {
         // loop through the sources
         for source in subs.iter() {
             subscribe(entity, source, type_registry, world);
@@ -36,14 +36,14 @@ fn subscribe_propagator_subs(
     type_registry: &RwLockReadGuard<TypeRegistry>,
     world: &mut World
 ) {
-    let mut hierarchy = EntityHierarchySet::new();
+    let mut relationship = EntityRelationshipSet::new();
 
     // run the subscribe method on all Effect.sources
     for (entity, effect) in query_propagators.iter(world) {
-        hierarchy.insert(entity, subs_closure(effect));
+        relationship.insert(entity, subs_closure(effect));
     }
 
-    for (entity, subs) in hierarchy.iter() {
+    for (entity, subs) in relationship.iter() {
         // loop through the sources
         for source in subs.iter() {
             subscribe(entity, source, type_registry, world);
