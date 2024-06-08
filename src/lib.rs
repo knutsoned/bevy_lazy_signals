@@ -1,4 +1,7 @@
-use bevy::{ ecs::schedule::SystemConfigs, prelude::* };
+use bevy::{
+    ecs::{ component::{ ComponentId, ComponentInfo }, schedule::SystemConfigs, storage::SparseSet },
+    prelude::*,
+};
 
 mod arcane_wizardry;
 
@@ -15,10 +18,20 @@ use systems::{
 
 pub mod framework;
 use framework::*;
+use lazy_immutable::*;
 
 pub mod prelude {
     pub use crate::{ api::*, framework::*, systems::*, LazySignalsPlugin };
 }
+
+/// Convenience typedefs.
+/// (could not get &String to work)
+pub type StaticStrRef = &'static str;
+pub type LazyImmutableBool = LazySignalsState<bool>;
+pub type LazyImmutableInt = LazySignalsState<u32>;
+pub type LazyImmutableFloat = LazySignalsState<f64>;
+pub type LazyImmutableStr = LazySignalsState<StaticStrRef>;
+pub type LazyImmutableUnit = LazySignalsState<()>; // triggers
 
 /// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.
 ///
@@ -36,35 +49,20 @@ pub fn lazy_signals_default_systems() -> SystemConfigs {
 /// Main purpose is to provide "stack"-like functionality across systems in the processing chain.
 #[derive(Resource)]
 pub struct LazySignalsResource {
-    /// Tracks triggered entities (notify subscribers even if the value did not change).
-    pub triggered: EntitySet,
-
-    /// Tracks the currently running iteration (immutable once the iteration starts).
-    /// Used during signal sending.
-    pub running: EntitySet,
-
-    /// Tracks what will run after the end of the current iteration.
-    /// Used during signal sending.
-    pub next_running: EntitySet,
-
-    /// Tracks which memos have already been added to a running set.
-    /// Used during signal sending.
-    pub processed: EntitySet,
-
-    /// Tracks the currently running computation.
-    pub compute_stack: Vec<Entity>,
-
     /// Tracks which Signals and Memos actually have changed data.
     pub changed: EntitySet,
 
-    /// Tracks which Signals and Memos might have changed data.
+    /// Tracks which Memos might have changed data.
     pub dirty: EntitySet,
 
     /// Tracks Effects to evaluate for processing.
     pub deferred: EntitySet,
 
     /// Tracks Effects that are still running and should not be re-triggered.
-    pub effects: EntitySet,
+    pub long_effects: EntitySet,
+
+    /// Tracks triggered entities (notify subscribers even if the value did not change).
+    pub triggered: EntitySet,
 
     /// Tracks errors that occur when things try to run.
     pub errors: ErrorSet,
@@ -74,44 +72,23 @@ pub struct LazySignalsResource {
 impl LazySignalsResource {
     /// Call this at the start of each run to make sure everything is fresh.
     fn init(&mut self) {
-        self.triggered.clear();
-        self.running.clear();
-        self.next_running.clear();
-        self.processed.clear();
-        self.compute_stack.clear();
         self.changed.clear();
-        self.dirty.clear();
         self.deferred.clear();
-        // self.effects.clear(); // don't clear this, need.. to remember... what is going on
+        self.dirty.clear();
+        // self.long_effects.clear(); // don't clear this, need.. to remember... what is going on
+        self.triggered.clear();
         self.errors.clear();
-    }
-
-    // if there is a next_running set, move it into the running set and empty it
-    pub fn merge_running(&mut self) -> bool {
-        if self.next_running.is_empty() {
-            false
-        } else {
-            for index in self.next_running.indices() {
-                self.running.insert(index, ());
-            }
-            self.next_running.clear();
-            true
-        }
     }
 }
 
 impl Default for LazySignalsResource {
     fn default() -> Self {
         Self {
-            triggered: empty_set(),
-            running: empty_set(),
-            next_running: empty_set(),
-            processed: empty_set(),
-            compute_stack: Vec::new(),
             changed: empty_set(),
-            dirty: empty_set(),
             deferred: empty_set(),
-            effects: empty_set(),
+            dirty: empty_set(),
+            long_effects: empty_set(),
+            triggered: empty_set(),
             errors: ErrorSet::new(),
         }
     }
@@ -143,4 +120,25 @@ impl Plugin for LazySignalsPlugin {
                 lazy_signals_default_systems().in_set(LazySignalsSystemSet)
             );
     }
+}
+
+/// ## Utilities
+/// Set of Entity to ComponentId.
+pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
+
+/// Set of ComponentId to ComponentInfo.
+pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
+
+/// Set of Entity to child Entities.
+pub type EntityRelationshipSet = SparseSet<Entity, Vec<Entity>>;
+
+/// Set of unique Entities
+pub type EntitySet = SparseSet<Entity, ()>;
+
+/// Set of internal errors when running computed (propagator) and effect functions.
+pub type ErrorSet = SparseSet<Entity, LazySignalsError>;
+
+/// Create an empty sparse set for storing Entities by ID.
+pub fn empty_set() -> EntitySet {
+    EntitySet::new()
 }

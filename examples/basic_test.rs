@@ -32,7 +32,7 @@ struct MyTestResource {
 }
 
 // concrete tuple type to safely work with the DynamicTuple coming out of the LazySignals systems
-type MyClosureParams = (Option<bool>, Option<LazySignalsStr>);
+type MyClosureParams = (Option<bool>, Option<&'static str>);
 
 // you only have to register the main definition, not aliases like this one.
 type MyAuthParams = MyClosureParams;
@@ -48,6 +48,7 @@ fn main() {
         // .register_type::<LazyImmutable<MyType>>()
         // also register type aliases for computed and effect param tuples
         // FIXME can this be done automatically when the Propagator or Effect is created?
+        // FIXME actually do we need this at all if we are not using custom types as params?
         .register_type::<MyClosureParams>()
         // add the plugin so the signal processing systems run
         .add_plugins(LazySignalsPlugin)
@@ -226,8 +227,10 @@ fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
     trace!("sending 'true' to {:?}", test.signal1);
     LazySignals.send(test.signal1, true, &mut commands);
 
+    /*
     trace!("triggering {:?}", test.signal3);
     LazySignals.trigger(test.signal3, &mut commands);
+    */
 }
 
 fn status(

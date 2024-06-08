@@ -10,7 +10,10 @@ use bevy::{
     reflect::{ DynamicTuple, ReflectFromPtr, TypeRegistry },
 };
 
-use crate::framework::*;
+use crate::{
+    framework::*,
+    lazy_immutable::{ LazySignalsObservable, ReflectLazySignalsObservable },
+};
 
 // given a mutable reference to a LazyImmutable component instance, make an UntypedObservable
 pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(

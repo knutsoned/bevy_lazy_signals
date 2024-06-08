@@ -1,6 +1,10 @@
 use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
 
-use crate::{ commands::LazySignalsCommandsExt, framework::* };
+use crate::{
+    commands::LazySignalsCommandsExt,
+    framework::*,
+    lazy_immutable::{ LazySignalsState, LazySignalsImmutable },
+};
 
 /// This is the reference user API, patterned after the TC39 proposal.
 
@@ -44,7 +48,7 @@ pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
 /// Convenience function to store a result in an entity.
 pub fn store_result<T: LazySignalsData>(data: Option<T>, entity: &Entity, world: &mut World) {
     let mut binding = world.entity_mut(*entity);
-    let mut bucket = binding.get_mut::<LazyImmutable<T>>().unwrap();
+    let mut bucket = binding.get_mut::<LazySignalsState<T>>().unwrap();
     bucket.update(data.map(|data| Ok(data)));
 }
 
@@ -83,7 +87,7 @@ impl LazySignals {
         match immutable {
             Some(immutable) => {
                 let entity = world.entity(immutable);
-                match entity.get::<LazyImmutable<R>>() {
+                match entity.get::<LazySignalsState<R>>() {
                     Some(observable) => observable.read(),
 
                     // TODO maybe add some kind of config option to ignore errors and return a default
@@ -137,7 +141,7 @@ impl LazySignals {
         match immutable {
             Some(immutable) => {
                 let mut entity = world.entity_mut(immutable);
-                match entity.get_mut::<LazyImmutable<R>>() {
+                match entity.get_mut::<LazySignalsState<R>>() {
                     Some(mut observable) => { observable.value(caller) }
 
                     // TODO maybe add some kind of config option to ignore errors and return default

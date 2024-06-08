@@ -1,19 +1,42 @@
 use bevy::{ ecs::world::World, prelude::* };
 
-use crate::{ arcane_wizardry::run_as_observable, empty_set, framework::*, LazySignalsResource };
+use crate::{
+    arcane_wizardry::run_as_observable,
+    empty_set,
+    framework::*,
+    ComponentIdSet,
+    ComponentInfoSet,
+    EntitySet,
+    LazySignalsResource,
+};
 
-fn add_subs_to_running(subs: &[Entity], triggered: bool, signals: &mut Mut<LazySignalsResource>) {
+fn add_subs_to_running(
+    subs: &[Entity],
+    triggered: bool,
+    next_running: &mut EntitySet,
+    triggered_effects: &mut EntitySet
+) {
     // add subscribers to the next running set
     for subscriber in subs.iter() {
         let subscriber = *subscriber;
-        signals.next_running.insert(subscriber, ());
+        next_running.insert(subscriber, ());
         trace!("-added subscriber {:?} to running set", subscriber);
-
-        // if these subs were triggered, they need to be marked triggered too
         if triggered {
-            // add each one to the triggered set
-            signals.triggered.insert(subscriber, ());
+            triggered_effects.insert(subscriber, ());
         }
+    }
+}
+
+fn merge_running(running: &mut EntitySet, next_running: &mut EntitySet) -> bool {
+    // if there is a next_running set, move it into the running set and empty it
+    if next_running.is_empty() {
+        false
+    } else {
+        for index in next_running.indices() {
+            running.insert(index, ());
+        }
+        next_running.clear();
+        true
     }
 }
 
@@ -22,6 +45,10 @@ pub fn send_signals(
     query_signals: &mut QueryState<(Entity, &ImmutableState), With<SendSignal>>
 ) {
     trace!("SIGNALS");
+
+    let mut next_running = empty_set();
+    let mut processed = empty_set();
+    let mut running = empty_set();
 
     // Phase One: find all the updated signals and schedule their direct subscribers to run
     world.resource_scope(|world, mut signals: Mut<LazySignalsResource>| {
@@ -51,9 +78,11 @@ pub fn send_signals(
             let type_registry = type_registry.read();
 
             for (entity, component_id) in component_id_set.iter() {
+                let entity = *entity;
+
                 // here we need to access the Signal as an UntypedObservable & run the merge method
                 let component_id = *component_id;
-                let mut signal_to_send = world.entity_mut(*entity);
+                let mut signal_to_send = world.entity_mut(entity);
 
                 // use the type_id from the component info, YOLO
                 let info = component_info.get(component_id).unwrap();
@@ -66,34 +95,27 @@ pub fn send_signals(
 
                 // merge the next data value and return a list of subscribers to the change
                 // and whether these subscribers should be triggered too
-                let subs = run_as_observable(
+                let result = run_as_observable(
                     &mut signal_to_send,
                     None,
                     None,
                     &component_id,
                     &type_id,
                     &type_registry,
-                    Box::new(|observable, _params, _target| {
-                        let triggered = observable.is_triggered();
-                        let subs = observable.merge();
-                        Some((subs, triggered))
-                    })
-                );
-                let subs = subs.unwrap();
+                    Box::new(|observable, _params, _target| { observable.merge() })
+                ).unwrap();
 
-                let triggered = subs.1;
-                let subs = subs.0;
-                let entity = *entity;
+                let subs = result.0;
+                let changed = result.1;
+                let triggered = result.2;
 
-                // if the merge returns a non-zero length list of subscribers, it changed
-                // (for our purposes, anyway)
-                if !triggered && !subs.is_empty() {
+                if changed {
                     signals.changed.insert(entity, ());
                 }
 
                 // add subscribers to the running set and mark if triggered
                 //info!("SUBS for {:#?} are: {:#?}", entity, subs);
-                add_subs_to_running(&subs, triggered, &mut signals);
+                add_subs_to_running(&subs, triggered, &mut next_running, &mut signals.triggered);
 
                 // mark as processed
                 signal_to_send.remove::<SendSignal>();
@@ -103,25 +125,14 @@ pub fn send_signals(
 
             let mut count = 0;
             // as long as there is a next_running set, move next_running set into the current one
-            while signals.merge_running() {
+            while merge_running(&mut running, &mut next_running) {
                 count += 1;
                 trace!("Sending signals iteration {}", count);
-
-                // make a local copy of the running set
-                let mut running = empty_set();
-                for runner in signals.running.indices() {
-                    // skip if already in processed set
-                    if !signals.processed.contains(runner) {
-                        trace!("...adding {:#?} to running set", runner);
-
-                        running.insert(runner, ());
-                    }
-                }
 
                 // get an item from the running set
                 for runner in running.indices() {
                     // add the item to the processed set
-                    signals.processed.insert(runner, ());
+                    processed.insert(runner, ());
 
                     // what kind of subscriber is this?
                     if let Some(mut subscriber) = world.get_entity_mut(runner) {
@@ -156,7 +167,7 @@ pub fn send_signals(
                                 &type_id,
                                 &type_registry,
                                 Box::new(|observable, _params, _target| {
-                                    Some((observable.get_subscribers(), false))
+                                    Some((observable.get_subscribers(), false, false))
                                 })
                             );
 
@@ -165,14 +176,15 @@ pub fn send_signals(
                             add_subs_to_running(
                                 &subs.unwrap().0,
                                 signals.triggered.contains(runner),
-                                &mut signals
+                                &mut next_running,
+                                &mut signals.triggered
                             );
                         }
                     }
                 }
 
                 // clear the running set at the end of each iteration
-                signals.running.clear();
+                running.clear();
             }
         });
     });

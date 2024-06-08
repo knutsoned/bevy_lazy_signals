@@ -5,6 +5,9 @@ use crate::{
     empty_set,
     framework::*,
     systems::subscribe,
+    ComponentIdSet,
+    ComponentInfoSet,
+    EntityRelationshipSet,
     LazySignalsResource,
 };
 
@@ -45,7 +48,7 @@ pub fn apply_deferred_effects(
     trace!("Processing effects {:#?}", relationship);
 
     // read, mostly
-    world.resource_scope(|world, mut signals: Mut<LazySignalsResource>| {
+    world.resource_scope(|world, signals: Mut<LazySignalsResource>| {
         for (effect, sources) in relationship.iter() {
             let effect = *effect;
             trace!("Processing effect {:?}", effect);
@@ -68,9 +71,6 @@ pub fn apply_deferred_effects(
             if actually_run {
                 effects.insert(effect, ());
             }
-
-            // add to the processed set
-            signals.processed.insert(effect, ());
 
             // remove the DeferredEffect component
             world.entity_mut(effect).remove::<DeferredEffect>();

@@ -2,7 +2,7 @@ use std::sync::RwLockReadGuard;
 
 use bevy::{ ecs::world::World, prelude::*, reflect::TypeRegistry };
 
-use crate::framework::*;
+use crate::{ framework::*, EntityRelationshipSet };
 
 use super::subscribe;
 
