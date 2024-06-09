@@ -12,7 +12,7 @@ pub mod api;
 pub mod systems;
 use systems::{
     computed::compute_memos,
-    init::{ init_effects, init_memos },
+    init::{ init_effects, init_computeds },
     signal::send_signals,
     effect::apply_deferred_effects,
 };
@@ -42,7 +42,7 @@ pub struct LazySignalsSystemSet;
 
 /// Convenience function to make it easy to run the LazySignals systems when needed.
 pub fn lazy_signals_default_systems() -> SystemConfigs {
-    (init_effects, init_memos, send_signals, compute_memos, apply_deferred_effects).chain()
+    (init_effects, init_computeds, send_signals, compute_memos, apply_deferred_effects).chain()
 }
 
 /// Shared reactive context resource, aka global state.

@@ -25,7 +25,7 @@ pub fn compute_memos(
 
     query_memos.iter(world).for_each(|(entity, immutable, computed)| {
         let component_id = immutable.component_id;
-        info!("-found computed {:#?} with component ID {:?}", entity, component_id);
+        trace!("-found computed {:#?} with component ID {:?}", entity, component_id);
         component_id_set.insert(entity, component_id);
         if let Some(info) = world.components().get_info(component_id) {
             component_info_set.insert(component_id, info.clone());
@@ -63,7 +63,6 @@ pub fn compute_memos(
                 // otherwise, if all sources are up to date, then recompute
 
                 // start by building params
-
                 // build component id -> info map (might already have some but be on the safe side)
                 for source in sources.iter() {
                     let immutable = world.entity(*source).get::<ImmutableState>().unwrap();

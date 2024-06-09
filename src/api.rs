@@ -26,7 +26,7 @@ pub fn make_propagator_with<P: LazySignalsParams, R: LazySignalsData>(
     closure: Box<dyn Propagator<P, R>>
 ) -> Box<dyn PropagatorContext> {
     Box::new(move |tuple, entity, world| {
-        info!("-running propagator context with params {:?}", tuple);
+        trace!("-running propagator context with params {:?}", tuple);
         let result = closure(make_tuple::<P>(tuple));
         if let Some(Err(error)) = result {
             // TODO process errors

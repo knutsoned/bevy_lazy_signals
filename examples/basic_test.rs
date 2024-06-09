@@ -192,7 +192,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
     // this doesn't take any data, just runs when triggered
     let effect3_fn: Box<dyn Effect<()>> = Box::new(|_params, _world| {
-        info!("triggered");
+        info!("EFFECT3: triggered");
     });
 
     // TODO test an effect with triggers only and no sources

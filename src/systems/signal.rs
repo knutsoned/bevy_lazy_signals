@@ -23,6 +23,7 @@ fn add_subs_to_running(
         next_running.insert(subscriber, ());
         trace!("-added subscriber {:?} to running set", subscriber);
         if triggered {
+            trace!("Triggering {:?}", subscriber);
             signals.triggered.insert(subscriber, ());
         }
     }
@@ -110,7 +111,6 @@ pub fn send_signals(
                 let changed = result.1;
                 let triggered = result.2;
 
-                // FIXME something doesn't work for trigger-only effects
                 if changed {
                     signals.changed.insert(entity, ());
                 }
