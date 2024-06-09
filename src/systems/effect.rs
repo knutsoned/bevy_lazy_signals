@@ -11,45 +11,27 @@ use crate::{
     LazySignalsResource,
 };
 
-fn add_deps_to_relationship(
-    query_effects: &mut QueryState<(Entity, &LazyEffect), With<DeferredEffect>>,
-    relationship: &mut EntityRelationshipSet,
-    subs_closure: Box<dyn EffectSubsFn>,
-    world: &mut World
-) {
-    query_effects.iter(world).for_each(|(entity, effect)| {
-        let deps = relationship.get_or_insert_with(entity, || { Vec::new() });
-        deps.append(&mut subs_closure(effect));
-    });
-}
-
 pub fn apply_deferred_effects(
     world: &mut World,
     query_effects: &mut QueryState<(Entity, &LazyEffect), With<DeferredEffect>>
 ) {
     trace!("EFFECTS");
     // collapse the query or get world concurrency errors
-    let mut relationship = EntityRelationshipSet::new();
-    add_deps_to_relationship(
-        query_effects,
-        &mut relationship,
-        Box::new(|x: &LazyEffect| x.sources.clone()),
-        world
-    );
-    add_deps_to_relationship(
-        query_effects,
-        &mut relationship,
-        Box::new(|x: &LazyEffect| x.triggers.clone()),
-        world
-    );
+    let mut relationships = EntityRelationshipSet::new();
+    query_effects.iter(world).for_each(|(entity, effect)| {
+        let mut deps = Vec::<Entity>::new();
+        deps.append(&mut effect.sources.clone());
+        deps.append(&mut effect.triggers.clone());
+        relationships.insert(entity, deps);
+    });
 
     let mut effects = empty_set();
 
-    trace!("Processing effects {:#?}", relationship);
+    trace!("Processing effects {:#?}", relationships);
 
     // read, mostly
     world.resource_scope(|world, signals: Mut<LazySignalsResource>| {
-        for (effect, sources) in relationship.iter() {
+        for (effect, sources) in relationships.iter() {
             let effect = *effect;
             trace!("Processing effect {:?}", effect);
 
@@ -89,7 +71,7 @@ pub fn apply_deferred_effects(
     // write
     for effect in effects.indices() {
         // FIXME this is probably skipping trigger-only effects
-        let sources = relationship.get(effect).map_or(Vec::<Entity>::new(), |s| s.to_vec());
+        let sources = relationships.get(effect).map_or(Vec::<Entity>::new(), |s| s.to_vec());
         trace!("-found effect with sources {:#?}", sources);
 
         // add the source component ID to the set (probably could be optimized)

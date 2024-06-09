@@ -92,9 +92,6 @@ impl<
     T: Send + Sync + 'static + Fn(P) -> LazySignalsResult<R>
 > Propagator<P, R> for T {}
 
-pub trait PropagatorSubsFn: Send + Sync + Fn(&ComputedImmutable) -> Vec<Entity> {}
-impl<T: Send + Sync + Fn(&ComputedImmutable) -> Vec<Entity>> PropagatorSubsFn for T {}
-
 // TODO provide a to_effect to allow a propagator to be used as an effect?
 
 /// This is the same basic thing but this fn just runs side-effects so no value is returned.
@@ -105,9 +102,6 @@ impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World)> EffectContext for T {}
 // Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
 pub trait Effect<P: LazySignalsParams>: Send + Sync + 'static + FnMut(P, &mut World) {}
 impl<P: LazySignalsParams, T: Send + Sync + 'static + FnMut(P, &mut World)> Effect<P> for T {}
-
-pub trait EffectSubsFn: Send + Sync + Fn(&LazyEffect) -> Vec<Entity> {}
-impl<T: Send + Sync + Fn(&LazyEffect) -> Vec<Entity>> EffectSubsFn for T {}
 
 pub trait ObservableFn: Send +
     Sync +
