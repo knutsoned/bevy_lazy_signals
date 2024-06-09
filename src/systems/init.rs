@@ -1,8 +1,6 @@
 use bevy::{ ecs::world::World, prelude::* };
 
-use crate::{ framework::*, EntityRelationshipSet };
-
-use super::subscribe;
+use crate::{ arcane_wizardry::*, framework::* };
 
 fn process_subs(relationships: &EntityRelationshipSet, world: &mut World) {
     world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
@@ -26,7 +24,7 @@ pub fn init_effects(
 ) {
     let mut relationships = EntityRelationshipSet::new();
 
-    // run the subscribe method on all Effect.sources
+    // run the subscribe method on all LazyEffect.sources and .triggers
     query_effects.iter(world).for_each(|(entity, effect)| {
         let mut subs = Vec::<Entity>::new();
         subs.append(&mut effect.sources.clone());
@@ -44,7 +42,7 @@ pub fn init_computeds(
 ) {
     let mut relationships = EntityRelationshipSet::new();
 
-    // run the subscribe method on all Computed.sources
+    // run the subscribe method on all ComputedImmutable.sources
     query_computeds.iter(world).for_each(|(entity, computed)| {
         let mut subs = Vec::<Entity>::new();
         subs.append(&mut computed.sources.clone());

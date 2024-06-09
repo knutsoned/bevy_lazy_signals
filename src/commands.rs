@@ -98,6 +98,7 @@ pub struct CreateComputedCommand<P: LazySignalsParams, R: LazySignalsData> {
 
 impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
+        // once init runs once for a concrete R, it just returns the existing ComponentId next time
         let component_id = world.init_component::<LazySignalsState<R>>();
         world
             .get_entity_mut(self.computed)
@@ -111,7 +112,7 @@ impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand
                     function: self.function,
                     sources: self.sources,
                     params_type: TypeId::of::<P>(),
-                    lazy_immutable_type: TypeId::of::<LazySignalsState<R>>(),
+                    result_type: TypeId::of::<LazySignalsState<R>>(),
                 },
                 RebuildSubscribers,
             ));

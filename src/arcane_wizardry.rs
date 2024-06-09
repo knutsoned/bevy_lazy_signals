@@ -7,6 +7,7 @@ use bevy::{
         entity::Entity,
         world::EntityWorldMut,
     },
+    prelude::*,
     reflect::{ DynamicTuple, ReflectFromPtr, TypeRegistry },
 };
 
@@ -15,7 +16,7 @@ use crate::{
     lazy_immutable::{ LazySignalsObservable, ReflectLazySignalsObservable },
 };
 
-// given a mutable reference to a LazyImmutable component instance, make an UntypedObservable
+/// Given mutable reference to a LazySignalsState component instance, make a LazySignalsObservable.
 pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(
     mut_untyped: &'a mut MutUntyped,
     type_id: &TypeId,
@@ -30,7 +31,7 @@ pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(
     // we're going to get a pointer to the component, so we'll need this
     let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap().clone();
 
-    // safety: `value` implements reflected trait `UntypedObservable`, what for `ReflectFromPtr`
+    // safety: `value` implements reflected trait `LazySignalsObservable`, what for `ReflectFromPtr`
     let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
 
     // the sun grew dark and cold
@@ -42,6 +43,8 @@ pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(
     reflect_observable.get_mut(value).unwrap()
 }
 
+/// Make a LazySignalsObservable out of EntityWorldMut, passing optional params and target Entity.
+/// Use that to run the supplied closure.
 pub fn run_as_observable(
     entity: &mut EntityWorldMut,
     params: Option<&mut DynamicTuple>,
@@ -51,7 +54,7 @@ pub fn run_as_observable(
     type_registry: &RwLockReadGuard<TypeRegistry>,
     mut closure: Box<dyn ObservableFn>
 ) -> MaybeFlaggedEntities {
-    // get the source LazyImmutable component as an ECS change detection handle
+    // get the source LazySignalsState component as an ECS change detection handle
     let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
 
     // ...and convert that into a trait object
@@ -63,4 +66,55 @@ pub fn run_as_observable(
 
     // run the supplied fn
     closure(Box::new(observable), params, target)
+}
+
+/// Convenience fn to subscribe an entity to a source.
+pub fn subscribe(
+    entity: &Entity,
+    source: &Entity,
+    type_registry: &RwLockReadGuard<TypeRegistry>,
+    world: &mut World
+) {
+    // get the TypeId of each source (Signal or Memo) Immutable component
+    let mut component_id: Option<ComponentId> = None;
+    let mut type_id: Option<TypeId> = None;
+
+    trace!("Subscribing {:#?} to {:?}", entity, source);
+
+    // get a readonly reference to the source entity
+    if let Some(source) = world.get_entity(*source) {
+        trace!("-got source EntityRef");
+        // get the source Immutable component
+        if let Some(immutable_state) = source.get::<ImmutableState>() {
+            trace!("-got ImmutableState");
+            // ...as a SignalsObservable
+            component_id = Some(immutable_state.component_id);
+            if let Some(info) = world.components().get_info(component_id.unwrap()) {
+                trace!("-got TypeId");
+                type_id = info.type_id();
+            }
+        }
+    }
+
+    // we have a component and a type, now do mutable stuff
+    if component_id.is_some() && type_id.is_some() {
+        if let Some(mut source) = world.get_entity_mut(*source) {
+            let component_id = &component_id.unwrap();
+            let type_id = type_id.unwrap();
+
+            run_as_observable(
+                &mut source,
+                None,
+                Some(entity),
+                component_id,
+                &type_id,
+                type_registry,
+                Box::new(|observable, _params, target| {
+                    observable.subscribe(*target.unwrap());
+                    observable.merge_subscribers();
+                    None
+                })
+            );
+        }
+    }
 }

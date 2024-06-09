@@ -1,7 +1,7 @@
 use std::{ any::TypeId, fmt::Debug };
 
 use bevy::{
-    ecs::component::ComponentId,
+    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet },
     prelude::*,
     reflect::{ DynamicTuple, GetTypeRegistration, Tuple },
 };
@@ -14,17 +14,17 @@ pub mod lazy_immutable;
 
 /// # Signals framework
 /// ## Types
-/// Result type for handling error conditions in consumer code.
+/// Result type for handling error conditions in developer code.
 pub type LazySignalsResult<R> = Option<Result<R, LazySignalsError>>;
 
-/// Return type for returning an optional list of entities and a flag.
+/// Return type for returning an optional list of entities and some flags (changed, triggered).
 pub type MaybeFlaggedEntities = Option<(Vec<Entity>, bool, bool)>;
 
 /// ## Enums
 /// Read error.
 #[derive(Error, Clone, Copy, PartialEq, Reflect, Debug)]
 pub enum LazySignalsError {
-    /// An attempt was made to reference a Signal entity that does not have the right components.
+    /// An attempt was made to reference a LazySignals entity that does not exist.
     #[error["Signal does not exist"]]
     NoSignalError,
 
@@ -40,7 +40,6 @@ pub enum LazySignalsError {
 // ## Traits
 /// An item of data for use with Immutables.
 pub trait LazySignalsData: Copy +
-    Debug +
     FromReflect +
     GetTypeRegistration +
     PartialEq +
@@ -53,7 +52,6 @@ impl<T> LazySignalsData
     for T
     where
         T: Copy +
-            Debug +
             FromReflect +
             GetTypeRegistration +
             PartialEq +
@@ -71,17 +69,18 @@ impl<T> LazySignalsParams for T where T: LazySignalsData + Tuple {}
 /// Compared to the MIT model, these Propagators pull data into a cell they are bound to.
 /// MIT Propagators are conceptually more independent and closer to a push-based flow.
 /// This Propagator merges the values of cells denoted by the entity vector into the target entity.
-/// It should call value instead of read to make sure it is re-subscribed to its sources!
-/// If the target entity is not supplied, the function is assumed to execute side effects only.
 ///
 /// The DynamicTuple is an argument list whose internal types match the Option<T> of each source.
+/// (i.e. SignalsResult<T> becomes Option<T> with any Err becoming None)
+///
 /// The entity is where the result will be stored, where this instance of the function lives.
-/// The component_id is the type of the LazySignalsImmutable where the result will be stored.
+///
+/// The world is the world is love and life are deep.
 pub trait PropagatorContext: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World) -> bool {}
 impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World) -> bool> PropagatorContext for T {}
 
-// Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
-// The return type is Option<LazySignalsData> which can then be memoized.
+/// Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
+/// The return type is a LazySignalsResult which can then be memoized.
 pub trait Propagator<P: LazySignalsParams, R: LazySignalsData>: Send +
     Sync +
     'static +
@@ -92,17 +91,15 @@ impl<
     T: Send + Sync + 'static + Fn(P) -> LazySignalsResult<R>
 > Propagator<P, R> for T {}
 
-// TODO provide a to_effect to allow a propagator to be used as an effect?
-
 /// This is the same basic thing but this fn just runs side-effects so no value is returned.
-/// However, there is a result so we use the unit type.
 pub trait EffectContext: Send + Sync + FnMut(&DynamicTuple, &mut World) {}
 impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World)> EffectContext for T {}
 
-// Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
+/// Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
 pub trait Effect<P: LazySignalsParams>: Send + Sync + 'static + FnMut(P, &mut World) {}
 impl<P: LazySignalsParams, T: Send + Sync + 'static + FnMut(P, &mut World)> Effect<P> for T {}
 
+/// Catch-all fn signature for LazySignalsObservable operations.
 pub trait ObservableFn: Send +
     Sync +
     FnMut(
@@ -122,24 +119,24 @@ impl<
 
 /// ## Component Structs
 ///
-/// An ImmutableState stores the ComponentId of an LazyImmutable<T> with concrete T.
+/// An ImmutableState stores the ComponentId of a LazySignalsState<T> with concrete T.
 #[derive(Component)]
 pub struct ImmutableState {
     pub component_id: ComponentId,
 }
 
-/// A SendSignal component marks a LazyImmutable cell as having a next_value.
+/// A SendSignal component marks a LazySignalsState cell as having a next_value.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct SendSignal;
 
-/// A ComputedImmutable is a Propagator that memoizes its result in a LazyImmutable.
+/// A ComputedImmutable is a Propagator that memoizes its result in a LazySignalsState.
 #[derive(Component)]
 pub struct ComputedImmutable {
     pub function: Box<dyn PropagatorContext>,
     pub sources: Vec<Entity>,
     pub params_type: TypeId,
-    pub lazy_immutable_type: TypeId,
+    pub result_type: TypeId,
 }
 
 /// A ComputeMemo component marks a ComputedImmutable that needs computin.
@@ -166,3 +163,24 @@ pub struct DeferredEffect;
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct RebuildSubscribers;
+
+/// ## Utilities
+/// Set of Entity to ComponentId.
+pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
+
+/// Set of ComponentId to ComponentInfo.
+pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
+
+/// Set of Entity to child Entities.
+pub type EntityRelationshipSet = SparseSet<Entity, Vec<Entity>>;
+
+/// Set of unique Entities
+pub type EntitySet = SparseSet<Entity, ()>;
+
+/// Set of internal errors when running computed (propagator) and effect functions.
+pub type ErrorSet = SparseSet<Entity, LazySignalsError>;
+
+/// Create an empty sparse set for storing Entities by ID.
+pub fn empty_set() -> EntitySet {
+    EntitySet::new()
+}

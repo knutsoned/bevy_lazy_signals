@@ -5,8 +5,8 @@ effort to create a Signal built-in that will provide a common API to support a r
 For Bevy, such a library could help efforts to integrate UI frameworks, enable networking, support
 scripting, scene editing, file operations, and so on.
 
-Drawing on numerous discussions, similar projects, and numerous other sources, the following list
-of constraints, forces, and goals was assembled:
+Drawing on numerous discussions, similar projects, and numerous other sources, the following
+(non-exhaustive) list of constraints, forces, and goals was assembled:
 
 - Provide a commands-based interface to allow both scheduling signals and triggers, and reading
   values, without needing exclusive world access.
@@ -42,3 +42,11 @@ Because all updates are batched, they can be processed in an efficient way, mini
 exclusive world access. The consumer of the API provides all static type information at
 compile-time, and is responsible for ensuring the concrete types of sources and triggers match up
 with the provided type signatures.
+
+Should be able to run systems to send signals and recompute memos as often as needed. If there is
+nothing to process, the systems exit quickly. Otherwise, everything but the effects system can run
+over and over in between systems that need to send signals and have the next one have the updates
+available. The idea is to reduce the need to pepper code with synchronous exclusive world stuff in
+the middle of issuing a bunch of commands. The developer is encouraged to design a data structure
+that is meant to be read-only in the user code, with updates sent as commands, and applied
+asynchronously.

@@ -1,15 +1,6 @@
 use bevy::{ ecs::world::World, prelude::*, reflect::DynamicTuple };
 
-use crate::{
-    arcane_wizardry::run_as_observable,
-    empty_set,
-    framework::*,
-    systems::subscribe,
-    ComponentIdSet,
-    ComponentInfoSet,
-    EntityRelationshipSet,
-    LazySignalsResource,
-};
+use crate::{ arcane_wizardry::*, framework::*, LazySignalsResource };
 
 pub fn apply_deferred_effects(
     world: &mut World,
@@ -70,7 +61,6 @@ pub fn apply_deferred_effects(
 
     // write
     for effect in effects.indices() {
-        // FIXME this is probably skipping trigger-only effects
         let sources = relationships.get(effect).map_or(Vec::<Entity>::new(), |s| s.to_vec());
         trace!("-found effect with sources {:#?}", sources);
 
@@ -91,6 +81,7 @@ pub fn apply_deferred_effects(
 
         world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
             let type_registry = type_registry.read();
+
             // prepare the params
             let mut params = DynamicTuple::default();
             for source in sources.iter() {

@@ -1,7 +1,4 @@
-use bevy::{
-    ecs::{ component::{ ComponentId, ComponentInfo }, schedule::SystemConfigs, storage::SparseSet },
-    prelude::*,
-};
+use bevy::{ ecs::schedule::SystemConfigs, prelude::* };
 
 mod arcane_wizardry;
 
@@ -32,17 +29,22 @@ pub type LazyImmutableBool = LazySignalsState<bool>;
 pub type LazyImmutableInt = LazySignalsState<u32>;
 pub type LazyImmutableFloat = LazySignalsState<f64>;
 pub type LazyImmutableStr = LazySignalsState<StaticStrRef>;
-pub type LazyImmutableUnit = LazySignalsState<()>; // triggers
+pub type LazyImmutableUnit = LazySignalsState<()>; // for triggers, mostly
 
-/// A reference implementation follows. A consumer can replace any or all pieces and provide a new plugin.
+/// A reference implementation follows. A developer can replace any or all pieces and provide a new
+/// plugin if so desired.
 ///
 /// System set used by plugin to run reference implementation.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LazySignalsSystemSet;
 
-/// Convenience function to make it easy to run the LazySignals systems when needed.
-pub fn lazy_signals_default_systems() -> SystemConfigs {
+/// Convenience functions to make it easy to run the LazySignals systems when needed.
+pub fn lazy_signals_full_systems() -> SystemConfigs {
     (init_effects, init_computeds, send_signals, compute_memos, apply_deferred_effects).chain()
+}
+
+pub fn lazy_signals_flush_systems() -> SystemConfigs {
+    (init_effects, init_computeds, send_signals, compute_memos).chain()
 }
 
 /// Shared reactive context resource, aka global state.
@@ -55,9 +57,6 @@ pub struct LazySignalsResource {
 
     /// Tracks which Memos might have changed data.
     pub dirty: EntitySet,
-
-    /// Tracks Effects to evaluate for processing.
-    pub deferred: EntitySet,
 
     /// Tracks Effects that are still running and should not be re-triggered. (PERSISTENT)
     pub long_effects: EntitySet,
@@ -74,7 +73,6 @@ impl LazySignalsResource {
     /// Call this at the start of each run to make sure everything is fresh.
     fn init(&mut self) {
         self.changed.clear();
-        self.deferred.clear();
         self.dirty.clear();
         // self.long_effects.clear(); // don't clear this, need.. to remember... what is going on
         self.triggered.clear();
@@ -86,7 +84,6 @@ impl Default for LazySignalsResource {
     fn default() -> Self {
         Self {
             changed: empty_set(),
-            deferred: empty_set(),
             dirty: empty_set(),
             long_effects: empty_set(),
             triggered: empty_set(),
@@ -118,28 +115,10 @@ impl Plugin for LazySignalsPlugin {
                 // for the next tick to handle
 
                 // should be able to call these systems as often as needed between schedules
-                lazy_signals_default_systems().in_set(LazySignalsSystemSet)
+                // in that case, use lazy_signals_flush_systems() to schedule the needed updates
+
+                // Last, call apply_deferred_effects() at the end so they only fire once per tick
+                lazy_signals_full_systems().in_set(LazySignalsSystemSet)
             );
     }
-}
-
-/// ## Utilities
-/// Set of Entity to ComponentId.
-pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
-
-/// Set of ComponentId to ComponentInfo.
-pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
-
-/// Set of Entity to child Entities.
-pub type EntityRelationshipSet = SparseSet<Entity, Vec<Entity>>;
-
-/// Set of unique Entities
-pub type EntitySet = SparseSet<Entity, ()>;
-
-/// Set of internal errors when running computed (propagator) and effect functions.
-pub type ErrorSet = SparseSet<Entity, LazySignalsError>;
-
-/// Create an empty sparse set for storing Entities by ID.
-pub fn empty_set() -> EntitySet {
-    EntitySet::new()
 }

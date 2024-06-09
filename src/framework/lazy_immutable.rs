@@ -1,40 +1,32 @@
 use bevy::{ prelude::*, reflect::{ reflect_trait, DynamicTuple, Reflect } };
 
-use crate::{
-    empty_set,
-    EntitySet,
-    LazySignalsData,
-    LazySignalsError,
-    LazySignalsResult,
-    MaybeFlaggedEntities,
-};
+use super::*;
 
-/// An item of data backed by a Bevy entity with a set of subscribers.
-/// Additional methods in LazySignalsObservable would be here but you can't have generic trait objects.
+/// LazySignalsImmutable is the typed part of the main trait, LazySignalsObservable is the untyped
+/// part, and LazySignalsState is the component struct.
+///
+/// A LazySignalsImmutable is an item of data backed by a Bevy entity with a set of subscribers.
+/// Additional methods in LazySignalsObservable would be here but you can't have generic trait
+/// objects.
 pub trait LazySignalsImmutable: Send + Sync + 'static {
     type DataType: LazySignalsData;
 
-    // TODO add a get that returns a result after safely calling read
-
-    // TODO add a get_value that returns a result after safely calling value
-
-    /// Called by a developer to provide a new value for the lazy update system to merge.
+    /// Provide a new value for the lazy update system to merge.
     fn merge_next(&mut self, next: LazySignalsResult<Self::DataType>, trigger: bool);
 
     /// Immediately update a new value without triggering any subscribers (mostly used internally).
     fn update(&mut self, next: LazySignalsResult<Self::DataType>) -> bool;
 
-    /// Get the current value.
+    /// Called by a developer to get the current value.
     fn value(&self) -> LazySignalsResult<Self::DataType>;
 }
 
+/// Called by a lazy update system to apply the new value of a signal, run effects, etc.
+/// This is a main thing to implement if you're trying to use reflection.
+/// The ref impl uses this to update the LazySignalsImmutable values without knowing the type.
+/// These are also part of sending a Signal.
 #[reflect_trait]
 pub trait LazySignalsObservable {
-    /// Called by a lazy update system to apply the new value of a signal.
-    /// This is a main thing to implement if you're trying to use reflection.
-    /// The ref impl uses this to update the LazySignalsImmutable values without knowing the type.
-    /// These are also part of sending a Signal.
-    ///
     /// Add None to the params.
     fn append_none(&mut self, params: &mut DynamicTuple);
 
@@ -44,9 +36,6 @@ pub trait LazySignalsObservable {
     /// Get the list of subscriber Entities that may need notification.
     fn get_subscribers(&self) -> Vec<Entity>;
 
-    /// Is this signal being forced to trigger?
-    fn is_triggered(&self) -> bool;
-
     /// This method merges the next_value and returns get_subscribers().
     fn merge(&mut self) -> MaybeFlaggedEntities;
 
@@ -55,23 +44,20 @@ pub trait LazySignalsObservable {
 
     /// Called by an Effect or Memo indirectly by reading the current value.
     fn subscribe(&mut self, entity: Entity);
-
-    /// Called to force a subscriber to a triggered signal to also trigger.
-    fn trigger(&mut self);
 }
 
-/// A LazyImmutable is known as a cell in a propagator network. It may also be referred to as state.
-/// Using the label LazyImmutable because Cell and State often mean other things.
+/// A LazySignalsState is known as a cell in a propagator network. It may also be referred to as
+/// state. Using the label LazySignalsState because Cell often means another thing.
 /// Mutable is used by futures-signals for the same data-wrapping purpose, but in our case, the
-/// cells are mutated by sending a signal explicitly
-/// (i.e. calling merge_next and adding a SendSignal component).
+/// cells are mutated by sending signal explicitly (i.e. calling merge_next and adding SendSignal).
 ///
-/// Some convenience types provided: ImmutableBool, ImmutableInt, ImmutableFloat, ImmutableStr.
+/// Some convenience types provided:
+/// LazyImmutableBool, LazyImmutableInt, LazyImmutableFloat, LazyImmutableStr, LazyImmutableUnit.
 ///
 /// The subscriber set is built from the sources/triggers of computed memos and effects, so it does
 /// not have to be serialized, which is good because the SparseSet doesn't seem to do Reflect.
 ///
-/// This LazyImmutable component is lazy. Other forms are left as an exercise for the reader.
+/// This LazySignalsState component is lazy. Other forms are left as an exercise for the reader.
 #[derive(Component, Reflect)]
 #[reflect(Component, LazySignalsObservable)]
 pub struct LazySignalsState<T: LazySignalsData> {
@@ -146,10 +132,6 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
         subs.extend(self.subscribers.indices());
         trace!("-found subs {:?}", self.subscribers);
         subs
-    }
-
-    fn is_triggered(&self) -> bool {
-        self.triggered
     }
 
     fn merge(&mut self) -> MaybeFlaggedEntities {
@@ -227,9 +209,5 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
 
     fn subscribe(&mut self, entity: Entity) {
         self.next_subscribers.insert(entity, ());
-    }
-
-    fn trigger(&mut self) {
-        self.triggered = true;
     }
 }

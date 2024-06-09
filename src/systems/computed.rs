@@ -1,15 +1,6 @@
 use bevy::{ ecs::world::World, prelude::*, reflect::DynamicTuple };
 
-use crate::{
-    arcane_wizardry::run_as_observable,
-    empty_set,
-    framework::*,
-    systems::subscribe,
-    ComponentIdSet,
-    ComponentInfoSet,
-    EntityRelationshipSet,
-    LazySignalsResource,
-};
+use crate::{ arcane_wizardry::*, framework::*, LazySignalsResource };
 
 pub fn compute_memos(
     world: &mut World,
@@ -55,14 +46,13 @@ pub fn compute_memos(
                 }
             }
 
-            // if a source is marked dirty, add it to the stack, after the memo
+            // if any sources are marked dirty, push them on the stack, after the memo
             if !dirty_sources.is_empty() {
                 stack.push(computed);
                 stack.append(&mut dirty_sources);
             } else {
                 // otherwise, if all sources are up to date, then recompute
 
-                // start by building params
                 // build component id -> info map (might already have some but be on the safe side)
                 for source in sources.iter() {
                     let immutable = world.entity(*source).get::<ImmutableState>().unwrap();
@@ -127,6 +117,7 @@ pub fn compute_memos(
                             // I think this world must not be used to mutate the computed, not sure
                             if (computed_immutable.function)(&params, &computed, world.world_mut()) {
                                 // add to the changed set if the value actually changed
+                                // (seems ok to update the LazySignalsState on the same entity)
                                 signals.changed.insert(computed, ());
                             }
                         }

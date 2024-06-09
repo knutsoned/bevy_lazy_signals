@@ -35,7 +35,7 @@ struct MyTestResource {
 // concrete tuple type to safely work with the DynamicTuple coming out of the LazySignals systems
 type MyClosureParams = (Option<bool>, Option<StaticStrRef>);
 
-// you only have to register the main definition, not aliases like this one.
+// making an alias to make it easier to read code in some places
 type MyAuthParams = MyClosureParams;
 
 fn main() {
@@ -45,13 +45,14 @@ fn main() {
         .init_resource::<MyExampleAuthResource>()
         // resource to hold the entity ID of each lazy signals primitive
         .init_resource::<MyTestResource>()
-        // NOTE: the user application will need to register each custom LazyImmutable<T> for reflection
+        // NOTE: the user application will need to register each custom LazySignalsState<T> type
         // .register_type::<LazyImmutable<MyType>>()
+        // also need to register tuple types for params if they contain custom types (I think)
+        // --
         // add the plugin so the signal processing systems run
-        // this example uses built in types which are already registered
         .add_plugins(LazySignalsPlugin)
         // don't need to add systems to process signals since we're using the plugin
-        // just add the app-specific ones, systems run on PreUpdate by default
+        // just add the app-specific ones. LazySignals systems run on PreUpdate by default
         .add_systems(Startup, init)
         .add_systems(Update, send_some_signals)
         .add_systems(Last, status)
@@ -59,25 +60,27 @@ fn main() {
 }
 
 fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
-    // create a signal (you need to register data types if not bool, i32, f64, or &str)
+    // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
     // (see LazySignalsPlugin)
 
-    // this will derive a LazyImmutable<T> type based on the first parameter type
-    // in this case LazyImmutable<bool> is already registered so we're cool
+    // this will derive a LazySignalsImmutable<T> type based on the first parameter type
+    // in this case LazySignalsImmutable<bool> is already registered so we're cool
 
-    // in this example, signal1 is sent whenever a user logs in or logs out
+    // in this example, signal1 would be sent whenever a user logs in or logs out
     let test_signal1 = LazySignals.state(false, &mut commands);
     test.signal1 = Some(test_signal1);
     info!("created test signal 1, entity {:#?}", test_signal1);
 
-    // for strings the only thing I've gotten to work so far is &str
-    // (usually &'static str but just &str if used as a Propagator result type)
+    // for strings the only thing I've gotten to work so far is &'static str
     let test_signal2 = LazySignals.state("Congrats, you logged in somehow", &mut commands);
     test.signal2 = Some(test_signal2);
     info!("created test signal 2, entity {:#?}", test_signal2);
 
     // for an effect trigger, we don't care about the value, only that it changed
     // we could use a regular signal but something like a button click might not need a type
+
+    // there's also a way to send a regular signal as a trigger but beware: that is a good recipe
+    // for an update storm
     let test_signal3 = LazySignals.state((), &mut commands);
     test.signal3 = Some(test_signal3);
     info!("created test signal 3, entity {:#?}", test_signal3);

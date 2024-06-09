@@ -1,6 +1,6 @@
 # bevy_lazy_signals
 
-Primitives and examples for integrating bevy_ecs with signals.
+Primitives and examples for implementing a lazy kind of reactive signals for Bevy.
 
 ## [Rationale](rationale.md)
 
@@ -14,6 +14,20 @@ See also: [Architecture](architecture.md)
 
 - How to best prevent infinite loops?
 - Should effects have variants for non-exclusive and no world access?
+- Should effects have a way to be scheduled easily as async tasks?
+- During initialization, should computed and effect contexts actually evaluate?
+
+## TODO
+
+- Testing
+- Error handling and general resiliency
+- I need someone to just review every line because I am a total n00b
+- Long-running events (prevent retrigger if still running from last time)
+- More examples, including some integrating LazySignals with popular Bevy projects
+  such as bevy_dioxus, bevy_mod_picking, bevy_mod_scripting, bevy_reactor, haalka, polako, etc.
+- Pick UI toolkit and do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
+- Possibly starting with bevy-lunex
+- Would aery be useful as a potential dep?
 
 ## General Usage
 
@@ -25,7 +39,12 @@ For basic usage, an application specific resource may track the reactive primiti
 
 ```
 use bevy::prelude::*;
-use bevy_lazy_signals::{ api::LazySignals, framework::*, LazySignalsPlugin };
+use bevy_lazy_signals::{
+    api::LazySignals,
+    commands::LazySignalsCommandsExt,
+    framework::*,
+    LazySignalsPlugin
+};
 
 #[derive(Resource, Default)]
 struct ConfigResource {
@@ -87,13 +106,13 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     // first the closure
     let effect_fn: Box<dyn Effect<(f32, f32)>> = Box::new(|params, _world| {
         // our inputs are sanitized above so we just unwrap here
-        info!("({}, {})", params);
+        info!("({}, {})", params.0.unwrap(), params.1.unwrap());
     });
 
-    // then the reactive primitive entity
+    // then the reactive primitive entity, which logs the screen position every time the HID moves
     config.log_effect = LazySignals.effect::<(f32, f32)>{
         effect_fn,
-        vec![], // sources (passed to the params tuple)
+        vec![x_axis, y_axis], // sources (passed to the params tuple)
         Vec::<Entity>::new(), // triggers (will fire the effect but we don't care about the value)
         &mut commands
     };
@@ -105,6 +124,7 @@ fn signals_update_system(
 ) {
     // assume we have somehow read x and y values of the gamepad stick and assigned them to x and y
     LazySignal.send(config.x_axis, x, commands);
+    commands.
     LazySignal.send(config.y_axis, y, commands);
 
     // signals aren't processed right away, so the signals are still the original value

@@ -1,14 +1,6 @@
 use bevy::{ ecs::world::World, prelude::* };
 
-use crate::{
-    arcane_wizardry::run_as_observable,
-    empty_set,
-    framework::*,
-    ComponentIdSet,
-    ComponentInfoSet,
-    EntitySet,
-    LazySignalsResource,
-};
+use crate::{ arcane_wizardry::*, framework::*, LazySignalsResource };
 
 fn add_subs_to_running(
     subs: &[Entity],
@@ -75,25 +67,25 @@ pub fn send_signals(
         });
         trace!("found {} signals to send", count);
 
-        // build reflect types for merge operation on reflected UntypedObservable trait object
+        // build reflect types for merge operation on reflected LazySignalsObservable trait object
         world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
             let type_registry = type_registry.read();
 
             for (entity, component_id) in component_id_set.iter() {
                 let entity = *entity;
 
-                // here we need to access the Signal as an UntypedObservable & run the merge method
+                // here we need to access the Signal as an LazySignalsObservable
                 let component_id = *component_id;
                 let mut signal_to_send = world.entity_mut(entity);
 
-                // use the type_id from the component info, YOLO
+                // use the type_id from the component info
                 let info = component_info_set.get(component_id).unwrap();
                 let type_id = info.type_id().unwrap();
-                // the type_id matches the concrete type of the Signal's generic Immutable
+                // the type_id matches the concrete type of the Signal's generic LazySignalsState
 
                 // it comes from ComponentInfo which is retrieved from the ECS world
 
-                // the component_id is saved when command to make concrete Immutable runs
+                // the component_id is saved when the command to make the concrete Signal runs
 
                 // merge the next data value and return a list of subscribers to the change
                 // and whether these subscribers should be triggered too
@@ -124,8 +116,8 @@ pub fn send_signals(
             }
 
             // Phase Two: fire notifications up the subscriber tree
-
             let mut count = 0;
+
             // as long as there is a next_running set, move next_running set into the current one
             while merge_running(&mut running, &mut next_running) {
                 count += 1;
@@ -153,7 +145,7 @@ pub fn send_signals(
                                 .unwrap().component_id;
                             let type_id = subscriber
                                 .get::<ComputedImmutable>()
-                                .unwrap().lazy_immutable_type;
+                                .unwrap().result_type;
                             trace!(
                                 "--got component_id {:?} and type_id {:?}",
                                 component_id,
