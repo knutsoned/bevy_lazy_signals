@@ -2,14 +2,9 @@
 
 Primitives and examples for integrating bevy_ecs with signals.
 
-## Rationale
+## [Rationale](rationale.md)
 
-Some of the authors of popular reactive frameworks for JavaScript have been participating in an
-effort to create a Signal built-in that will provide a common API to support a range of uses.
-For Bevy, such a library could help efforts to integrate UI frameworks, enable networking, support
-scripting, scene editing, and file operations.
-
-See also: [Architecture](architecture.md) and (more detailed) [Rationale](rationale.md)
+See also: [Architecture](architecture.md)
 
 ## Dependencies
 
@@ -18,46 +13,90 @@ See also: [Architecture](architecture.md) and (more detailed) [Rationale](ration
 ## Design Questions
 
 - How to best prevent infinite loops?
-- Is the effects system generic enough for consumers to be able to use their own?
-- Should a non-lazy version of Immutable be provided?
-- (The rest is basically "can this be even lazier?")
-- The current system eagerly adds all subscribers up the tree. Is it better to do this in a more
-  deferred manner? Seems like it is more trouble to try to track all that than just note which ones
-  actually changed at the end and then match the dependencies of effects against that. This assumes
-  it is much cheaper to recalculate memos once unnecessarily versus avoiding those recalculations
-  with a more complicated processing routine. A more complex Observable might be required.
-  Another possibility: update the values directly and use Changed queries somehow.
+- Should effects have variants for non-exclusive and no world access?
 
 ## General Usage
 
 The LazySignalsPlugin will register a LazySignalsResource which is the main entry point.
 Within a system, get the resource as a parameter, then create signals, updating them later.
-For basic usage, an application specific resource may track the entities:
+For basic usage, an application specific resource may track the reactive primitive entities.
 
-TODO: actually test this (see [basic_test](examples/basic_test.rs) for working, tested code)
+(see [basic_test](examples/basic_test.rs) for working, tested code)
 
 ```
 use bevy::prelude::*;
-use bevy_lazy_signals::{ api::LazySignal, framework::*, LazySignalsPlugin };
+use bevy_lazy_signals::{ api::LazySignals, framework::*, LazySignalsPlugin };
 
 #[derive(Resource, Default)]
 struct ConfigResource {
     x_axis: Option<Entity>,
     y_axis: Option<Entity>,
-    ...
     action_button: Option<Entity>,
+    screen_x: Option<Entity>,
+    screen_y: Option<Entity>,
+    log_effect: Option<Entity>,
 }
 
 fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     // note these will not be ready for use until the commands actually run
-    config.x_axis = LazySignal.state::<f32>(0.0, commands);
-    config.y_axis = LazySignal.state::<f32>(0.0, commands);
+    let x_axis = LazySignals.state::<f32>(0.0, commands);
+    config.x_axis = Some(x_axis); // keep as a local to avoid unwrapping for computed and effect sources
+
+    let y_axis = LazySignals.state::<f32>(0.0, commands);
+    config.y_axis = Some(y_axis);
 
     // here we start with an empty Entity (more useful if we already spawned the entity elsewhere)
     config.action_button = commands.spawn_empty().id();
 
     // then we use the custom command form directly instead
     commands.create_state::<bool>(config.action_button, false);
+
+    // let's define 2 computed values for screen_x and screen_y
+
+    // our x and y axis are mapped to normalized -1.0 to 1.0 OpenGL units and we want 1080p...
+    let width = 1920.0;
+    let height = 1080.0;
+
+    // the actual pure function to perform the calculations
+    let screen_x_fn: Box<dyn Propagator<(f32), f32>> = Box::new(|params, _world| {
+        Some(OK(params.0.map_or(0.0, |x| (x + 1.0) * width / 2.0)))
+    });
+
+    // and the calculated memo to map the fns to sources and a place to store the result
+    let screen_x = LazySignals.computed::<(f32), f32>(
+        screen_x_fn,
+        vec![x_axis],
+        &mut commands
+    );
+
+    // or just declare the closure in the API call if it won't be reused
+    config.screen_x = Some(screen_x);
+    let screen_y = LazySignals.computed::<(f32), f32>(
+        Box<dyn Propagator<(f32), f32>> = Box::new(|params, _world| {
+            Some(Ok(params.0.map_or(0.0, |y| (y + 1.0) * height / 2.0)))
+        }),
+        vec![y_axis],
+        &mut commands
+    );
+    config.screen_y = Some(screen_y);
+
+    // at this point screen coordinates will update every time the x or y axis is sent a new signal
+    // ...so how do we run an effect?
+
+    // similar in form to making a computed, but we get exclusive world access
+    // first the closure
+    let effect_fn: Box<dyn Effect<(f32, f32)>> = Box::new(|params, _world| {
+        // our inputs are sanitized above so we just unwrap here
+        info!("({}, {})", params);
+    });
+
+    // then the reactive primitive entity
+    config.log_effect = LazySignals.effect::<(f32, f32)>{
+        effect_fn,
+        vec![], // sources (passed to the params tuple)
+        Vec::<Entity>::new(), // triggers (will fire the effect but we don't care about the value)
+        &mut commands
+    };
 }
 
 fn signals_update_system(
@@ -75,6 +114,6 @@ fn signals_update_system(
     // let's force the action button to true to simulate pressing the button but use custom command
     commands.send_signal::<bool>(config.action_button, true);
 }
-```
 
-TODO: in-depth tutorial (computed memos and effects)
+...configure Bevy per usual, pretty much just init ConfigResource and add the LazySignalsPlugin
+```
