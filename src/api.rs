@@ -3,15 +3,11 @@ use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
 use crate::{
     commands::LazySignalsCommandsExt,
     framework::*,
-    lazy_immutable::{ LazySignalsState, LazySignalsImmutable },
+    lazy_immutable::{ LazySignalsImmutable, LazySignalsState },
 };
 
 /// This is the reference user API, patterned after the TC39 proposal.
-
-pub fn end_effect() -> LazySignalsResult<()> {
-    Some(Ok(()))
-}
-
+///
 /// Convenience function to get a field directly from a DynamicTuple.
 pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Option<&T> {
     tuple.get_field::<T>(index) // returns None if type doesn't match
@@ -36,8 +32,7 @@ pub fn make_propagator_with<P: LazySignalsParams, R: LazySignalsData>(
             // TODO process errors
             error!("ERROR running propagator: {}", error.to_string());
         }
-        info!("-storing result");
-        store_result(result, entity, world)
+        store_result::<R>(result, entity, world)
     })
 }
 
@@ -48,13 +43,14 @@ pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
 
 /// Convenience function to store a result in an entity.
 pub fn store_result<T: LazySignalsData>(
-    data: Option<T>,
+    data: LazySignalsResult<T>,
     entity: &Entity,
     world: &mut World
 ) -> bool {
-    let mut binding = world.entity_mut(*entity);
-    let mut bucket = binding.get_mut::<LazySignalsState<T>>().unwrap();
-    bucket.update(data.map(|data| Ok(data)))
+    //info!("Storing result {:?} in {:#?}", data, world.inspect_entity(*entity));
+    let mut entity = world.entity_mut(*entity);
+    let mut component = entity.get_mut::<LazySignalsState<T>>().unwrap();
+    component.update(data)
 }
 
 /// ## Main Signal primitive factory.

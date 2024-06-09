@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::{ any::TypeId, fmt::Debug };
 
 use bevy::{
     ecs::component::ComponentId,
@@ -40,6 +40,7 @@ pub enum LazySignalsError {
 // ## Traits
 /// An item of data for use with Immutables.
 pub trait LazySignalsData: Copy +
+    Debug +
     FromReflect +
     GetTypeRegistration +
     PartialEq +
@@ -52,6 +53,7 @@ impl<T> LazySignalsData
     for T
     where
         T: Copy +
+            Debug +
             FromReflect +
             GetTypeRegistration +
             PartialEq +

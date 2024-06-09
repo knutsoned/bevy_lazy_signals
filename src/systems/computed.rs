@@ -22,9 +22,10 @@ pub fn compute_memos(
     let mut processed = empty_set();
     let mut sources = EntityRelationshipSet::new();
     let mut stack = Vec::<Entity>::new();
+
     query_memos.iter(world).for_each(|(entity, immutable, computed)| {
         let component_id = immutable.component_id;
-        trace!("-found a signal with component ID {:#?}", component_id);
+        info!("-found computed {:#?} with component ID {:?}", entity, component_id);
         component_id_set.insert(entity, component_id);
         if let Some(info) = world.components().get_info(component_id) {
             component_info_set.insert(component_id, info.clone());

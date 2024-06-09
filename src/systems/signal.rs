@@ -14,15 +14,16 @@ fn add_subs_to_running(
     subs: &[Entity],
     triggered: bool,
     next_running: &mut EntitySet,
-    triggered_effects: &mut EntitySet
+    signals: &mut Mut<LazySignalsResource>
 ) {
     // add subscribers to the next running set
     for subscriber in subs.iter() {
         let subscriber = *subscriber;
+        signals.dirty.insert(subscriber, ());
         next_running.insert(subscriber, ());
         trace!("-added subscriber {:?} to running set", subscriber);
         if triggered {
-            triggered_effects.insert(subscriber, ());
+            signals.triggered.insert(subscriber, ());
         }
     }
 }
@@ -116,7 +117,7 @@ pub fn send_signals(
 
                 // add subscribers to the running set and mark if triggered
                 //info!("SUBS for {:#?} are: {:#?}", entity, subs);
-                add_subs_to_running(&subs, triggered, &mut next_running, &mut signals.triggered);
+                add_subs_to_running(&subs, triggered, &mut next_running, &mut signals);
 
                 // mark as processed
                 signal_to_send.remove::<SendSignal>();
@@ -178,7 +179,7 @@ pub fn send_signals(
                                 &subs.unwrap().0,
                                 signals.triggered.contains(runner),
                                 &mut next_running,
-                                &mut signals.triggered
+                                &mut signals
                             );
                         }
                     }
