@@ -59,7 +59,7 @@ pub struct LazySignalsResource {
     /// Tracks Effects to evaluate for processing.
     pub deferred: EntitySet,
 
-    /// Tracks Effects that are still running and should not be re-triggered.
+    /// Tracks Effects that are still running and should not be re-triggered. (PERSISTENT)
     pub long_effects: EntitySet,
 
     /// Tracks triggered entities (notify subscribers even if the value did not change).
