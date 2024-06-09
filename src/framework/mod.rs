@@ -75,8 +75,8 @@ impl<T> LazySignalsParams for T where T: LazySignalsData + Tuple {}
 /// The DynamicTuple is an argument list whose internal types match the Option<T> of each source.
 /// The entity is where the result will be stored, where this instance of the function lives.
 /// The component_id is the type of the LazySignalsImmutable where the result will be stored.
-pub trait PropagatorContext: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World) {}
-impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World)> PropagatorContext for T {}
+pub trait PropagatorContext: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World) -> bool {}
+impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World) -> bool> PropagatorContext for T {}
 
 // Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as params.
 // The return type is Option<LazySignalsData> which can then be memoized.

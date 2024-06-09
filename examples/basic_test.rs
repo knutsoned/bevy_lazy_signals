@@ -26,6 +26,7 @@ struct MyTestResource {
     pub computed2: Option<Entity>,
     pub effect1: Option<Entity>,
     pub effect2: Option<Entity>,
+    pub effect3: Option<Entity>,
     pub signal1: Option<Entity>,
     pub signal2: Option<Entity>,
     pub signal3: Option<Entity>,
@@ -191,7 +192,26 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     );
     info!("created test effect 2, entity {:#?}", test.effect2);
 
+    // this doesn't take any data, just runs when triggered
+    let effect3_fn: Box<dyn Effect<()>> = Box::new(|_params, _world| {
+        info!("triggered");
+    });
+
     // TODO test an effect with triggers only and no sources
+    test.effect3 = Some(
+        LazySignals.effect::<()>(
+            // closure to call when the effect is triggered
+            effect3_fn,
+            // type of each source must match type at same tuple position
+            // it's not unsafe(?); it just won't work if we screw this up
+            Vec::<Entity>::default(),
+            // triggering a signal will run effects without passing the signal's value as a param
+            // (it still sends the value of the sources as usual)
+            vec![test_signal3],
+            &mut commands
+        )
+    );
+    info!("created test effect 3, entity {:#?}", test.effect3);
 
     let computed2_fn: Box<dyn Propagator<MyAuthParams, &str>> = Box::new(|params| {
         // default error message

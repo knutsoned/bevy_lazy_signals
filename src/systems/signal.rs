@@ -109,6 +109,7 @@ pub fn send_signals(
                 let changed = result.1;
                 let triggered = result.2;
 
+                // FIXME something doesn't work for trigger-only effects
                 if changed {
                     signals.changed.insert(entity, ());
                 }

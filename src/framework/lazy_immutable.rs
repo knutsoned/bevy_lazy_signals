@@ -21,14 +21,11 @@ pub trait LazySignalsImmutable: Send + Sync + 'static {
     /// Called by a developer to provide a new value for the lazy update system to merge.
     fn merge_next(&mut self, next: LazySignalsResult<Self::DataType>, trigger: bool);
 
-    /// Get the current value.
-    fn read(&self) -> LazySignalsResult<Self::DataType>;
-
     /// Immediately update a new value without triggering any subscribers (mostly used internally).
-    fn update(&mut self, next: LazySignalsResult<Self::DataType>);
+    fn update(&mut self, next: LazySignalsResult<Self::DataType>) -> bool;
 
-    /// Get the current value, subscribing an entity if provided (mostly used internally).
-    fn value(&mut self, caller: Entity) -> LazySignalsResult<Self::DataType>;
+    /// Get the current value.
+    fn value(&self) -> LazySignalsResult<Self::DataType>;
 }
 
 #[reflect_trait]
@@ -107,17 +104,14 @@ impl<T: LazySignalsData> LazySignalsImmutable for LazySignalsState<T> {
         self.triggered = triggered;
     }
 
-    fn read(&self) -> LazySignalsResult<Self::DataType> {
-        self.data
-    }
-
-    fn value(&mut self, caller: Entity) -> LazySignalsResult<Self::DataType> {
-        self.subscribe(caller);
-        self.read()
-    }
-
-    fn update(&mut self, next: LazySignalsResult<Self::DataType>) {
+    fn update(&mut self, next: LazySignalsResult<Self::DataType>) -> bool {
+        let changed = self.data != next;
         self.data = next;
+        changed
+    }
+
+    fn value(&self) -> LazySignalsResult<Self::DataType> {
+        self.data
     }
 }
 

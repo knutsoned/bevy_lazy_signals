@@ -36,7 +36,8 @@ pub fn make_propagator_with<P: LazySignalsParams, R: LazySignalsData>(
             // TODO process errors
             error!("ERROR running propagator: {}", error.to_string());
         }
-        store_result(result, entity, world);
+        info!("-storing result");
+        store_result(result, entity, world)
     })
 }
 
@@ -46,10 +47,14 @@ pub fn make_tuple<T: LazySignalsParams>(tuple: &DynamicTuple) -> T {
 }
 
 /// Convenience function to store a result in an entity.
-pub fn store_result<T: LazySignalsData>(data: Option<T>, entity: &Entity, world: &mut World) {
+pub fn store_result<T: LazySignalsData>(
+    data: Option<T>,
+    entity: &Entity,
+    world: &mut World
+) -> bool {
     let mut binding = world.entity_mut(*entity);
     let mut bucket = binding.get_mut::<LazySignalsState<T>>().unwrap();
-    bucket.update(data.map(|data| Ok(data)));
+    bucket.update(data.map(|data| Ok(data)))
 }
 
 /// ## Main Signal primitive factory.
@@ -84,18 +89,7 @@ impl LazySignals {
         immutable: Option<Entity>,
         world: &World
     ) -> LazySignalsResult<R> {
-        match immutable {
-            Some(immutable) => {
-                let entity = world.entity(immutable);
-                match entity.get::<LazySignalsState<R>>() {
-                    Some(observable) => observable.read(),
-
-                    // TODO maybe add some kind of config option to ignore errors and return a default
-                    None => Some(Err(LazySignalsError::ReadError(immutable))),
-                }
-            }
-            None => Some(Err(LazySignalsError::NoSignalError)),
-        }
+        self.value(immutable, world)
     }
 
     pub fn send<T: LazySignalsData>(
@@ -135,16 +129,15 @@ impl LazySignals {
     pub fn value<R: LazySignalsData>(
         &self,
         immutable: Option<Entity>,
-        caller: Entity,
-        world: &mut World
+        world: &World
     ) -> LazySignalsResult<R> {
         match immutable {
             Some(immutable) => {
-                let mut entity = world.entity_mut(immutable);
-                match entity.get_mut::<LazySignalsState<R>>() {
-                    Some(mut observable) => { observable.value(caller) }
+                let entity = world.entity(immutable);
+                match entity.get::<LazySignalsState<R>>() {
+                    Some(observable) => observable.value(),
 
-                    // TODO maybe add some kind of config option to ignore errors and return default
+                    // TODO maybe add some kind of config option to ignore errors and return a default
                     None => Some(Err(LazySignalsError::ReadError(immutable))),
                 }
             }

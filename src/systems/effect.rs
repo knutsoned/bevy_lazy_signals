@@ -11,15 +11,15 @@ use crate::{
     LazySignalsResource,
 };
 
-fn add_subs_to_relationship(
+fn add_deps_to_relationship(
     query_effects: &mut QueryState<(Entity, &LazyEffect), With<DeferredEffect>>,
     relationship: &mut EntityRelationshipSet,
     subs_closure: Box<dyn EffectSubsFn>,
     world: &mut World
 ) {
     query_effects.iter(world).for_each(|(entity, effect)| {
-        let subs = relationship.get_or_insert_with(entity, || { Vec::new() });
-        subs.append(&mut subs_closure(effect));
+        let deps = relationship.get_or_insert_with(entity, || { Vec::new() });
+        deps.append(&mut subs_closure(effect));
     });
 }
 
@@ -30,13 +30,13 @@ pub fn apply_deferred_effects(
     trace!("EFFECTS");
     // collapse the query or get world concurrency errors
     let mut relationship = EntityRelationshipSet::new();
-    add_subs_to_relationship(
+    add_deps_to_relationship(
         query_effects,
         &mut relationship,
         Box::new(|x: &LazyEffect| x.sources.clone()),
         world
     );
-    add_subs_to_relationship(
+    add_deps_to_relationship(
         query_effects,
         &mut relationship,
         Box::new(|x: &LazyEffect| x.triggers.clone()),
@@ -88,6 +88,7 @@ pub fn apply_deferred_effects(
 
     // write
     for effect in effects.indices() {
+        // FIXME this is probably skipping trigger-only effects
         if let Some(sources) = relationship.get(effect) {
             trace!("-found effect with sources {:#?}", sources);
 
@@ -99,7 +100,7 @@ pub fn apply_deferred_effects(
             for source in sources.iter() {
                 let immutable = world.entity(*source).get::<ImmutableState>().unwrap();
                 let component_id = immutable.component_id;
-                trace!("-found a source with component ID {:#?}", component_id);
+                trace!("-found an effect source with component ID {:#?}", component_id);
                 component_id_set.insert(*source, component_id);
                 if let Some(info) = world.components().get_info(component_id) {
                     component_info_set.insert(component_id, info.clone());
