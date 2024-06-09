@@ -59,18 +59,18 @@ pub fn send_signals(
         let mut count = 0;
 
         let mut component_id_set = ComponentIdSet::new();
-        let mut component_info = ComponentInfoSet::new();
+        let mut component_info_set = ComponentInfoSet::new();
 
         // build component id -> info map
-        for (entity, immutable) in query_signals.iter(world) {
+        query_signals.iter(world).for_each(|(entity, immutable)| {
             let component_id = immutable.component_id;
             trace!("-found a signal with component ID {:#?}", component_id);
             component_id_set.insert(entity, component_id);
             if let Some(info) = world.components().get_info(component_id) {
-                component_info.insert(component_id, info.clone());
+                component_info_set.insert(component_id, info.clone());
             }
             count += 1;
-        }
+        });
         trace!("found {} signals to send", count);
 
         // build reflect types for merge operation on reflected UntypedObservable trait object
@@ -85,7 +85,7 @@ pub fn send_signals(
                 let mut signal_to_send = world.entity_mut(entity);
 
                 // use the type_id from the component info, YOLO
-                let info = component_info.get(component_id).unwrap();
+                let info = component_info_set.get(component_id).unwrap();
                 let type_id = info.type_id().unwrap();
                 // the type_id matches the concrete type of the Signal's generic Immutable
 

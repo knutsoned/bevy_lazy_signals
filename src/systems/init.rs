@@ -15,9 +15,9 @@ fn subscribe_effect_subs(
     let mut relationship = EntityRelationshipSet::new();
 
     // run the subscribe method on all Effect.sources
-    for (entity, effect) in query_effects.iter(world) {
+    query_effects.iter(world).for_each(|(entity, effect)| {
         relationship.insert(entity, subs_closure(effect));
-    }
+    });
 
     for (entity, subs) in relationship.iter() {
         // loop through the sources
@@ -39,9 +39,9 @@ fn subscribe_propagator_subs(
     let mut relationship = EntityRelationshipSet::new();
 
     // run the subscribe method on all Effect.sources
-    for (entity, effect) in query_propagators.iter(world) {
+    query_propagators.iter(world).for_each(|(entity, effect)| {
         relationship.insert(entity, subs_closure(effect));
-    }
+    });
 
     for (entity, subs) in relationship.iter() {
         // loop through the sources

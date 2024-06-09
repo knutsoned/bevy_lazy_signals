@@ -7,7 +7,9 @@ pub fn compute_memos(
     query_memos: &mut QueryState<(Entity, &ComputedImmutable), With<ComputeMemo>>
 ) {
     trace!("MEMOS");
-    // run each Propagator function to recalculate memo, adding it and sources to the compute stack
+
+    let stack = Vec::<Entity>::new();
+    // run each Propagator function to compute memo, adding it and sources to the stack
     // do not run this Propagator if already in the processed set
     // do not add a source if source already in the processed set
 

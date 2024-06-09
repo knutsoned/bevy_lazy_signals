@@ -17,10 +17,10 @@ fn add_subs_to_relationship(
     subs_closure: Box<dyn EffectSubsFn>,
     world: &mut World
 ) {
-    for (entity, effect) in query_effects.iter(world) {
+    query_effects.iter(world).for_each(|(entity, effect)| {
         let subs = relationship.get_or_insert_with(entity, || { Vec::new() });
         subs.append(&mut subs_closure(effect));
-    }
+    });
 }
 
 pub fn apply_deferred_effects(
@@ -93,7 +93,7 @@ pub fn apply_deferred_effects(
 
             // add the source component ID to the set (probably could be optimized)
             let mut component_id_set = ComponentIdSet::new();
-            let mut component_info = ComponentInfoSet::new();
+            let mut component_info_set = ComponentInfoSet::new();
 
             // build component id -> info map
             for source in sources.iter() {
@@ -102,7 +102,7 @@ pub fn apply_deferred_effects(
                 trace!("-found a source with component ID {:#?}", component_id);
                 component_id_set.insert(*source, component_id);
                 if let Some(info) = world.components().get_info(component_id) {
-                    component_info.insert(component_id, info.clone());
+                    component_info_set.insert(component_id, info.clone());
                 }
             }
 
@@ -112,7 +112,7 @@ pub fn apply_deferred_effects(
                 let mut params = DynamicTuple::default();
                 for source in sources.iter() {
                     let component_id = component_id_set.get(*source).unwrap();
-                    let type_id = component_info.get(*component_id).unwrap().type_id().unwrap();
+                    let type_id = component_info_set.get(*component_id).unwrap().type_id().unwrap();
 
                     // call the copy_data method via reflection
                     // this will append the source data to the params tuple

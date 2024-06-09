@@ -10,7 +10,7 @@ pub mod effect;
 pub mod init;
 pub mod signal;
 
-/// Convenience function to subscribe an entity to a source.
+/// Convenience fn to subscribe an entity to a source.
 fn subscribe(
     entity: &Entity,
     source: &Entity,
