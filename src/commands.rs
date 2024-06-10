@@ -1,4 +1,4 @@
-use std::{ any::TypeId, marker::PhantomData };
+use std::marker::PhantomData;
 
 use bevy::{ ecs::world::Command, prelude::* };
 
@@ -103,19 +103,9 @@ impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand
         world
             .get_entity_mut(self.computed)
             .unwrap()
-            .insert((
-                LazySignalsState::<R>::new(None),
-                ImmutableState {
-                    component_id,
-                },
-                ComputedImmutable {
-                    function: self.function,
-                    sources: self.sources,
-                    params_type: TypeId::of::<P>(),
-                    result_type: TypeId::of::<LazySignalsState<R>>(),
-                },
-                RebuildSubscribers,
-            ));
+            .insert(
+                ComputedBundle::<R>::from_function::<P>(self.function, self.sources, component_id)
+            );
     }
 }
 
@@ -133,15 +123,7 @@ impl<P: LazySignalsParams> Command for CreateEffectCommand<P> {
         world
             .get_entity_mut(self.effect)
             .unwrap()
-            .insert((
-                LazyEffect {
-                    function: self.function,
-                    sources: self.sources,
-                    triggers: self.triggers,
-                    params_type: TypeId::of::<P>(),
-                },
-                RebuildSubscribers,
-            ));
+            .insert(EffectBundle::from_function::<P>(self.function, self.sources, self.triggers));
     }
 }
 
@@ -158,10 +140,7 @@ impl<T: LazySignalsData> Command for CreateStateCommand<T> {
         world
             .get_entity_mut(self.state)
             .unwrap()
-            .insert((
-                LazySignalsState::<T>::new(Some(Ok(self.data))),
-                ImmutableState { component_id },
-            ));
+            .insert(StateBundle::<T>::from_value(self.data, component_id));
     }
 }
 

@@ -12,7 +12,7 @@ fn process_subs(relationships: &EntityRelationshipSet, world: &mut World) {
             }
 
             // mark as processed
-            world.get_entity_mut(*entity).unwrap().remove::<RebuildSubscribers>();
+            world.get_entity_mut(*entity).unwrap().remove::<InitDependencies>();
         }
     });
 }
@@ -20,7 +20,7 @@ fn process_subs(relationships: &EntityRelationshipSet, world: &mut World) {
 // FIXME should we actually just trigger everything that is marked instead of faking it?
 pub fn init_effects(
     world: &mut World,
-    query_effects: &mut QueryState<(Entity, &LazyEffect), With<RebuildSubscribers>>
+    query_effects: &mut QueryState<(Entity, &LazyEffect), With<InitDependencies>>
 ) {
     let mut relationships = EntityRelationshipSet::new();
 
@@ -38,7 +38,7 @@ pub fn init_effects(
 // FIXME should we actually just compute everything that is marked instead of faking it?
 pub fn init_computeds(
     world: &mut World,
-    query_computeds: &mut QueryState<(Entity, &ComputedImmutable), With<RebuildSubscribers>>
+    query_computeds: &mut QueryState<(Entity, &ComputedImmutable), With<InitDependencies>>
 ) {
     let mut relationships = EntityRelationshipSet::new();
 

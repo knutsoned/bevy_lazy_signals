@@ -8,7 +8,7 @@ use bevy::{
 
 use thiserror::Error;
 
-use crate::LazySignalsObservable;
+use crate::{ LazySignalsObservable, LazySignalsState };
 
 pub mod lazy_immutable;
 
@@ -162,7 +162,75 @@ pub struct DeferredEffect;
 /// This normally only happens within the framework internals on create.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
-pub struct RebuildSubscribers;
+pub struct InitDependencies;
+
+/// ## Bundles
+#[derive(Bundle)]
+pub struct ComputedBundle<R: LazySignalsData> {
+    state: LazySignalsState<R>,
+    meta: ImmutableState,
+    context: ComputedImmutable,
+    init: InitDependencies,
+}
+
+impl<R: LazySignalsData> ComputedBundle<R> {
+    pub fn from_function<P: LazySignalsParams>(
+        function: Box<dyn PropagatorContext>,
+        sources: Vec<Entity>,
+        component_id: ComponentId
+    ) -> ComputedBundle<R> {
+        ComputedBundle::<R> {
+            state: LazySignalsState::<R>::new(None),
+            meta: ImmutableState { component_id },
+            context: ComputedImmutable {
+                function,
+                sources,
+                params_type: TypeId::of::<P>(),
+                result_type: TypeId::of::<LazySignalsState<R>>(),
+            },
+            init: InitDependencies,
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct EffectBundle {
+    context: LazyEffect,
+    init: InitDependencies,
+}
+
+impl EffectBundle {
+    pub fn from_function<P: LazySignalsParams>(
+        function: Box<dyn EffectContext>,
+        sources: Vec<Entity>,
+        triggers: Vec<Entity>
+    ) -> EffectBundle {
+        EffectBundle {
+            context: LazyEffect {
+                function,
+                sources,
+                triggers,
+                params_type: TypeId::of::<P>(),
+            },
+            init: InitDependencies,
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct StateBundle<T: LazySignalsData> {
+    state: LazySignalsState<T>,
+    meta: ImmutableState,
+}
+
+impl<T: LazySignalsData> StateBundle<T> {
+    pub fn from_value(data: T, component_id: ComponentId) -> StateBundle<T> {
+        StateBundle {
+            state: LazySignalsState::<T>::new(Some(Ok(data))),
+            meta: ImmutableState { component_id },
+        }
+    }
+}
 
 /// ## Utilities
 /// Set of Entity to ComponentId.
