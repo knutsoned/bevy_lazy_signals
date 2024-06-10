@@ -1,6 +1,8 @@
 # LazySignals for Bevy
 
-_An ad hoc, informally-specified, bug-ridden, kinda fast implementation of 1/3 of MIT-Scheme._
+#### _An ad hoc, informally-specified, bug-ridden, kinda fast implementation of 1/3 of MIT-Scheme._
+
+---
 
 Primitives and examples for implementing a lazy kind of reactive signals for Bevy.
 
@@ -22,23 +24,23 @@ See also: [Architecture](architecture.md)
 
 ### Missing
 
-- Testing
-- Error handling and general resiliency
+- [ ] Testing
+- [ ] Error handling and general resiliency
 
 ### Enhancements
 
-- I need someone to just review every line because I am a total n00b
-- More examples, including some integrating LazySignals with popular Bevy projects
-  such as bevy-lunex, bevy_dioxus, bevy_reactor, haalka, polako, etc.
+- [ ] I need someone to just review every line because I am a total n00b
+- [ ] More examples, including some integrating LazySignals with popular Bevy projects
+      such as bevy-lunex, bevy_dioxus, bevy_proto, bevy_reactor, haalka, polako, etc.
 
 ### Stuff I'm Actually Going To Do
 
-- Define bundles for the signals primitives
-- Add async task management for effects
-- Add React-like factory to API (return getter/setter tuples)
-- See how well this plays with aery, bevy_mod_picking,
-- Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
-- Long-running events (prevent retrigger if still running from last time)
+- [ ] Define bundles for the signals primitives
+- [ ] Add async task management for effects
+- [ ] Long-running events (prevent retrigger if still running from last time)
+- [ ] Add React-like factory to API (return getter/setter tuples)
+- [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
+- [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 
 ## General Usage
 
