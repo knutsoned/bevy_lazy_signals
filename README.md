@@ -1,8 +1,8 @@
 # LazySignals for Bevy
 
-#### _An ad hoc, informally-specified, bug-ridden, kinda fast implementation of 1/3 of MIT-Scheme._
-
 Primitives and examples for implementing a lazy kind of reactive signals for Bevy.
+
+#### _An ad hoc, informally-specified, bug-ridden, kinda fast implementation of 1/3 of MIT-Scheme._
 
 ## [Rationale](rationale.md)
 
@@ -16,26 +16,34 @@ See also: [Architecture](architecture.md)
 
 - How to best prevent infinite loops?
 - Should effects have variants for non-exclusive and no world access?
-- Should effects have a way to be scheduled easily as async tasks?
 - During initialization, should computed and effect contexts actually evaluate?
 
 ## TODO
 
-- Define bundles for the signals primitives?
-- Pick UI toolkit (sickle) and do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
+### Missing
+
 - Testing
 - Error handling and general resiliency
+
+### Enhancements
+
 - I need someone to just review every line because I am a total n00b
-- Long-running events (prevent retrigger if still running from last time)
 - More examples, including some integrating LazySignals with popular Bevy projects
-  such as bevy_dioxus, bevy_mod_picking, bevy_mod_scripting, bevy_reactor, haalka, polako, etc.
-- Possibly starting with bevy-lunex
-- Would aery be useful as a potential dep?
+  such as bevy-lunex, bevy_dioxus, bevy_reactor, haalka, polako, etc.
+
+### Stuff I'm Actually Going To Do
+
+- Define bundles for the signals primitives
+- Add async task management for effects
+- Add React-like factory to API (return getter/setter tuples)
+- See how well this plays with aery, bevy_mod_picking,
+- Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
+- Long-running events (prevent retrigger if still running from last time)
 
 ## General Usage
 
-The LazySignalsPlugin will register a LazySignalsResource which is the main entry point.
-Within a system, get the resource as a parameter, then create signals, updating them later.
+The LazySignalsPlugin will register a LazySignalsResource which is the main reactive context.
+Within a system, get the resource from world scope, then create signals, updating them later.
 For basic usage, an application specific resource may track the reactive primitive entities.
 
 (see [basic_test](examples/basic_test.rs) for working, tested code)
