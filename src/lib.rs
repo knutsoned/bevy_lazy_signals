@@ -25,11 +25,11 @@ pub mod prelude {
 /// Convenience typedefs.
 /// (could not get &String to work)
 pub type StaticStrRef = &'static str;
-pub type LazyImmutableBool = LazySignalsState<bool>;
-pub type LazyImmutableInt = LazySignalsState<u32>;
-pub type LazyImmutableFloat = LazySignalsState<f64>;
-pub type LazyImmutableStr = LazySignalsState<StaticStrRef>;
-pub type LazyImmutableUnit = LazySignalsState<()>; // for triggers, mostly
+pub type LazySignalsBool = LazySignalsState<bool>;
+pub type LazySignalsInt = LazySignalsState<u32>;
+pub type LazySignalsFloat = LazySignalsState<f64>;
+pub type LazySignalsStr = LazySignalsState<StaticStrRef>;
+pub type LazySignalsUnit = LazySignalsState<()>; // for triggers, mostly
 
 /// A reference implementation follows. A developer can replace any or all pieces and provide a new
 /// plugin if so desired.
@@ -102,11 +102,11 @@ impl Plugin for LazySignalsPlugin {
         // add the systems to process signals, memos, and effects
         app.init_resource::<LazySignalsResource>()
             // custom Immutable types must be manually registered
-            .register_type::<LazyImmutableBool>()
-            .register_type::<LazyImmutableInt>()
-            .register_type::<LazyImmutableFloat>()
-            .register_type::<LazyImmutableStr>()
-            .register_type::<LazyImmutableUnit>()
+            .register_type::<LazySignalsBool>()
+            .register_type::<LazySignalsInt>()
+            .register_type::<LazySignalsFloat>()
+            .register_type::<LazySignalsStr>()
+            .register_type::<LazySignalsUnit>()
             .add_systems(
                 PreUpdate, // could be PostUpdate or whatever else (probably not Update)
                 // defaults to PreUpdate since it is assumed the UI will process right after Update

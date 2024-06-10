@@ -11,11 +11,8 @@ impl MyExampleAuthResource {
     fn is_logged_in(&self) -> bool {
         self.logged_in
     }
-    fn notify_logged_in(&mut self) {
-        self.logged_in = true;
-    }
-    fn notify_logged_out(&mut self) {
-        self.logged_in = false;
+    fn notify_login_status(&mut self, status: bool) {
+        self.logged_in = status;
     }
 }
 
@@ -63,8 +60,8 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
     // (see LazySignalsPlugin)
 
-    // this will derive a LazySignalsImmutable<T> type based on the first parameter type
-    // in this case LazySignalsImmutable<bool> is already registered so we're cool
+    // this will reflect a LazySignalsState<T> type based on the first parameter type
+    // in this case LazySignalsState<bool> is already registered so we're cool
 
     // in this example, signal1 would be sent whenever a user logs in or logs out
     let test_signal1 = LazySignals.state(false, &mut commands);
@@ -79,13 +76,15 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // for an effect trigger, we don't care about the value, only that it changed
     // we could use a regular signal but something like a button click might not need a type
 
+    // for a basic trigger, we use LazySignalsState<()> as the signal component type
+
     // there's also a way to send a regular signal as a trigger but beware: that is a good recipe
     // for an update storm
     let test_signal3 = LazySignals.state((), &mut commands);
     test.signal3 = Some(test_signal3);
     info!("created test signal 3, entity {:#?}", test_signal3);
 
-    // simple effect that logs its trigger(s) whenever one changes
+    // simple effect that logs its source(s) whenever one changes or it is triggered
     let effect1_fn: Box<dyn Effect<MyClosureParams>> = Box::new(|params, world| {
         // read param 0
         let logged_in = params.0.unwrap();
@@ -98,11 +97,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         // we have exclusive world access. in this case, we update a value in a resource
         world.resource_scope(|_world, mut example_auth_resource: Mut<MyExampleAuthResource>| {
             // keep our resource in sync with our signal
-            if logged_in {
-                example_auth_resource.notify_logged_in()
-            } else {
-                example_auth_resource.notify_logged_out()
-            }
+            example_auth_resource.notify_login_status(logged_in);
         });
     });
 
@@ -115,7 +110,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             // it's not unsafe(?); it just won't work if we screw this up
             vec![test_signal1, test_signal2], // sending either signal triggers the effect
             // explicit triggers are not added to the params tuple like sources
-            Vec::<Entity>::default(),
+            Vec::<Entity>::new(),
             &mut commands
         )
     );
@@ -193,19 +188,19 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     );
     info!("created test effect 2, entity {:#?}", test.effect2.unwrap());
 
-    // this doesn't take any data, just runs when triggered
+    // this doesn't take any data, just runs when triggered (pass in unit type)
     let effect3_fn: Box<dyn Effect<()>> = Box::new(|_params, _world| {
         info!("EFFECT3: triggered");
     });
 
-    // TODO test an effect with triggers only and no sources
+    // test an effect with triggers only and no sources (pass in unit type)
     test.effect3 = Some(
         LazySignals.effect::<()>(
             // closure to call when the effect is triggered
             effect3_fn,
             // type of each source must match type at same tuple position
             // it's not unsafe(?); it just won't work if we screw this up
-            Vec::<Entity>::default(),
+            Vec::<Entity>::new(),
             // triggering a signal will run effects without passing the signal's value as a param
             // (it still sends the value of the sources as usual)
             vec![test_signal3],
