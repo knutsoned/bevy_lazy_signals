@@ -1,8 +1,8 @@
 # LazySignals for Bevy
 
-Primitives and examples for implementing a lazy kind of reactive signals for Bevy.
+_An ad hoc, informally-specified, bug-ridden, kinda fast implementation of 1/3 of MIT-Scheme._
 
-#### _An ad hoc, informally-specified, bug-ridden, kinda fast implementation of 1/3 of MIT-Scheme._
+Primitives and examples for implementing a lazy kind of reactive signals for Bevy.
 
 ## [Rationale](rationale.md)
 
