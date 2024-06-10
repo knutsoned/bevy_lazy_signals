@@ -97,7 +97,7 @@ impl<T: LazySignalsData> LazySignalsImmutable for LazySignalsState<T> {
     }
 
     fn value(&self) -> LazySignalsResult<Self::DataType> {
-        self.data
+        self.data.clone()
     }
 }
 
@@ -107,7 +107,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
     }
 
     fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple) {
-        let data = match self.data {
+        let data = match self.data.clone() {
             Some(data) =>
                 match data {
                     Ok(data) => { Some(data) }
@@ -145,12 +145,12 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
         let mut subs = Vec::<Entity>::new();
 
         // update the Immutable data value
-        match self.next_value {
+        match self.next_value.clone() {
             Some(Ok(next)) => {
                 trace!("next exists");
 
                 // only fire the rest of the process if the data actually changed
-                if let Some(Ok(data)) = self.data {
+                if let Some(Ok(data)) = self.data.clone() {
                     trace!("data exists");
 
                     if data != next {
@@ -181,7 +181,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
 
         // overwrite the value
         if doo_eet {
-            self.data = self.next_value;
+            self.data = self.next_value.clone();
             self.next_value = Some(Err(LazySignalsError::NoNextValue));
         }
 

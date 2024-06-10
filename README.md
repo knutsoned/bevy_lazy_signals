@@ -35,8 +35,8 @@ See also: [Architecture](architecture.md)
 
 ### Stuff I'm Actually Going To Do
 
-- [ ] Define bundles for the signals primitives
-- [ ] Support bevy_reflect types out of the box
+- [x] Define bundles for the signals primitives
+- [x] Support bevy_reflect types out of the box
 - [ ] Add async task management for effects
 - [ ] Long-running events (prevent retrigger if still running from last time)
 - [ ] Add React-like factory to API (return getter/setter tuples)

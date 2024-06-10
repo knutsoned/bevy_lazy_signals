@@ -1,4 +1,4 @@
-use bevy::{ ecs::schedule::SystemConfigs, prelude::* };
+use bevy::{ ecs::schedule::SystemConfigs, prelude::*, reflect::* };
 
 mod arcane_wizardry;
 
@@ -30,6 +30,13 @@ pub type LazySignalsInt = LazySignalsState<u32>;
 pub type LazySignalsFloat = LazySignalsState<f64>;
 pub type LazySignalsStr = LazySignalsState<StaticStrRef>;
 pub type LazySignalsUnit = LazySignalsState<()>; // for triggers, mostly
+pub type LazySignalsTuple = LazySignalsState<DynamicTuple>;
+pub type LazySignalsArray = LazySignalsState<DynamicArray>;
+pub type LazySignalsList = LazySignalsState<DynamicList>;
+pub type LazySignalsMap = LazySignalsState<DynamicMap>;
+pub type LazySignalsStruct = LazySignalsState<DynamicStruct>;
+pub type LazySignalsTupleStruct = LazySignalsState<DynamicTupleStruct>;
+pub type LazySignalsEnum = LazySignalsState<DynamicEnum>;
 
 /// A reference implementation follows. A developer can replace any or all pieces and provide a new
 /// plugin if so desired.
@@ -107,6 +114,16 @@ impl Plugin for LazySignalsPlugin {
             .register_type::<LazySignalsFloat>()
             .register_type::<LazySignalsStr>()
             .register_type::<LazySignalsUnit>()
+            /*
+            .register_type::<LazySignalsTuple>()
+            .register_type::<LazySignalsArray>()
+            .register_type::<LazySignalsList>()
+            .register_type::<LazySignalsMap>()
+            .register_type::<LazySignalsState>()
+            .register_type::<LazySignalsStruct>()
+            .register_type::<LazySignalsTupleStruct>()
+            .register_type::<LazySignalsEnum>()
+            */
             .add_systems(
                 PreUpdate, // could be PostUpdate or whatever else (probably not Update)
                 // defaults to PreUpdate since it is assumed the UI will process right after Update
