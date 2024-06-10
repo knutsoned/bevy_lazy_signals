@@ -36,6 +36,7 @@ See also: [Architecture](architecture.md)
 ### Stuff I'm Actually Going To Do
 
 - [ ] Define bundles for the signals primitives
+- [ ] Support bevy_reflect types out of the box
 - [ ] Add async task management for effects
 - [ ] Long-running events (prevent retrigger if still running from last time)
 - [ ] Add React-like factory to API (return getter/setter tuples)
@@ -100,9 +101,9 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
         vec![x_axis],
         &mut commands
     );
+    config.screen_x = Some(screen_x);
 
     // or just declare the closure in the API call if it won't be reused
-    config.screen_x = Some(screen_x);
     let screen_y = LazySignals.computed::<(f32), f32>(
         Box<dyn Propagator<(f32), f32>> = Box::new(|params, _world| {
             Some(Ok(params.0.map_or(0.0, |y| (y + 1.0) * height / 2.0)))
