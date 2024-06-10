@@ -1,6 +1,8 @@
 # bevy_lazy_signals
 
-Primitives and examples for implementing a lazy kind of reactive signals for Bevy.
+## Primitives and examples for implementing a lazy kind of reactive signals for Bevy.
+
+### _An ad hoc, informally-specified, bug-ridden, kinda fast implementation of 1/3 of MIT-Scheme._
 
 ## [Rationale](rationale.md)
 
@@ -19,13 +21,14 @@ See also: [Architecture](architecture.md)
 
 ## TODO
 
+- Define bundles for the signals primitives?
+- Pick UI toolkit (sickle) and do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 - Testing
 - Error handling and general resiliency
 - I need someone to just review every line because I am a total n00b
 - Long-running events (prevent retrigger if still running from last time)
 - More examples, including some integrating LazySignals with popular Bevy projects
   such as bevy_dioxus, bevy_mod_picking, bevy_mod_scripting, bevy_reactor, haalka, polako, etc.
-- Pick UI toolkit and do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 - Possibly starting with bevy-lunex
 - Would aery be useful as a potential dep?
 
@@ -137,3 +140,16 @@ fn signals_update_system(
 
 ...configure Bevy per usual, pretty much just init ConfigResource and add the LazySignalsPlugin
 ```
+
+# License
+
+All code in this repository is dual-licensed under either:
+
+- MIT License (LICENSE-MIT or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 (LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option. This means you can select the license you prefer.
+
+## Your contributions
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
