@@ -119,14 +119,15 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     // similar in form to making a computed, but we get exclusive world access
     // first the closure
     let effect_fn: Box<dyn Effect<(f32, f32)>> = Box::new(|params, _world| {
-        // our inputs are sanitized above so we just unwrap here
-        info!("({}, {})", params.0.unwrap(), params.1.unwrap());
+        let x = params.0.map_or("???", |x| format!("{:.1}", x))
+        let y = params.0.map_or("???", |y| format!("{:.1}", y))
+        info!(format!("({}, {})"), x, y)
     });
 
     // then the reactive primitive entity, which logs the screen position every time the HID moves
     config.log_effect = LazySignals.effect::<(f32, f32)>{
         effect_fn,
-        vec![x_axis, y_axis], // sources (passed to the params tuple)
+        vec![screen_x, screen_y], // sources (passed to the params tuple)
         Vec::<Entity>::new(), // triggers (will fire the effect but we don't care about the value)
         &mut commands
     };
