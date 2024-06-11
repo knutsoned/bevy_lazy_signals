@@ -1,18 +1,38 @@
-use bevy::prelude::*;
+use std::time::Duration;
 
-use bevy_lazy_signals::{ api::LazySignals, framework::*, LazySignalsPlugin, StaticStrRef };
+use async_std::task::sleep;
+use bevy::{ ecs::world::{ Command, CommandQueue }, prelude::*, tasks::AsyncComputeTaskPool };
+
+use bevy_lazy_signals::{ api::LazySignals, LazySignalsPlugin, StaticStrRef };
 
 // simple resource to simulate a service that tracks whether a user is logged in or not
 #[derive(Resource, Default)]
 struct MyExampleAuthResource {
     logged_in: bool,
 }
+
 impl MyExampleAuthResource {
     fn is_logged_in(&self) -> bool {
         self.logged_in
     }
     fn notify_login_status(&mut self, status: bool) {
         self.logged_in = status;
+    }
+}
+
+// simple command to toggle the login status of the user
+struct MyToggleLoginCommand {
+    entity: Option<Entity>,
+}
+
+impl Command for MyToggleLoginCommand {
+    fn apply(self, world: &mut World) {
+        info!("Toggling login");
+        if let Some(Ok(status)) = LazySignals.read::<bool>(self.entity, world) {
+            LazySignals.send(self.entity, !status, &mut world.commands());
+            world.flush_commands();
+            info!("...toggled");
+        }
     }
 }
 
@@ -23,17 +43,17 @@ struct MyTestResource {
     pub computed2: Option<Entity>,
     pub effect1: Option<Entity>,
     pub effect2: Option<Entity>,
-    pub effect3: Option<Entity>,
     pub signal1: Option<Entity>,
     pub signal2: Option<Entity>,
     pub signal3: Option<Entity>,
+    pub task1: Option<Entity>,
 }
 
 // concrete tuple type to safely work with the DynamicTuple coming out of the LazySignals systems
-type MyClosureParams = (Option<bool>, Option<StaticStrRef>);
+type MyClosureArgs = (Option<bool>, Option<StaticStrRef>);
 
 // making an alias to make it easier to read code in some places
-type MyAuthParams = MyClosureParams;
+type MyAuthArgs = MyClosureArgs;
 
 fn main() {
     App::new()
@@ -44,7 +64,7 @@ fn main() {
         .init_resource::<MyTestResource>()
         // NOTE: the user application will need to register each custom LazySignalsState<T> type
         // .register_type::<LazyImmutable<MyType>>()
-        // also need to register tuple types for params if they contain custom types (I think)
+        // also need to register tuple types for args if they contain custom types (I think)
         // --
         // add the plugin so the signal processing systems run
         .add_plugins(LazySignalsPlugin)
@@ -85,31 +105,33 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     info!("created test signal 3, entity {:#?}", test_signal3);
 
     // simple effect that logs its source(s) whenever one changes or it is triggered
-    let effect1_fn: Box<dyn Effect<MyClosureParams>> = Box::new(|params, world| {
-        // read param 0
-        let logged_in = params.0.unwrap();
-
-        // read param 1
-        let logged_in_msg = params.1.unwrap();
-
-        info!("EFFECT1: got {} and {} from params", logged_in, logged_in_msg);
-
-        // we have exclusive world access. in this case, we update a value in a resource
-        world.resource_scope(|_world, mut example_auth_resource: Mut<MyExampleAuthResource>| {
-            // keep our resource in sync with our signal
-            example_auth_resource.notify_login_status(logged_in);
-        });
-    });
 
     // set up to trigger an effect from the signals
     test.effect1 = Some(
-        LazySignals.effect::<MyClosureParams>(
+        LazySignals.effect::<MyClosureArgs>(
             // closure to call when the effect is triggered
-            effect1_fn,
+            |args, world| {
+                // read param 0
+                if let Some(logged_in) = args.0 {
+                    info!("EFFECT1: got {} from args.0, updating resource", logged_in);
+                    // we have exclusive world access. in this case, we update a value in a resource
+                    world.resource_scope(
+                        |_world, mut example_auth_resource: Mut<MyExampleAuthResource>| {
+                            // keep our resource in sync with our signal
+                            example_auth_resource.notify_login_status(logged_in);
+                        }
+                    );
+                }
+
+                // read args 1
+                if let Some(logged_in_msg) = args.1 {
+                    info!("EFFECT1: got {} from args.1", logged_in_msg);
+                }
+            },
             // type of each source must match type at same tuple position
             // it's not unsafe(?); it just won't work if we screw this up
             vec![test_signal1, test_signal2], // sending either signal triggers the effect
-            // explicit triggers are not added to the params tuple like sources
+            // explicit triggers are not added to the args tuple like sources are
             Vec::<Entity>::new(),
             &mut commands
         )
@@ -119,37 +141,39 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // simple closure that shows a supplied value or an error message
 
     // this closure could be used multiple times with different entities holding the memoized value
-    // and different sources
-    let computed1_fn: Box<dyn Propagator<MyAuthParams, StaticStrRef>> = Box::new(|params| {
-        // here we are specifically using the MyAuthParams alias to make it easier to tell what
-        // these params are for, at the expense of making it easier to find the main definition
+    // and different sources, but we have to specify the args type
+    let computed1_fn = |args: MyAuthArgs| {
+        // here we are specifically using the MyAuthArgs alias to make it easier to tell what
+        // these args are for, at the expense of making it easier to find the main definition
 
-        // MyAuthParams, MyClosureParams, (Option<bool>, Option<LazySignalsStr>), and
-        // (Option<bool>, Option<&str>) are interchangeable when defining propagators and effects
+        // MyAuthArgs, MyClosureArgs, (Option<bool>, Option<LazySignalsStr>), and
+        // (Option<bool>, Option<&str>) are interchangeable when defining computeds and effects
 
-        // default error message (only if params.0 == false)
+        // default error message (only if args.0 == false)
         let mut value = "You are not authorized to view this";
 
         // if loggedIn
-        // (Err or None will return Err or None, this block runs only if params.0 == true)
-        if params.0? {
+        // (Err or None will return Err or None, this block runs only if args.0 == true)
+        if args.0? {
             // show a logged in message, if one exists
-            if let Some(msg) = params.1 {
+            if let Some(msg) = args.1 {
                 value = msg;
             } else {
                 value = "Greetings, Starfighter";
             }
 
-            // could also just do: value = params.1?;
-            // and bubble the error up
+            // could also just do: let value = args.1?;
+            // and bubble the error up as a None return value
+
+            // the fn would return right away and the next lines would not run
         }
 
         info!("COMPUTED1 value: {}", value);
         Some(Ok(value))
-    });
+    };
 
     // simple computed to store the string value or an error, depending on the bool
-    let test_computed1 = LazySignals.computed::<MyAuthParams, StaticStrRef>(
+    let test_computed1 = LazySignals.computed::<MyAuthArgs, StaticStrRef>(
         computed1_fn,
         vec![test_signal1, test_signal2], // sending either signal triggers a recompute
         &mut commands
@@ -157,79 +181,82 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     test.computed1 = Some(test_computed1);
     info!("created test computed 1, entity {:#?}", test_computed1);
 
-    // TODO maybe we should provide variants of Effect that take &World and no world so it isn't exclusive all the time
-    let effect2_fn: Box<dyn Effect<MyClosureParams>> = Box::new(|params, _world| {
-        // second effect, same as the first, but use the memo as the string instead of the signal
-
-        // read param 0
-        if let Some(logged_in) = params.0 {
-            info!("EFFECT2: got logged_in: {} from params", logged_in);
-        }
-
-        // read param 1
-        if let Some(logged_in_msg) = params.1 {
-            info!("EFFECT2: got logged_in_msg: {} from params", logged_in_msg);
-        }
-    });
-
     // set up to trigger an effect from the memo
     test.effect2 = Some(
-        LazySignals.effect::<MyClosureParams>(
+        LazySignals.effect::<MyAuthArgs>(
             // closure to call when the effect is triggered
-            effect2_fn,
+            |args, _world| {
+                // second effect, same as the first, but use the memo as the string instead of the signal
+
+                // read param 0
+                if let Some(logged_in) = args.0 {
+                    info!("EFFECT2: got logged_in: {} from args", logged_in);
+                }
+
+                // read param 1
+                if let Some(logged_in_msg) = args.1 {
+                    info!("EFFECT2: got logged_in_msg: {} from args", logged_in_msg);
+                }
+            },
             // type of each source must match type at same tuple position
             // it's not unsafe(?); it just won't work if we screw this up
+            // TODO definitely think about that some more
             vec![test_signal1, test_computed1],
-            // triggering a signal will run effects without passing the signal's value as a param
-            // (it still sends the value of the sources as usual)
-            vec![test_signal3],
+            vec![],
             &mut commands
         )
     );
     info!("created test effect 2, entity {:#?}", test.effect2.unwrap());
 
-    // this doesn't take any data, just runs when triggered (pass in unit type)
-    let effect3_fn: Box<dyn Effect<()>> = Box::new(|_params, _world| {
-        info!("EFFECT3: triggered");
-    });
-
     // test an effect with triggers only and no sources (pass in unit type)
-    test.effect3 = Some(
-        LazySignals.effect::<()>(
+    test.task1 = Some(
+        LazySignals.task::<()>(
             // closure to call when the effect is triggered
-            effect3_fn,
+            move |_args| {
+                let thread_pool = AsyncComputeTaskPool::get();
+                thread_pool.spawn(async move {
+                    info!("TASK1: triggered");
+                    let mut command_queue = CommandQueue::default();
+
+                    // stand by 10 seconds for station identification
+                    sleep(Duration::from_secs(10)).await;
+
+                    info!("TASK1: done sleeping");
+                    command_queue.push(MyToggleLoginCommand { entity: Some(test_signal1) });
+
+                    command_queue
+                })
+            },
             // type of each source must match type at same tuple position
             // it's not unsafe(?); it just won't work if we screw this up
             Vec::<Entity>::new(),
             // triggering a signal will run effects without passing the signal's value as a param
-            // (it still sends the value of the sources as usual)
+            // (it still sends the value of the sources as usual, although this effect has none)
             vec![test_signal3],
             &mut commands
         )
     );
-    info!("created test effect 3, entity {:#?}", test.effect3.unwrap());
-
-    let computed2_fn: Box<dyn Propagator<MyAuthParams, StaticStrRef>> = Box::new(|params| {
-        // default error message
-        let mut value = "You are not authorized to view this";
-
-        // if logged_in
-        if let Some(logged_in) = params.0 {
-            if logged_in {
-                // show a logged in message, if one exists
-                if let Some(msg) = params.1 {
-                    value = msg;
-                }
-            }
-        }
-
-        info!("COMPUTED2 value: {}", value);
-        Some(Ok(value))
-    });
+    info!("created test task 1, entity {:#?}", test.task1.unwrap());
 
     // simple computed to store the string value or an error, depending on the bool
-    let test_computed2 = LazySignals.computed::<MyAuthParams, StaticStrRef>(
-        computed2_fn,
+    let test_computed2 = LazySignals.computed::<MyAuthArgs, StaticStrRef>(
+        |args| {
+            // default error message
+            let mut value = "You are not authorized to view this";
+
+            // if logged_in
+            if let Some(logged_in) = args.0 {
+                if logged_in {
+                    // show a logged in message, if one exists
+                    if let Some(msg) = args.1 {
+                        value = msg;
+                    }
+                }
+            }
+
+            info!("COMPUTED2 value: {}", value);
+            Some(Ok(value))
+        },
         vec![test_signal1, test_computed1],
         &mut commands
     );
@@ -240,13 +267,13 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 }
 
 fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
+    /*
     trace!("sending 'true' to {:?}", test.signal1);
     LazySignals.send(test.signal1, true, &mut commands);
+    */
 
-    /*
     trace!("triggering {:?}", test.signal3);
     LazySignals.trigger(test.signal3, &mut commands);
-    */
 }
 
 fn status(

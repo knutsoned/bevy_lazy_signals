@@ -2,21 +2,21 @@ use bevy::{ ecs::schedule::SystemConfigs, prelude::*, reflect::* };
 
 mod arcane_wizardry;
 
+pub mod api;
+
 pub mod commands;
 
-pub mod api;
+pub mod framework;
+use framework::*;
+use lazy_immutable::*;
 
 pub mod systems;
 use systems::{
     computed::compute_memos,
     init::{ init_effects, init_computeds },
     signal::send_signals,
-    effect::apply_deferred_effects,
+    effect::{ apply_deferred_effects, check_tasks },
 };
-
-pub mod framework;
-use framework::*;
-use lazy_immutable::*;
 
 pub mod prelude {
     pub use crate::{ api::*, framework::*, systems::*, LazySignalsPlugin };
@@ -47,11 +47,18 @@ pub struct LazySignalsSystemSet;
 
 /// Convenience functions to make it easy to run the LazySignals systems when needed.
 pub fn lazy_signals_full_systems() -> SystemConfigs {
-    (init_effects, init_computeds, send_signals, compute_memos, apply_deferred_effects).chain()
+    (
+        check_tasks,
+        init_effects,
+        init_computeds,
+        send_signals,
+        compute_memos,
+        apply_deferred_effects,
+    ).chain()
 }
 
 pub fn lazy_signals_flush_systems() -> SystemConfigs {
-    (init_effects, init_computeds, send_signals, compute_memos).chain()
+    (check_tasks, init_effects, init_computeds, send_signals, compute_memos).chain()
 }
 
 /// Shared reactive context resource, aka global state.
@@ -64,9 +71,6 @@ pub struct LazySignalsResource {
 
     /// Tracks which Memos might have changed data.
     pub dirty: EntitySet,
-
-    /// Tracks Effects that are still running and should not be re-triggered. (PERSISTENT)
-    pub long_effects: EntitySet,
 
     /// Tracks triggered entities (notify subscribers even if the value did not change).
     pub triggered: EntitySet,
@@ -81,7 +85,6 @@ impl LazySignalsResource {
     fn init(&mut self) {
         self.changed.clear();
         self.dirty.clear();
-        // self.long_effects.clear(); // don't clear this, need.. to remember... what is going on
         self.triggered.clear();
         self.errors.clear();
     }
@@ -92,7 +95,6 @@ impl Default for LazySignalsResource {
         Self {
             changed: empty_set(),
             dirty: empty_set(),
-            long_effects: empty_set(),
             triggered: empty_set(),
             errors: ErrorSet::new(),
         }

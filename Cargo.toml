@@ -14,3 +14,6 @@ git = "https://github.com/bevyengine/bevy"
 rev = "ec01c2d"
 default-features = false
 features = ["bevy_core_pipeline", "bevy_pbr", "bevy_winit", "multi_threaded"]
+
+[dev-dependencies]
+async-std = "1.12.0"

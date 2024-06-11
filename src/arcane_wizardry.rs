@@ -43,11 +43,11 @@ pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(
     reflect_observable.get_mut(value).unwrap()
 }
 
-/// Make a LazySignalsObservable out of EntityWorldMut, passing optional params and target Entity.
+/// Make a LazySignalsObservable out of EntityWorldMut, passing optional args and target Entity.
 /// Use that to run the supplied closure.
 pub fn run_as_observable(
     entity: &mut EntityWorldMut,
-    params: Option<&mut DynamicTuple>,
+    args: Option<&mut DynamicTuple>,
     target: Option<&Entity>,
     component_id: &ComponentId,
     type_id: &TypeId,
@@ -65,7 +65,7 @@ pub fn run_as_observable(
     );
 
     // run the supplied fn
-    closure(Box::new(observable), params, target)
+    closure(Box::new(observable), args, target)
 }
 
 /// Convenience fn to subscribe an entity to a source.
@@ -109,7 +109,7 @@ pub fn subscribe(
                 component_id,
                 &type_id,
                 type_registry,
-                Box::new(|observable, _params, target| {
+                Box::new(|observable, _args, target| {
                     observable.subscribe(*target.unwrap());
                     observable.merge_subscribers();
                     None

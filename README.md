@@ -16,9 +16,10 @@ See also: [Architecture](architecture.md)
 
 ## Design Questions
 
-- How to best prevent infinite loops?
-- Should effects have variants for non-exclusive and no world access?
+- Can this work with futures_lite to create a futures-signals-like API?
 - During initialization, should computed and effect contexts actually evaluate?
+- How to best prevent infinite loops?
+- Can the use of get vs unwrap be more consistent?
 
 ## TODO
 
@@ -26,6 +27,7 @@ See also: [Architecture](architecture.md)
 
 - [ ] Testing
 - [ ] Error handling and general resiliency
+- [ ] API documentation
 
 ### Enhancements
 
@@ -38,8 +40,10 @@ See also: [Architecture](architecture.md)
 - [x] Define bundles for the signals primitives
 - [x] Support bevy_reflect types out of the box
 - [ ] Add async task management for effects
-- [ ] Long-running events (prevent retrigger if still running from last time)
+- [x] Long-running effects (prevent retrigger if still running from last time)
+- [ ] Process tasks to run their commands when they are complete
 - [ ] Add React-like factory to API (return getter/setter tuples)
+- [ ] Prevent infinite loops
 - [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 
@@ -91,8 +95,8 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     let height = 1080.0;
 
     // the actual pure function to perform the calculations
-    let screen_x_fn: Box<dyn Propagator<(f32), f32>> = Box::new(|params, _world| {
-        Some(OK(params.0.map_or(0.0, |x| (x + 1.0) * width / 2.0)))
+    let screen_x_fn: Box<dyn Propagator<(f32), f32>> = Box::new(|args, _world| {
+        Some(OK(args.0.map_or(0.0, |x| (x + 1.0) * width / 2.0)))
     });
 
     // and the calculated memo to map the fns to sources and a place to store the result
@@ -105,8 +109,8 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
 
     // or just declare the closure in the API call if it won't be reused
     let screen_y = LazySignals.computed::<(f32), f32>(
-        Box<dyn Propagator<(f32), f32>> = Box::new(|params, _world| {
-            Some(Ok(params.0.map_or(0.0, |y| (y + 1.0) * height / 2.0)))
+        Box<dyn Propagator<(f32), f32>> = Box::new(|args, _world| {
+            Some(Ok(args.0.map_or(0.0, |y| (y + 1.0) * height / 2.0)))
         }),
         vec![y_axis],
         &mut commands
@@ -118,16 +122,16 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
 
     // similar in form to making a computed, but we get exclusive world access
     // first the closure
-    let effect_fn: Box<dyn Effect<(f32, f32)>> = Box::new(|params, _world| {
-        let x = params.0.map_or("???", |x| format!("{:.1}", x))
-        let y = params.0.map_or("???", |y| format!("{:.1}", y))
+    let effect_fn: Box<dyn Effect<(f32, f32)>> = Box::new(|args, _world| {
+        let x = args.0.map_or("???", |x| format!("{:.1}", x))
+        let y = args.0.map_or("???", |y| format!("{:.1}", y))
         info!(format!("({}, {})"), x, y)
     });
 
     // then the reactive primitive entity, which logs the screen position every time the HID moves
     config.log_effect = LazySignals.effect::<(f32, f32)>{
         effect_fn,
-        vec![screen_x, screen_y], // sources (passed to the params tuple)
+        vec![screen_x, screen_y], // sources (passed to the args tuple)
         Vec::<Entity>::new(), // triggers (will fire the effect but we don't care about the value)
         &mut commands
     };

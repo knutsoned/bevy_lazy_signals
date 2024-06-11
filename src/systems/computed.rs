@@ -70,8 +70,8 @@ pub fn compute_memos(
                 world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
                     let type_registry = type_registry.read();
 
-                    // prepare the params
-                    let mut params = DynamicTuple::default();
+                    // prepare the args
+                    let mut args = DynamicTuple::default();
                     for source in sources.iter() {
                         let component_id = component_id_set.get(*source).unwrap();
                         let type_id = component_info_set
@@ -81,19 +81,19 @@ pub fn compute_memos(
                             .unwrap();
 
                         // call the copy_data method via reflection
-                        // this will append the source data to the params tuple
-                        // FIXME indicate an error if the params don't line up?
+                        // this will append the source data to the args tuple
+                        // FIXME indicate an error if the args don't line up?
                         if let Some(mut source) = world.get_entity_mut(*source) {
                             // insert arcane wizardry here
                             run_as_observable(
                                 &mut source,
-                                Some(&mut params),
+                                Some(&mut args),
                                 Some(&computed),
                                 component_id,
                                 &type_id,
                                 &type_registry,
-                                Box::new(|observable, params, target| {
-                                    observable.copy_data(*target.unwrap(), params.unwrap());
+                                Box::new(|observable, args, target| {
+                                    observable.copy_data(*target.unwrap(), args.unwrap());
                                     None
                                 })
                             );
@@ -110,12 +110,14 @@ pub fn compute_memos(
                         // -the UnsafeEntityCell has permission to access the component mutably
                         // -no other references to the component exist at the same time
                         unsafe {
-                            let mut computed_immutable = handle
-                                .get_mut::<ComputedImmutable>()
-                                .unwrap();
+                            let computed_immutable = handle.get_mut::<ComputedImmutable>().unwrap();
 
                             // I think this world must not be used to mutate the computed, not sure
-                            if (computed_immutable.function)(&params, &computed, world.world_mut()) {
+                            if
+                                computed_immutable.function
+                                    .lock()
+                                    .unwrap()(&args, &computed, world.world_mut())
+                            {
                                 // add to the changed set if the value actually changed
                                 // (seems ok to update the LazySignalsState on the same entity)
                                 signals.changed.insert(computed, ());

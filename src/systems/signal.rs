@@ -96,7 +96,7 @@ pub fn send_signals(
                     &component_id,
                     &type_id,
                     &type_registry,
-                    Box::new(|observable, _params, _target| { observable.merge() })
+                    Box::new(|observable, _args, _target| { observable.merge() })
                 ).unwrap();
 
                 let subs = result.0;
@@ -160,7 +160,7 @@ pub fn send_signals(
                                 &component_id,
                                 &type_id,
                                 &type_registry,
-                                Box::new(|observable, _params, _target| {
+                                Box::new(|observable, _args, _target| {
                                     Some((observable.get_subscribers(), false, false))
                                 })
                             );

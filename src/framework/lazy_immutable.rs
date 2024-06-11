@@ -27,11 +27,11 @@ pub trait LazySignalsImmutable: Send + Sync + 'static {
 /// These are also part of sending a Signal.
 #[reflect_trait]
 pub trait LazySignalsObservable {
-    /// Add None to the params.
-    fn append_none(&mut self, params: &mut DynamicTuple);
+    /// Add None to the args.
+    fn append_none(&mut self, args: &mut DynamicTuple);
 
-    /// Copy the data into a dynamic tuple of params for the Effect or Propagator to consume.
-    fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple);
+    /// Copy the data into a dynamic tuple of args for the Effect or Propagator to consume.
+    fn copy_data(&mut self, caller: Entity, args: &mut DynamicTuple);
 
     /// Get the list of subscriber Entities that may need notification.
     fn get_subscribers(&self) -> Vec<Entity>;
@@ -102,11 +102,11 @@ impl<T: LazySignalsData> LazySignalsImmutable for LazySignalsState<T> {
 }
 
 impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
-    fn append_none(&mut self, params: &mut DynamicTuple) {
-        params.insert::<Option<T>>(None);
+    fn append_none(&mut self, args: &mut DynamicTuple) {
+        args.insert::<Option<T>>(None);
     }
 
-    fn copy_data(&mut self, caller: Entity, params: &mut DynamicTuple) {
+    fn copy_data(&mut self, caller: Entity, args: &mut DynamicTuple) {
         let data = match self.data.clone() {
             Some(data) =>
                 match data {
@@ -120,7 +120,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
                 }
             None => { None }
         };
-        params.insert(data);
+        args.insert(data);
 
         self.subscribe(caller);
     }

@@ -1,30 +1,39 @@
-use std::marker::PhantomData;
+use std::{ marker::PhantomData, sync::Mutex };
 
 use bevy::{ ecs::world::Command, prelude::* };
 
-use crate::{ framework::*, lazy_immutable::{ LazySignalsState, LazySignalsImmutable } };
+use crate::{ bundles::*, framework::*, lazy_immutable::{ LazySignalsState, LazySignalsImmutable } };
 
 /// Convenience extension to use each Command directly from Commands instance.
 pub trait LazySignalsCommandsExt {
-    /// Command to create a computed memo (LazyImmutable plus Propagator) from the given entity.
-    fn create_computed<P: LazySignalsParams, R: LazySignalsData>(
+    /// Command to create a computed memo from the given entity.
+    fn create_computed<P: LazySignalsArgs, R: LazySignalsData>(
         &mut self,
         computed: Entity,
-        function: Box<dyn PropagatorContext>,
+        function: Mutex<Box<dyn ComputedContext>>,
         sources: Vec<Entity>
     );
 
-    /// Command to create an effect (Effect with no LazyImmutable) from the given entity.
-    fn create_effect<P: LazySignalsParams>(
+    /// Command to create a short-lived effect from the given entity.
+    fn create_effect<P: LazySignalsArgs>(
         &mut self,
         effect: Entity,
-        function: Box<dyn EffectContext>,
+        function: Mutex<Box<dyn EffectWrapper>>,
         sources: Vec<Entity>,
         triggers: Vec<Entity>
     );
 
     /// Command to create a state (LazyImmutable with no Effect or Propagator) from the given entity.
     fn create_state<T: LazySignalsData>(&mut self, state: Entity, data: T);
+
+    /// Command to create an effect from the given entity as an async task.
+    fn create_task<P: LazySignalsArgs>(
+        &mut self,
+        effect: Entity,
+        function: Mutex<Box<dyn TaskWrapper>>,
+        sources: Vec<Entity>,
+        triggers: Vec<Entity>
+    );
 
     // Command to send a signal if the data value is different from the current value.
     fn send_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T);
@@ -34,25 +43,25 @@ pub trait LazySignalsCommandsExt {
 }
 
 impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
-    fn create_computed<P: LazySignalsParams, R: LazySignalsData>(
+    fn create_computed<P: LazySignalsArgs, R: LazySignalsData>(
         &mut self,
         computed: Entity,
-        function: Box<dyn PropagatorContext>,
+        function: Mutex<Box<dyn ComputedContext>>,
         sources: Vec<Entity>
     ) {
         self.add(CreateComputedCommand::<P, R> {
             computed,
             function,
             sources,
-            params_type: PhantomData,
+            args_type: PhantomData,
             result_type: PhantomData,
         });
     }
 
-    fn create_effect<P: LazySignalsParams>(
+    fn create_effect<P: LazySignalsArgs>(
         &mut self,
         effect: Entity,
-        function: Box<dyn EffectContext>,
+        function: Mutex<Box<dyn EffectWrapper>>,
         sources: Vec<Entity>,
         triggers: Vec<Entity>
     ) {
@@ -61,7 +70,7 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
             function,
             sources,
             triggers,
-            params_type: PhantomData,
+            args_type: PhantomData,
         });
     }
 
@@ -69,6 +78,22 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
         self.add(CreateStateCommand {
             state,
             data,
+        });
+    }
+
+    fn create_task<P: LazySignalsArgs>(
+        &mut self,
+        effect: Entity,
+        function: Mutex<Box<dyn TaskWrapper>>,
+        sources: Vec<Entity>,
+        triggers: Vec<Entity>
+    ) {
+        self.add(CreateTaskCommand::<P> {
+            effect,
+            function,
+            sources,
+            triggers,
+            args_type: PhantomData,
         });
     }
 
@@ -88,15 +113,15 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
 }
 
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
-pub struct CreateComputedCommand<P: LazySignalsParams, R: LazySignalsData> {
+pub struct CreateComputedCommand<P: LazySignalsArgs, R: LazySignalsData> {
     computed: Entity,
-    function: Box<dyn PropagatorContext>,
+    function: Mutex<Box<dyn ComputedContext>>,
     sources: Vec<Entity>,
-    params_type: PhantomData<P>,
+    args_type: PhantomData<P>,
     result_type: PhantomData<R>,
 }
 
-impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand<P, R> {
+impl<P: LazySignalsArgs, R: LazySignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
         // once init runs once for a concrete R, it just returns the existing ComponentId next time
         let component_id = world.init_component::<LazySignalsState<R>>();
@@ -110,20 +135,26 @@ impl<P: LazySignalsParams, R: LazySignalsData> Command for CreateComputedCommand
 }
 
 /// Command to create an effect (Propagator with no memo) from the given entity.
-pub struct CreateEffectCommand<P: LazySignalsParams> {
+pub struct CreateEffectCommand<P: LazySignalsArgs> {
     effect: Entity,
-    function: Box<dyn EffectContext>,
+    function: Mutex<Box<dyn EffectWrapper>>,
     sources: Vec<Entity>,
     triggers: Vec<Entity>,
-    params_type: PhantomData<P>,
+    args_type: PhantomData<P>,
 }
 
-impl<P: LazySignalsParams> Command for CreateEffectCommand<P> {
+impl<P: LazySignalsArgs> Command for CreateEffectCommand<P> {
     fn apply(self, world: &mut World) {
         world
             .get_entity_mut(self.effect)
             .unwrap()
-            .insert(EffectBundle::from_function::<P>(self.function, self.sources, self.triggers));
+            .insert(
+                EffectBundle::from_function::<P>(
+                    EffectContext::Short(self.function),
+                    self.sources,
+                    self.triggers
+                )
+            );
     }
 }
 
@@ -141,6 +172,30 @@ impl<T: LazySignalsData> Command for CreateStateCommand<T> {
             .get_entity_mut(self.state)
             .unwrap()
             .insert(StateBundle::<T>::from_value(self.data, component_id));
+    }
+}
+
+/// Command to create a task (non-blocking effect) from the given entity.
+pub struct CreateTaskCommand<P: LazySignalsArgs> {
+    effect: Entity,
+    function: Mutex<Box<dyn TaskWrapper>>,
+    sources: Vec<Entity>,
+    triggers: Vec<Entity>,
+    args_type: PhantomData<P>,
+}
+
+impl<P: LazySignalsArgs> Command for CreateTaskCommand<P> {
+    fn apply(self, world: &mut World) {
+        world
+            .get_entity_mut(self.effect)
+            .unwrap()
+            .insert(
+                EffectBundle::from_function::<P>(
+                    EffectContext::Long(self.function),
+                    self.sources,
+                    self.triggers
+                )
+            );
     }
 }
 
@@ -186,7 +241,7 @@ impl<T: LazySignalsData> Command for TriggerSignalCommand<T> {
                 entity.insert(SendSignal);
                 trace!("merged next and inserted SendSignal");
             } else {
-                error!("could not get Immutable");
+                error!("could not get State");
             }
         } else {
             error!("could not get Signal");
