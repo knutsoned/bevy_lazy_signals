@@ -39,10 +39,10 @@ See also: [Architecture](architecture.md)
 
 - [x] Define bundles for the signals primitives
 - [x] Support bevy_reflect types out of the box
-- [ ] Add async task management for effects
+- [x] Add async task management for effects
 - [x] Long-running effects (prevent retrigger if still running from last time)
-- [ ] Process tasks to run their commands when they are complete
-- [ ] Add React-like factory to API (return getter/setter tuples)
+- [x] Process tasks to run their commands when they are complete
+- [ ] Add React-like factory to API (return getter/setter tuples for signals)
 - [ ] Prevent infinite loops
 - [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
