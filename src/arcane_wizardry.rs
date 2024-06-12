@@ -26,10 +26,18 @@ pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(
     let ptr_mut = mut_untyped.as_mut();
 
     // the reflect_data is used to build a strategy to dereference a pointer to the component
+
+    // the TypeId refers to the LazySignalsState<T> component with concrete T
     let reflect_data = type_registry.get(*type_id).unwrap();
 
-    // we're going to get a pointer to the component, so we'll need this
+    // since we're reflecting from a pointer, we're gonna need this
     let reflect_from_ptr = reflect_data.data::<ReflectFromPtr>().unwrap().clone();
+
+    // I think we're sorta getting a proxy to the vtable for the concrete type and then schlepping
+    // it into the reflected proxy for the pointer to the concrete component (value)
+
+    // since we know the TypeId of the actual component, we can then downcast it into a
+    // non-reflected trait object backed by the reflected proxy
 
     // safety: `value` implements reflected trait `LazySignalsObservable`, what for `ReflectFromPtr`
     let value = unsafe { reflect_from_ptr.as_reflect_mut(ptr_mut) };
@@ -44,7 +52,7 @@ pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(
 }
 
 /// Make a LazySignalsObservable out of EntityWorldMut, passing optional args and target Entity.
-/// Use that to run the supplied closure.
+/// Use that to run the supplied closure. This arglist is banned in the EU and 17 US states.
 pub fn run_as_observable(
     entity: &mut EntityWorldMut,
     args: Option<&mut DynamicTuple>,
@@ -75,7 +83,7 @@ pub fn subscribe(
     type_registry: &RwLockReadGuard<TypeRegistry>,
     world: &mut World
 ) {
-    // get the TypeId of each source (Signal or Memo) Immutable component
+    // get the TypeId of each source (Signal or Computed) component
     let mut component_id: Option<ComponentId> = None;
     let mut type_id: Option<TypeId> = None;
 
@@ -96,7 +104,7 @@ pub fn subscribe(
         }
     }
 
-    // we have a component and a type, now do mutable stuff
+    // we have a component and a type, now do mut stuff
     if component_id.is_some() && type_id.is_some() {
         if let Some(mut source) = world.get_entity_mut(*source) {
             let component_id = &component_id.unwrap();
