@@ -21,15 +21,13 @@ impl MyExampleAuthResource {
 }
 
 // simple command to toggle the login status of the user
-struct MyToggleLoginCommand {
-    entity: Entity,
-}
+struct MyToggleLoginCommand(Entity);
 
 impl Command for MyToggleLoginCommand {
     fn apply(self, world: &mut World) {
         info!("Toggling login");
         if let Some(Ok(status)) = LazySignals.read::<bool>(self.entity, world) {
-            LazySignals.send(self.entity, !status, &mut world.commands());
+            LazySignals.send(self.0, !status, &mut world.commands());
             world.flush_commands();
             info!("...toggled");
         }
@@ -105,32 +103,33 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     info!("created test signal 2, entity {:#?}", test.signal[2]);
 
     // simple effect that logs its sources whenever one changes or it is triggered
+    let log_logins = |args: MyClosureArgs, world: &mut World| {
+        // read arg 0
+        if let Some(logged_in) = args.0 {
+            info!("EFFECT0: got {} from args.0, updating resource", logged_in);
+            // we have exclusive world access. in this case, we update a value in a resource
+            world.resource_scope(
+                // if this closure needs to invoke an external library accessed via
+                // MyExampleAuthResource (e.g. C or C++ FFI calls)
+                // may need to get it as a NonSendMut for thread safety
+                |_world, mut example_auth_resource: Mut<MyExampleAuthResource>| {
+                    // keep our resource in sync with our signal
+                    example_auth_resource.notify_login_status(logged_in);
+                }
+            );
+        }
+
+        // read arg 1
+        if let Some(logged_in_msg) = args.1 {
+            info!("EFFECT0: got {} from args.1", logged_in_msg);
+        }
+    };
 
     // we can just push this into the resource since we don't need to pass it around as a dep
     test.effect.push(
         LazySignals.effect::<MyClosureArgs>(
             // closure to call when the effect is triggered
-            |args, world| {
-                // read arg 0
-                if let Some(logged_in) = args.0 {
-                    info!("EFFECT0: got {} from args.0, updating resource", logged_in);
-                    // we have exclusive world access. in this case, we update a value in a resource
-                    world.resource_scope(
-                        // if this closure needs to invoke an external library accessed via
-                        // MyExampleAuthResource (e.g. C or C++ FFI calls)
-                        // may need to get it as a NonSendMut for thread safety
-                        |_world, mut example_auth_resource: Mut<MyExampleAuthResource>| {
-                            // keep our resource in sync with our signal
-                            example_auth_resource.notify_login_status(logged_in);
-                        }
-                    );
-                }
-
-                // read arg 1
-                if let Some(logged_in_msg) = args.1 {
-                    info!("EFFECT0: got {} from args.1", logged_in_msg);
-                }
-            },
+            log_logins,
             // type of each source must match type at same tuple position
             // it's not unsafe(?); it just won't work if we screw this up
             // TODO definitely think about that some more
@@ -205,7 +204,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
                 }
             },
             vec![signal0, computed0],
-            vec![],
+            Vec::<Entity>::new(),
             &mut commands
         )
     );
@@ -244,7 +243,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
                     // all the tasks that return their commands in the same tick would then send
                     // the same signal, which would update the LazySignalsState component with a
                     // next_value several times, but only result in sending the signal once
-                    command_queue.push(MyToggleLoginCommand { entity: signal0 });
+                    command_queue.push(MyToggleLoginCommand(signal0));
 
                     command_queue
                 })

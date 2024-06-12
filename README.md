@@ -46,6 +46,7 @@ See also: [Architecture](architecture.md)
 - [x] Add async task management for effects
 - [x] Prevent retrigger if task still running from last time
 - [x] Process tasks to run their commands when they are complete
+- [ ] Add helpers for accessing args
 - [ ] Add getter/setter tuples factory to API
 - [ ] Prevent infinite loops
 - [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
@@ -77,6 +78,17 @@ struct ConfigResource {
     screen_x: Option<Entity>,
     screen_y: Option<Entity>,
     log_effect: Option<Entity>,
+    async_task: Option<Entity>,
+}
+
+struct MyActionButtonCommand(Entity);
+
+impl Command for MyActionButtonCommand {
+    fn apply(self, world: &mut World) {
+        info!("Pushing the button");
+        LazySignals.send::<bool>(self.0, true, world.commands());
+        world.flush_commands();
+    }
 }
 
 fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
@@ -91,7 +103,7 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     config.action_button = commands.spawn_empty().id();
 
     // then we use the custom command form directly instead
-    commands.create_state::<bool>(config.action_button, false);
+    commands.create_state::<bool>(config.action_button.unwrap(), false);
 
     // let's define 2 computed values for screen_x and screen_y
 
@@ -100,9 +112,9 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     let height = 1080.0;
 
     // the actual pure function to perform the calculations
-    let screen_x_fn: Box<dyn Propagator<(f32), f32>> = Box::new(|args, _world| {
+    let screen_x_fn: |args: (f32)| {
         Some(OK(args.0.map_or(0.0, |x| (x + 1.0) * width / 2.0)))
-    });
+    };
 
     // and the calculated memo to map the fns to sources and a place to store the result
     let screen_x = LazySignals.computed::<(f32), f32>(
@@ -114,9 +126,10 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
 
     // or just declare the closure in the API call if it won't be reused
     let screen_y = LazySignals.computed::<(f32), f32>(
-        Box<dyn Propagator<(f32), f32>> = Box::new(|args, _world| {
+        // because we pass (f32) as the first type param, the compiler knows the type of args here
+        |args| {
             Some(Ok(args.0.map_or(0.0, |y| (y + 1.0) * height / 2.0)))
-        }),
+        },
         vec![y_axis],
         &mut commands
     );
@@ -126,12 +139,12 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     // ...so how do we run an effect?
 
     // similar in form to making a computed, but we get exclusive world access
-    // first the closure
-    let effect_fn: Box<dyn Effect<(f32, f32)>> = Box::new(|args, _world| {
+    // first the closure (that is an &mut World, if needed)
+    let effect_fn: |args: (f32, f32), _world| {
         let x = args.0.map_or("???", |x| format!("{:.1}", x))
         let y = args.0.map_or("???", |y| format!("{:.1}", y))
         info!(format!("({}, {})"), x, y)
-    });
+    };
 
     // then the reactive primitive entity, which logs the screen position every time the HID moves
     config.log_effect = LazySignals.effect::<(f32, f32)>{
@@ -140,26 +153,55 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
         Vec::<Entity>::new(), // triggers (will fire the effect but we don't care about the value)
         &mut commands
     };
+
+    // unlike an Effect which gets exclusive world access and must be very brief, a Task is async
+    // but only returns a CommandQueue, to be run when the system that checks async tasks notices
+    // it has completed
+    let task_fn: |args: (f32, f32, Entity)| {
+        let mut command_queue = CommandQueue::default();
+
+        // as long as the task is still running, it will not spawn another instance
+        do_something_that_takes_a_long_time(args.0, args.1);
+
+        command_queue.push(MyActionButtonCommand);
+    };
+
+    config.async_task = LazySignals.task::<(f32, f32)>{
+        task_fn,
+        vec![screen_x, screen_y, ],
+        Vec::<Entity>::new(),
+        &mut commands
+    }
 }
 
 fn signals_update_system(
     config: Res<ConfigResource>,
     mut commands: Commands
 ) {
+    let btn = config.action_button.unwrap();
+    let x_axis = config.x_axis.unwrap();
+    let y_axis = config.y_axis.unwrap();
+
     // assume we have somehow read x and y values of the gamepad stick and assigned them to x and y
-    LazySignal.send(config.x_axis, x, commands);
-    commands.
-    LazySignal.send(config.y_axis, y, commands);
+    LazySignal.send(x_axis, x, commands);
+    LazySignal.send(y_axis, y, commands);
 
     // signals aren't processed right away, so the signals are still the original value
-    let prev_x = LazySignal.read::<f32>(config.x_axis, world);
-    let prev_y = LazySignal.read::<f32>(config.y_axis, world);
+    let prev_x = LazySignal.read::<f32>(x_axis, world);
+    let prev_y = LazySignal.read::<f32>(y_axis, world);
 
-    // let's force the action button to true to simulate pressing the button but use custom command
-    commands.send_signal::<bool>(config.action_button, true);
+    // let's simulate pressing the action button but use custom send_signal command
+    commands.send_signal::<bool>(btn, true);
+
+    // or use our custom local command
+    commands.push(MyActionButtonCommand(btn));
+
+    // doing both will only actually trigger the signal once, since multiple calls to send will
+    // update the next_value multiple times, but we're lazy, so the signal itself only runs once
+    // using whatever value is in next_value when it gets evaluated
 }
 
-...configure Bevy per usual, pretty much just init ConfigResource and add the LazySignalsPlugin
+// ...configure Bevy per usual, pretty much just init ConfigResource and add the LazySignalsPlugin
 ```
 
 # License
