@@ -22,7 +22,6 @@ See also: [Architecture](architecture.md)
 - Can the use of get vs unwrap be more consistent?
 - Should Tasks be able to renember they were retriggered while still running and then run again immediately after finishing?
 - Should there be an option to run a Bevy system as an effect?
-- Should
 
 ## TODO
 
