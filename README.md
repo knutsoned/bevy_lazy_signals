@@ -22,6 +22,8 @@ See also: [Architecture](architecture.md)
 - Can the use of get vs unwrap be more consistent?
 - Should Tasks be able to renember they were retriggered while still running and then run again immediately after finishing?
 - Should there be an option to run a Bevy system as an effect?
+- Do we need a useRef equivalent to support state that is not passed around by value?
+- Same question about useCallback
 
 ## TODO
 
@@ -44,7 +46,7 @@ See also: [Architecture](architecture.md)
 - [x] Add async task management for effects
 - [x] Prevent retrigger if task still running from last time
 - [x] Process tasks to run their commands when they are complete
-- [ ] Add React-like factory to API (return getter/setter tuples for signals)
+- [ ] Add getter/setter tuples factory to API
 - [ ] Prevent infinite loops
 - [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
