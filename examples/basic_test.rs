@@ -79,12 +79,11 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // this will reflect a LazySignalsState<T> type based on the first parameter type
     // in this case LazySignalsState<bool> is already registered so we're cool
 
-    // in this example, signal1 would be sent whenever a user logs in or logs out
+    // in this example, signal0 would be sent whenever a user logs in or logs out
     let signal0 = LazySignals.state(false, &mut commands);
 
     // leave signals and computeds as local values to use as deps throughout the init system
-
-    // we can't move the deps into our closures from the test resource
+    // since we can't move the deps into our closures from the test resource
     test.signal.push(signal0);
     info!("created test signal 0, entity {:#?}", test.signal[0]);
 
