@@ -60,7 +60,7 @@ For basic usage, an application specific resource may track the reactive primiti
 
 (see [basic_test](examples/basic_test.rs) for working, tested code)
 
-```
+```rust
 use bevy::prelude::*;
 use bevy_lazy_signals::{
     api::LazySignals,
