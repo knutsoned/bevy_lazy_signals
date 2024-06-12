@@ -25,6 +25,7 @@ See also: [Architecture](architecture.md)
 - Can the use of get vs unwrap be more consistent?
 - Should Tasks be able to renember they were retriggered while still running and then run again immediately after finishing?
 - Should there be an option to run a Bevy system as an effect?
+- Should there be a commands-only version of effects?
 - Do we need a useRef equivalent to support state that is not passed around by value?
 - Same question about useCallback
 
