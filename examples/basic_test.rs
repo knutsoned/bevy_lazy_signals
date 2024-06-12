@@ -77,6 +77,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // (see LazySignalsPlugin)
 
     // this will reflect a LazySignalsState<T> type based on the first parameter type
+
     // in this case LazySignalsState<bool> is already registered so we're cool
 
     // in this example, signal0 would be sent whenever a user logs in or logs out

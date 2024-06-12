@@ -22,6 +22,7 @@ See also: [Architecture](architecture.md)
 - Can the use of get vs unwrap be more consistent?
 - Should Tasks be able to renember they were retriggered while still running and then run again immediately after finishing?
 - Should there be an option to run a Bevy system as an effect?
+- Should
 
 ## TODO
 
@@ -42,7 +43,7 @@ See also: [Architecture](architecture.md)
 - [x] Define bundles for the signals primitives
 - [x] Support bevy_reflect types out of the box
 - [x] Add async task management for effects
-- [x] Long-running effects (prevent retrigger if still running from last time)
+- [x] Prevent retrigger if task still running from last time
 - [x] Process tasks to run their commands when they are complete
 - [ ] Add React-like factory to API (return getter/setter tuples for signals)
 - [ ] Prevent infinite loops
