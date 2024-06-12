@@ -6,6 +6,9 @@
 
 Primitives and examples for implementing a lazy kind of reactive signals for Bevy.
 
+_WARNING:_ This is under active development and comes with even fewer guarantees for fitness to
+purpose than the licenses provide.
+
 ## [Rationale](rationale.md)
 
 See also: [Architecture](architecture.md)
@@ -48,10 +51,10 @@ See also: [Architecture](architecture.md)
 - [x] Process tasks to run their commands when they are complete
 - [ ] Add helpers for accessing args
 - [ ] Add getter/setter tuples factory to API
-- [ ] Prevent infinite loops
 - [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 - [ ] Write a bunch of Fennel code to see how well it works to script the computeds and effects
+- [ ] Prevent infinite loops
 
 ## General Usage
 
@@ -70,15 +73,15 @@ use bevy_lazy_signals::{
     LazySignalsPlugin
 };
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 struct ConfigResource {
-    x_axis: Option<Entity>,
-    y_axis: Option<Entity>,
-    action_button: Option<Entity>,
-    screen_x: Option<Entity>,
-    screen_y: Option<Entity>,
-    log_effect: Option<Entity>,
-    async_task: Option<Entity>,
+    x_axis: Entity,
+    y_axis: Entity,
+    action_button: Entity,
+    screen_x: Entity,
+    screen_y: Entity,
+    log_effect: Entity,
+    async_task: Entity,
 }
 
 struct MyActionButtonCommand(Entity);
@@ -91,23 +94,21 @@ impl Command for MyActionButtonCommand {
     }
 }
 
-fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
+fn signals_setup_system(mut commands: Commands) {
     // note these will not be ready for use until the commands actually run
     let x_axis = LazySignals.state::<f32>(0.0, commands);
-    config.x_axis = Some(x_axis); // keep as a local to avoid unwrapping for computed and effect sources
 
     let y_axis = LazySignals.state::<f32>(0.0, commands);
-    config.y_axis = Some(y_axis);
 
     // here we start with an empty Entity (more useful if we already spawned the entity elsewhere)
-    config.action_button = commands.spawn_empty().id();
+    let action_button = commands.spawn_empty().id();
 
     // then we use the custom command form directly instead
-    commands.create_state::<bool>(config.action_button.unwrap(), false);
+    commands.create_state::<bool>(action_button, false);
 
     // let's define 2 computed values for screen_x and screen_y
 
-    // our x and y axis are mapped to normalized -1.0 to 1.0 OpenGL units and we want 1080p...
+    // say our x and y axis are mapped to normalized -1.0 to 1.0 OpenGL units and we want 1080p...
     let width = 1920.0;
     let height = 1080.0;
 
@@ -122,7 +123,6 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
         vec![x_axis],
         &mut commands
     );
-    config.screen_x = Some(screen_x);
 
     // or just declare the closure in the API call if it won't be reused
     let screen_y = LazySignals.computed::<(f32), f32>(
@@ -133,7 +133,6 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
         vec![y_axis],
         &mut commands
     );
-    config.screen_y = Some(screen_y);
 
     // at this point screen coordinates will update every time the x or y axis is sent a new signal
     // ...so how do we run an effect?
@@ -147,7 +146,7 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
     };
 
     // then the reactive primitive entity, which logs the screen position every time the HID moves
-    config.log_effect = LazySignals.effect::<(f32, f32)>{
+    let log_effect = LazySignals.effect::<(f32, f32)>{
         effect_fn,
         vec![screen_x, screen_y], // sources (passed to the args tuple)
         Vec::<Entity>::new(), // triggers (will fire the effect but we don't care about the value)
@@ -166,39 +165,47 @@ fn signals_setup_system(config: Res<ConfigResource>, mut commands: Commands) {
         command_queue.push(MyActionButtonCommand);
     };
 
-    config.async_task = LazySignals.task::<(f32, f32)>{
+    let async_task = LazySignals.task::<(f32, f32)>{
         task_fn,
         vec![screen_x, screen_y, ],
         Vec::<Entity>::new(),
         &mut commands
     }
+
+// store the reactive entities in a resource to use in systems
+    commands.insert_resource(MyConfigResource {
+        x_axis,
+        y_axis,
+        action_button,
+        screen_x,
+        screen_y,
+        log_effect,
+        async_task,
+    });
 }
 
-fn signals_update_system(
-    config: Res<ConfigResource>,
-    mut commands: Commands
-) {
-    let btn = config.action_button.unwrap();
-    let x_axis = config.x_axis.unwrap();
-    let y_axis = config.y_axis.unwrap();
-
+fn signals_update_system(config: Res<ConfigResource>, mut commands: Commands) {
     // assume we have somehow read x and y values of the gamepad stick and assigned them to x and y
-    LazySignal.send(x_axis, x, commands);
-    LazySignal.send(y_axis, y, commands);
+    let x = ...
+    let y = ...
+
+    LazySignal.send(config.x_axis, x, commands);
+    LazySignal.send(config.y_axis, y, commands);
 
     // signals aren't processed right away, so the signals are still the original value
-    let prev_x = LazySignal.read::<f32>(x_axis, world);
-    let prev_y = LazySignal.read::<f32>(y_axis, world);
+    let prev_x = LazySignal.read::<f32>(config.x_axis, world);
+    let prev_y = LazySignal.read::<f32>(config.y_axis, world);
 
     // let's simulate pressing the action button but use custom send_signal command
-    commands.send_signal::<bool>(btn, true);
+    commands.send_signal::<bool>(config.action_button, true);
 
     // or use our custom local command
-    commands.push(MyActionButtonCommand(btn));
+    commands.push(MyActionButtonCommand(config.action_button));
 
     // doing both will only actually trigger the signal once, since multiple calls to send will
     // update the next_value multiple times, but we're lazy, so the signal itself only runs once
-    // using whatever value is in next_value when it gets evaluated
+    // using whatever value is in next_value when it gets evaluated, i.e. the last signal to
+    // actually be sent
 }
 
 // ...configure Bevy per usual, pretty much just init ConfigResource and add the LazySignalsPlugin
