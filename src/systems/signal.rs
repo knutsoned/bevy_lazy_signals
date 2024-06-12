@@ -6,17 +6,18 @@ fn add_subs_to_running(
     subs: &[Entity],
     triggered: bool,
     next_running: &mut EntitySet,
-    signals: &mut Mut<LazySignalsResource>
+    world: &mut World
 ) {
     // add subscribers to the next running set
     for subscriber in subs.iter() {
+        trace!("-adding subscriber {:?} to running set", subscriber);
         let subscriber = *subscriber;
-        signals.dirty.insert(subscriber, ());
         next_running.insert(subscriber, ());
-        trace!("-added subscriber {:?} to running set", subscriber);
+        let mut subscriber = world.entity_mut(subscriber);
+
+        subscriber.insert(Dirty);
         if triggered {
-            trace!("Triggering {:?}", subscriber);
-            signals.triggered.insert(subscriber, ());
+            subscriber.insert(Triggered);
         }
     }
 }
@@ -43,6 +44,7 @@ pub fn send_signals(
     let mut next_running = empty_set();
     let mut processed = empty_set();
     let mut running = empty_set();
+    let mut triggered = empty_set();
 
     // Phase One: find all the updated signals and schedule their direct subscribers to run
     world.resource_scope(|world, mut signals: Mut<LazySignalsResource>| {
@@ -100,19 +102,23 @@ pub fn send_signals(
                 ).unwrap();
 
                 let subs = result.0;
-                let changed = result.1;
-                let triggered = result.2;
+                let changed_flag = result.1;
+                let triggered_flag = result.2;
 
-                if changed {
+                if changed_flag {
                     signals.changed.insert(entity, ());
                 }
 
-                // add subscribers to the running set and mark if triggered
-                //info!("SUBS for {:#?} are: {:#?}", entity, subs);
-                add_subs_to_running(&subs, triggered, &mut next_running, &mut signals);
+                if triggered_flag {
+                    triggered.insert(entity, ());
+                }
 
                 // mark as processed
                 signal_to_send.remove::<SendSignal>();
+
+                // add subscribers to the running set and mark if triggered
+                //info!("SUBS for {:#?} are: {:#?}", entity, subs);
+                add_subs_to_running(&subs, triggered_flag, &mut next_running, world);
             }
 
             // Phase Two: fire notifications up the subscriber tree
@@ -169,9 +175,9 @@ pub fn send_signals(
                             // and mark triggered if appropriate
                             add_subs_to_running(
                                 &subs.unwrap().0,
-                                signals.triggered.contains(runner),
+                                triggered.contains(runner),
                                 &mut next_running,
-                                &mut signals
+                                world
                             );
                         }
                     }

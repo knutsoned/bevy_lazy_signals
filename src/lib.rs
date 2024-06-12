@@ -66,14 +66,10 @@ pub fn lazy_signals_flush_systems() -> SystemConfigs {
 /// Main purpose is to provide "stack"-like functionality across systems in the processing chain.
 #[derive(Resource)]
 pub struct LazySignalsResource {
+    // TODO see if changed and errors can be handled without a resource, and get rid of this struct
+
     /// Tracks which Signals and Memos actually have changed data.
     pub changed: EntitySet,
-
-    /// Tracks which Memos might have changed data.
-    pub dirty: EntitySet,
-
-    /// Tracks triggered entities (notify subscribers even if the value did not change).
-    pub triggered: EntitySet,
 
     /// Tracks errors that occur when things try to run.
     pub errors: ErrorSet,
@@ -84,8 +80,6 @@ impl LazySignalsResource {
     /// Call this at the start of each run to make sure everything is fresh.
     fn init(&mut self) {
         self.changed.clear();
-        self.dirty.clear();
-        self.triggered.clear();
         self.errors.clear();
     }
 }
@@ -94,8 +88,6 @@ impl Default for LazySignalsResource {
     fn default() -> Self {
         Self {
             changed: empty_set(),
-            dirty: empty_set(),
-            triggered: empty_set(),
             errors: ErrorSet::new(),
         }
     }

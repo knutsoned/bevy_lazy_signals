@@ -5,6 +5,8 @@ use bevy::{ ecs::world::{ Command, CommandQueue }, prelude::*, tasks::AsyncCompu
 
 use bevy_lazy_signals::{ api::LazySignals, LazySignalsPlugin, StaticStrRef };
 
+// this example toggles a loggged_in value every 10 seconds, triggering computeds and effects
+
 // simple resource to simulate a service that tracks whether a user is logged in or not
 #[derive(Resource, Default)]
 struct MyExampleAuthResource {
@@ -26,7 +28,7 @@ struct MyToggleLoginCommand(Entity);
 impl Command for MyToggleLoginCommand {
     fn apply(self, world: &mut World) {
         info!("Toggling login");
-        if let Some(Ok(status)) = LazySignals.read::<bool>(self.entity, world) {
+        if let Some(Ok(status)) = LazySignals.read::<bool>(self.0, world) {
             LazySignals.send(self.0, !status, &mut world.commands());
             world.flush_commands();
             info!("...toggled");

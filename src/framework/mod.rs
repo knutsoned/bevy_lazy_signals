@@ -172,10 +172,16 @@ pub struct LazyEffect {
 #[component(storage = "SparseSet")]
 pub struct DeferredEffect;
 
-/// A TriggeredEffect component marks an Effect function that needs to run.
+/// A Dirty component means that a value _may_ have changed and needs to be evaluated.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
-pub struct TriggeredEffect;
+pub struct Dirty;
+
+/// Marks a ComputedImmutable or LazyEffect as needing to subscribe to its dependencies.
+/// This normally only happens within the framework internals on create.
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct InitDependencies;
 
 /// A RunningTask component marks an Effect function that may still be running.
 #[derive(Component)]
@@ -184,11 +190,11 @@ pub struct RunningTask {
     pub task: Task<CommandQueue>,
 }
 
-/// Marks a ComputedImmutable or LazyEffect as needing to subscribe to its dependencies.
-/// This normally only happens within the framework internals on create.
+/// A Triggered component marks a Computed triggers any effect anywhere down its subscriber tree.
+/// It also marks any Effect that has been triggered this way.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
-pub struct InitDependencies;
+pub struct Triggered;
 
 /// ## Utilities
 /// Set of Entity to ComponentId.

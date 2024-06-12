@@ -41,7 +41,7 @@ pub fn compute_memos(
             let mut dirty_sources = Vec::<Entity>::new();
             for source in sources {
                 let source = *source;
-                if signals.dirty.contains(source) {
+                if world.entity(source).contains::<Dirty>() {
                     dirty_sources.push(source);
                 }
             }
@@ -103,32 +103,42 @@ pub fn compute_memos(
                         subscribe(&computed, source, &type_registry, world);
                     }
 
+                    let mut clean = false;
+
                     // actually compute the computed
-                    let world = world.as_unsafe_world_cell();
-                    if let Some(handle) = world.get_entity(computed) {
-                        // safety (from the docs):
-                        // -the UnsafeEntityCell has permission to access the component mutably
-                        // -no other references to the component exist at the same time
-                        unsafe {
-                            let computed_immutable = handle.get_mut::<ComputedImmutable>().unwrap();
+                    {
+                        let world = world.as_unsafe_world_cell();
+                        if let Some(handle) = world.get_entity(computed) {
+                            // safety (from the docs):
+                            // -the UnsafeEntityCell has permission to access the component mutably
+                            // -no other references to the component exist at the same time
+                            unsafe {
+                                let computed_immutable = handle
+                                    .get_mut::<ComputedImmutable>()
+                                    .unwrap();
 
-                            // I think this world must not be used to mutate the computed, not sure
-                            if
-                                computed_immutable.function
-                                    .lock()
-                                    .unwrap()(&args, &computed, world.world_mut())
-                            {
-                                // add to the changed set if the value actually changed
-                                // (seems ok to update the LazySignalsState on the same entity)
-                                signals.changed.insert(computed, ());
+                                // I think this world must not be used to mutate the computed, not sure
+                                if
+                                    computed_immutable.function
+                                        .lock()
+                                        .unwrap()(&args, &computed, world.world_mut())
+                                {
+                                    // add to the changed set if the value actually changed
+                                    // (seems ok to update the LazySignalsState on the same entity)
+                                    signals.changed.insert(computed, ());
+                                }
                             }
+
+                            // add the computed entity to the processed set
+                            processed.insert(computed, ());
+
+                            // mark the computed not dirty
+                            clean = true;
                         }
+                    }
 
-                        // add the computed entity to the processed set
-                        processed.insert(computed, ());
-
-                        // mark the computed not dirty
-                        signals.dirty.remove(computed);
+                    if clean {
+                        world.entity_mut(computed).remove::<Dirty>();
                     }
                 });
             }

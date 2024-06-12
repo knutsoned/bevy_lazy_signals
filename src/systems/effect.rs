@@ -11,7 +11,7 @@ type DeferredEffectsParam = (With<DeferredEffect>, Without<RunningTask>);
 
 pub fn apply_deferred_effects(
     world: &mut World,
-    query_effects: &mut QueryState<(Entity, &LazyEffect), DeferredEffectsParam>
+    query_effects: &mut QueryState<(Entity, &LazyEffect, Option<&Triggered>), DeferredEffectsParam>
 ) {
     trace!("EFFECTS");
 
@@ -20,13 +20,17 @@ pub fn apply_deferred_effects(
 
     // collapse the query or get world concurrency errors
     let mut relationships = EntityRelationshipSet::new();
+    let mut triggered = empty_set();
     world.resource_scope(|world, signals: Mut<LazySignalsResource>| {
-        query_effects.iter(world).for_each(|(entity, effect)| {
+        query_effects.iter(world).for_each(|(entity, effect, triggered_effect)| {
             // only add the effect if it isn't already running
             let mut deps = Vec::<Entity>::new();
             deps.append(&mut effect.sources.clone());
             deps.append(&mut effect.triggers.clone());
             relationships.insert(entity, deps);
+            if triggered_effect.is_some() {
+                triggered.insert(entity, ());
+            }
         });
 
         let mut effects = empty_set();
@@ -41,7 +45,7 @@ pub fn apply_deferred_effects(
             // only run an effect if at least one of its sources is in the changed set
             // OR it has been explicitly triggered
             let mut actually_run = false;
-            if signals.triggered.contains(effect) {
+            if triggered.contains(effect) {
                 trace!("-triggering effect {:#?}", effect);
                 actually_run = true;
             } else {
@@ -53,12 +57,17 @@ pub fn apply_deferred_effects(
                     }
                 }
             }
+
+            let mut entity = world.entity_mut(effect);
             if actually_run {
                 effects.insert(effect, ());
+
+                // remove TriggeredEffect
+                entity.remove::<Triggered>();
             }
 
             // remove the DeferredEffect component
-            world.entity_mut(effect).remove::<DeferredEffect>();
+            entity.remove::<DeferredEffect>();
 
             // make sure if effects are deferred but not run that they still refresh
             // otherwise they will not be notified next time
