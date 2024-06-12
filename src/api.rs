@@ -99,32 +99,23 @@ impl LazySignals {
 
     pub fn read<R: LazySignalsData>(
         &self,
-        immutable: Option<Entity>,
+        immutable: Entity,
         world: &World
     ) -> LazySignalsResult<R> {
         self.value(immutable, world)
     }
 
-    pub fn send<T: LazySignalsData>(
-        &self,
-        signal: Option<Entity>,
-        data: T,
-        commands: &mut Commands
-    ) {
-        if let Some(signal) = signal {
-            commands.send_signal::<T>(signal, data);
-        }
+    pub fn send<T: LazySignalsData>(&self, signal: Entity, data: T, commands: &mut Commands) {
+        commands.send_signal::<T>(signal, data);
     }
 
     pub fn send_and_trigger<T: LazySignalsData>(
         &self,
-        signal: Option<Entity>,
+        signal: Entity,
         data: T,
         commands: &mut Commands
     ) {
-        if let Some(signal) = signal {
-            commands.trigger_signal::<T>(signal, data);
-        }
+        commands.trigger_signal::<T>(signal, data);
     }
 
     pub fn state<T: LazySignalsData>(&self, data: T, commands: &mut Commands) -> Entity {
@@ -145,28 +136,21 @@ impl LazySignals {
         entity
     }
 
-    pub fn trigger(&self, signal: Option<Entity>, commands: &mut Commands) {
-        if let Some(signal) = signal {
-            commands.trigger_signal::<()>(signal, ());
-        }
+    pub fn trigger(&self, signal: Entity, commands: &mut Commands) {
+        commands.trigger_signal::<()>(signal, ());
     }
 
     pub fn value<R: LazySignalsData>(
         &self,
-        immutable: Option<Entity>,
+        immutable: Entity,
         world: &World
     ) -> LazySignalsResult<R> {
-        match immutable {
-            Some(immutable) => {
-                let entity = world.entity(immutable);
-                match entity.get::<LazySignalsState<R>>() {
-                    Some(observable) => observable.value(),
+        let entity = world.entity(immutable);
+        match entity.get::<LazySignalsState<R>>() {
+            Some(observable) => observable.value(),
 
-                    // TODO maybe add some kind of config option to ignore errors and return a default
-                    None => Some(Err(LazySignalsError::ReadError(immutable))),
-                }
-            }
-            None => Some(Err(LazySignalsError::NoSignalError)),
+            // TODO maybe add some kind of config option to ignore errors and return a default
+            None => Some(Err(LazySignalsError::ReadError(immutable))),
         }
     }
 }

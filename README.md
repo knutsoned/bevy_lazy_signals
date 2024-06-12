@@ -21,6 +21,7 @@ See also: [Architecture](architecture.md)
 - How to best prevent infinite loops?
 - Can the use of get vs unwrap be more consistent?
 - Should Tasks be able to renember they were retriggered while still running and then run again immediately after finishing?
+- Should there be an option to run a Bevy system as an effect?
 
 ## TODO
 
@@ -47,6 +48,7 @@ See also: [Architecture](architecture.md)
 - [ ] Prevent infinite loops
 - [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
+- [ ] Write a bunch of Fennel code to see how well it works to script the computeds and effects
 
 ## General Usage
 
