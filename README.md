@@ -20,6 +20,7 @@ See also: [Architecture](architecture.md)
 - During initialization, should computed and effect contexts actually evaluate?
 - How to best prevent infinite loops?
 - Can the use of get vs unwrap be more consistent?
+- Should Tasks be able to renember they were retriggered while still running and then run again immediately after finishing?
 
 ## TODO
 
