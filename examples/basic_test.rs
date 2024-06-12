@@ -153,7 +153,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         // default error message (only if args.0 == false)
         let mut value = "You are not authorized to view this";
 
-        // if loggedIn
+        // if logged_in
         // (Err or None will return Err or None, this block runs only if args.0 == true)
         if args.0? {
             // show a logged in message, if one exists
@@ -283,6 +283,8 @@ fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
     LazySignals.send(test.signal1, true, &mut commands);
     */
 
+    // even though this runs every tick, the task will trigger once, then run until it exits
+    // before being eligible to run again
     trace!("triggering {:?}", test.signal3);
     LazySignals.trigger(test.signal3, &mut commands);
 }
