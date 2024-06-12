@@ -111,7 +111,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         LazySignals.effect::<MyClosureArgs>(
             // closure to call when the effect is triggered
             |args, world| {
-                // read param 0
+                // read arg 0
                 if let Some(logged_in) = args.0 {
                     info!("EFFECT1: got {} from args.0, updating resource", logged_in);
                     // we have exclusive world access. in this case, we update a value in a resource
@@ -123,13 +123,14 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
                     );
                 }
 
-                // read args 1
+                // read arg 1
                 if let Some(logged_in_msg) = args.1 {
                     info!("EFFECT1: got {} from args.1", logged_in_msg);
                 }
             },
             // type of each source must match type at same tuple position
             // it's not unsafe(?); it just won't work if we screw this up
+            // TODO definitely think about that some more
             vec![test_signal1, test_signal2], // sending either signal triggers the effect
             // explicit triggers are not added to the args tuple like sources are
             Vec::<Entity>::new(),
@@ -188,19 +189,16 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             |args, _world| {
                 // second effect, same as the first, but use the memo as the string instead of the signal
 
-                // read param 0
+                // read arg 0
                 if let Some(logged_in) = args.0 {
                     info!("EFFECT2: got logged_in: {} from args", logged_in);
                 }
 
-                // read param 1
+                // read arg 1
                 if let Some(logged_in_msg) = args.1 {
                     info!("EFFECT2: got logged_in_msg: {} from args", logged_in_msg);
                 }
             },
-            // type of each source must match type at same tuple position
-            // it's not unsafe(?); it just won't work if we screw this up
-            // TODO definitely think about that some more
             vec![test_signal1, test_computed1],
             vec![],
             &mut commands
@@ -208,10 +206,13 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     );
     info!("created test effect 2, entity {:#?}", test.effect2.unwrap());
 
-    // test an effect with triggers only and no sources (pass in unit type)
+    // test a long-running async task with triggers only and no sources (pass in unit type)
+
+    // there's no reason a task can't take args. the closure fn sig is the same except
+    // a task can add commands to a queue only and does not have direct world access
     test.task1 = Some(
         LazySignals.task::<()>(
-            // closure to call when the effect is triggered
+            // closure to call when triggered
             move |_args| {
                 let thread_pool = AsyncComputeTaskPool::get();
                 thread_pool.spawn(async move {
@@ -222,13 +223,23 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
                     sleep(Duration::from_secs(10)).await;
 
                     info!("TASK1: done sleeping");
+
+                    // even triggered continuously the task will only run once the prior task exits
+
+                    // simulate logging in or out each time it runs
+
+                    // even if this task runs multiple times in the same tick, it is idempotent
+                    // at least within the same system, because it reads the immutable value and
+                    // the value of the sent signal is relative to that
+
+                    // all the tasks that return their commands in the same tick would then send
+                    // the same signal, which would update the LazySignalsState component with a
+                    // next_value several times, but only result in sending the signal once
                     command_queue.push(MyToggleLoginCommand { entity: Some(test_signal1) });
 
                     command_queue
                 })
             },
-            // type of each source must match type at same tuple position
-            // it's not unsafe(?); it just won't work if we screw this up
             Vec::<Entity>::new(),
             // triggering a signal will run effects without passing the signal's value as a param
             // (it still sends the value of the sources as usual, although this effect has none)
@@ -267,7 +278,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 }
 
 fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
-    /*
+    /* uncomment this to automatically log the user back in on the next tick after logging out
     trace!("sending 'true' to {:?}", test.signal1);
     LazySignals.send(test.signal1, true, &mut commands);
     */
