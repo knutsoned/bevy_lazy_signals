@@ -9,11 +9,9 @@ edition = "2021"
 thiserror = "1.0.59"
 
 [dependencies.bevy]
-version = "0.14.0-dev"
-git = "https://github.com/bevyengine/bevy"
-rev = "ec01c2d"
+version = "0.13.2"
 default-features = false
-features = ["bevy_core_pipeline", "bevy_pbr", "bevy_winit", "multi_threaded"]
+features = ["bevy_core_pipeline", "bevy_pbr", "bevy_winit", "multi-threaded"]
 
 [dev-dependencies]
 async-std = "1.12.0"
