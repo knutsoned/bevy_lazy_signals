@@ -2,6 +2,7 @@ use bevy::{ ecs::world::World, prelude::* };
 
 use crate::{ arcane_wizardry::*, framework::* };
 
+// add subscribers to the next running set
 fn add_subs_to_running(
     subs: &[Entity],
     changed: bool,
@@ -9,13 +10,13 @@ fn add_subs_to_running(
     next_running: &mut EntitySet,
     world: &mut World
 ) {
-    // add subscribers to the next running set
     for subscriber in subs.iter() {
         if changed || triggered {
             trace!("-adding subscriber {:?} to running set", subscriber);
             let subscriber = *subscriber;
             next_running.insert(subscriber, ());
             let mut subscriber = world.entity_mut(subscriber);
+            subscriber.insert(Dirty);
 
             if triggered {
                 subscriber.insert(Triggered);
@@ -24,8 +25,8 @@ fn add_subs_to_running(
     }
 }
 
+// if there is a next_running set, move it into the running set and empty it
 fn merge_running(running: &mut EntitySet, next_running: &mut EntitySet) -> bool {
-    // if there is a next_running set, move it into the running set and empty it
     if next_running.is_empty() {
         false
     } else {
@@ -37,6 +38,8 @@ fn merge_running(running: &mut EntitySet, next_running: &mut EntitySet) -> bool 
     }
 }
 
+// go through all the signals to send, and if they change or are triggered, mark their subs and
+// subs' subs
 pub fn send_signals(
     world: &mut World,
     query_signals: &mut QueryState<(Entity, &ImmutableState), With<SendSignal>>
@@ -142,12 +145,12 @@ pub fn send_signals(
                     if subscriber.contains::<LazyEffect>() {
                         // it is an effect, so schedule the effect by adding DeferredEffect
                         subscriber.insert(DeferredEffect);
-                        trace!("-scheduled effect {:#?}", runner);
+                        trace!("-scheduled effect {:?}", runner);
                     }
                     if subscriber.contains::<ComputedImmutable>() {
                         // it is a memo, so mark it for recalculation by adding ComputeMemo
                         subscriber.insert(ComputeMemo);
-                        trace!("-marked memo {:#?} for computation", runner);
+                        trace!("-marked memo {:?} for computation", runner);
 
                         let component_id = subscriber.get::<ImmutableState>().unwrap().component_id;
                         let type_id = subscriber.get::<ComputedImmutable>().unwrap().result_type;

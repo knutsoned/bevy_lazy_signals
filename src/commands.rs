@@ -1,6 +1,6 @@
 use std::{ marker::PhantomData, sync::Mutex };
 
-use bevy::{ ecs::world::Command, prelude::* };
+use bevy::{ ecs::system::Command, prelude::* };
 
 use crate::{ bundles::*, framework::*, lazy_immutable::{ LazySignalsState, LazySignalsImmutable } };
 
@@ -114,11 +114,11 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
 
 /// Command to create a computed memo (Immutable plus Propagator) from the given entity.
 pub struct CreateComputedCommand<P: LazySignalsArgs, R: LazySignalsData> {
-    computed: Entity,
-    function: Mutex<Box<dyn ComputedContext>>,
-    sources: Vec<Entity>,
-    args_type: PhantomData<P>,
-    result_type: PhantomData<R>,
+    pub computed: Entity,
+    pub function: Mutex<Box<dyn ComputedContext>>,
+    pub sources: Vec<Entity>,
+    pub args_type: PhantomData<P>,
+    pub result_type: PhantomData<R>,
 }
 
 impl<P: LazySignalsArgs, R: LazySignalsData> Command for CreateComputedCommand<P, R> {
@@ -136,11 +136,11 @@ impl<P: LazySignalsArgs, R: LazySignalsData> Command for CreateComputedCommand<P
 
 /// Command to create an effect (Propagator with no memo) from the given entity.
 pub struct CreateEffectCommand<P: LazySignalsArgs> {
-    effect: Entity,
-    function: Mutex<Box<dyn EffectWrapper>>,
-    sources: Vec<Entity>,
-    triggers: Vec<Entity>,
-    args_type: PhantomData<P>,
+    pub effect: Entity,
+    pub function: Mutex<Box<dyn EffectWrapper>>,
+    pub sources: Vec<Entity>,
+    pub triggers: Vec<Entity>,
+    pub args_type: PhantomData<P>,
 }
 
 impl<P: LazySignalsArgs> Command for CreateEffectCommand<P> {
@@ -160,8 +160,8 @@ impl<P: LazySignalsArgs> Command for CreateEffectCommand<P> {
 
 /// Command to create a state (LazyImmutableImmutable) from the given entity.
 pub struct CreateStateCommand<T: LazySignalsData> {
-    state: Entity,
-    data: T,
+    pub state: Entity,
+    pub data: T,
 }
 
 impl<T: LazySignalsData> Command for CreateStateCommand<T> {
@@ -177,11 +177,11 @@ impl<T: LazySignalsData> Command for CreateStateCommand<T> {
 
 /// Command to create a task (non-blocking effect) from the given entity.
 pub struct CreateTaskCommand<P: LazySignalsArgs> {
-    effect: Entity,
-    function: Mutex<Box<dyn TaskWrapper>>,
-    sources: Vec<Entity>,
-    triggers: Vec<Entity>,
-    args_type: PhantomData<P>,
+    pub effect: Entity,
+    pub function: Mutex<Box<dyn TaskWrapper>>,
+    pub sources: Vec<Entity>,
+    pub triggers: Vec<Entity>,
+    pub args_type: PhantomData<P>,
 }
 
 impl<P: LazySignalsArgs> Command for CreateTaskCommand<P> {
@@ -201,8 +201,8 @@ impl<P: LazySignalsArgs> Command for CreateTaskCommand<P> {
 
 /// Command to send a Signal (i.e. update a LazyImmutable during the next tick) to the given entity.
 pub struct SendSignalCommand<T: LazySignalsData> {
-    signal: Entity,
-    data: T,
+    pub signal: Entity,
+    pub data: T,
 }
 
 impl<T: LazySignalsData> Command for SendSignalCommand<T> {
@@ -226,8 +226,8 @@ impl<T: LazySignalsData> Command for SendSignalCommand<T> {
 
 /// Command to trigger a Signal (i.e. send signal even if value unchanged) to the given entity.
 pub struct TriggerSignalCommand<T: LazySignalsData> {
-    signal: Entity,
-    data: T,
+    pub signal: Entity,
+    pub data: T,
 }
 
 impl<T: LazySignalsData> Command for TriggerSignalCommand<T> {

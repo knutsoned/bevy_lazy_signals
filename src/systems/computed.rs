@@ -2,6 +2,7 @@ use bevy::{ ecs::world::World, prelude::*, reflect::DynamicTuple };
 
 use crate::{ arcane_wizardry::*, framework::* };
 
+// recompute all the dirty computeds
 pub fn compute_memos(
     world: &mut World,
     query_memos: &mut QueryState<(Entity, &ImmutableState, &ComputedImmutable), With<ComputeMemo>>
@@ -31,27 +32,32 @@ pub fn compute_memos(
 
     // main loop: evaluate highest index (pop the stack)
     while let Some(computed) = stack.pop() {
-        // do not run this Propagator if already in the processed set
+        trace!("COMPUTED {:?}", computed);
+        // do not run this Computed if already in the processed set
         if processed.contains(computed) {
+            trace!("-skipping");
             continue;
         }
 
         let sources = sources.get(computed).unwrap();
         let mut dirty_sources = Vec::<Entity>::new();
         for source in sources {
+            trace!("-checking source for dirt: {:?}", source);
             let source = *source;
             if world.entity(source).contains::<Dirty>() {
+                trace!("- - - durrrrty - - -");
                 dirty_sources.push(source);
             }
         }
 
         // if any sources are marked dirty, push them on the stack, after the memo
         if !dirty_sources.is_empty() {
+            trace!("-pushing on the stack");
             stack.push(computed);
             stack.append(&mut dirty_sources);
         } else {
             // otherwise, if all sources are up to date, then recompute
-
+            trace!("***COMPUTE***");
             // build component id -> info map (might already have some but be on the safe side)
             for source in sources.iter() {
                 let immutable = world.entity(*source).get::<ImmutableState>().unwrap();
@@ -72,6 +78,7 @@ pub fn compute_memos(
                 // prepare the args
                 let mut args = DynamicTuple::default();
                 for source in sources.iter() {
+                    trace!("Processing source {:?}", source);
                     let component_id = component_id_set.get(*source).unwrap();
                     let type_id = component_info_set.get(*component_id).unwrap().type_id().unwrap();
 
@@ -134,10 +141,12 @@ pub fn compute_memos(
                     let mut handle = world.entity_mut(computed);
 
                     if changed {
+                        trace!("-marking changed");
                         handle.insert(ValueChanged);
                     }
 
                     if clean {
+                        trace!("-marking not dirty");
                         handle.remove::<Dirty>();
                     }
                 }

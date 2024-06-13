@@ -1,7 +1,7 @@
 use std::{ any::TypeId, fmt::Debug, sync::Mutex };
 
 use bevy::{
-    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet, world::CommandQueue },
+    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet, system::CommandQueue },
     prelude::*,
     reflect::{ DynamicTuple, GetTypeRegistration, Tuple },
     tasks::Task,
@@ -35,7 +35,7 @@ pub enum LazySignalsError {
     NoNextValue,
 
     /// An attempt was made to read a signal and something weird went wrong.
-    #[error("Error reading signal {0}")]
+    #[error("Error reading signal {0:?}")]
     ReadError(Entity),
 }
 

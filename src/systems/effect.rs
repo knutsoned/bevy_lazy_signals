@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::world::CommandQueue,
+    ecs::system::CommandQueue,
     prelude::*,
     reflect::DynamicTuple,
     tasks::{ block_on, futures_lite::future, Task },
@@ -9,6 +9,21 @@ use crate::{ arcane_wizardry::*, framework::* };
 
 type DeferredEffectsParam = (With<DeferredEffect>, Without<RunningTask>);
 
+// get all the currently running tasks
+pub fn check_tasks(mut running_tasks: Query<(Entity, &mut RunningTask)>, mut commands: Commands) {
+    for (entity, mut running) in &mut running_tasks {
+        if let Some(mut commands_queue) = block_on(future::poll_once(&mut running.task)) {
+            // append the returned command queue to have it execute later
+            commands.append(&mut commands_queue);
+
+            if let Some(mut entity) = commands.get_entity(entity) {
+                entity.remove::<RunningTask>();
+            }
+        }
+    }
+}
+
+// run all the effects what need running
 pub fn apply_deferred_effects(
     world: &mut World,
     query_changed: &mut QueryState<(Entity,), With<ValueChanged>>,
@@ -176,22 +191,8 @@ pub fn apply_deferred_effects(
         });
     }
 
-    // add all the new_tasks to their entities
+    // mark the new tasks as running
     for task in new_tasks.drain(..) {
         world.entity_mut(task.0).insert(RunningTask { task: task.1 });
-    }
-}
-
-// get all the currently running tasks
-pub fn check_tasks(mut running_tasks: Query<(Entity, &mut RunningTask)>, mut commands: Commands) {
-    for (entity, mut running) in &mut running_tasks {
-        if let Some(mut commands_queue) = block_on(future::poll_once(&mut running.task)) {
-            // append the returned command queue to have it execute later
-            commands.append(&mut commands_queue);
-
-            if let Some(mut entity) = commands.get_entity(entity) {
-                entity.remove::<RunningTask>();
-            }
-        }
     }
 }

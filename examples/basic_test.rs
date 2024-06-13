@@ -1,9 +1,14 @@
 use std::time::Duration;
 
 use async_std::task::sleep;
-use bevy::{ ecs::world::{ Command, CommandQueue }, prelude::*, tasks::AsyncComputeTaskPool };
+use bevy::{ ecs::system::{ Command, CommandQueue }, prelude::*, tasks::AsyncComputeTaskPool };
 
-use bevy_lazy_signals::{ api::LazySignals, LazySignalsPlugin, StaticStrRef };
+use bevy_lazy_signals::{
+    api::LazySignals,
+    commands::SendSignalCommand,
+    LazySignalsPlugin,
+    StaticStrRef,
+};
 
 // this example toggles a loggged_in value every 10 seconds via an async task, triggering computeds and effects
 
@@ -29,12 +34,20 @@ impl Command for MyToggleLoginCommand {
     fn apply(self, world: &mut World) {
         info!("Toggling login");
         if let Some(Ok(status)) = LazySignals.read::<bool>(self.0, world) {
-            // it's perfectly ok to return this command in task's queue
+            // it's perfectly ok to return this command in a task's queue
 
-            // that would be an infinite loop, but only running once per tick, which may be wanted
+            // that could be an infinite loop, but only running once per tick, which may be wanted
+
+            // with bevy 0.13, can't just create commands so we have to do this manually
+            (SendSignalCommand { signal: self.0, data: !status }).apply(world);
+
+            // even though we are sending it right away, it doesn't mutate the state yet
+
+            /* bevy 0.14.0
             LazySignals.send(self.0, !status, &mut world.commands());
             world.flush_commands();
             info!("...toggled {} -> {}", status, !status);
+            */
         }
     }
 }
@@ -85,12 +98,12 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // leave signals and computeds as local values to use as deps throughout the init system
     // since we can't move the deps into our closures from the test resource
     test.signal.push(signal0);
-    info!("created test signal 0, entity {:#?}", test.signal[0]);
+    info!("created test signal 0, entity {:?}", test.signal[0]);
 
     // for strings the only thing I've gotten to work so far is &'static str
     let signal1 = LazySignals.state("Congrats, you logged in somehow", &mut commands);
     test.signal.push(signal1);
-    info!("created test signal 1, entity {:#?}", test.signal[1]);
+    info!("created test signal 1, entity {:?}", test.signal[1]);
 
     // for an effect trigger, we don't care about the value, only that the trigger signal was sent
 
@@ -120,7 +133,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // TODO make sure send_and_trigger works the way we think it does
     let trigger0 = LazySignals.state((), &mut commands);
     test.trigger.push(trigger0);
-    info!("created test trigger 0, entity {:#?}", test.trigger[0]);
+    info!("created test trigger 0, entity {:?}", test.trigger[0]);
 
     // simple effect that logs its sources whenever one changes or it is triggered
     let log_logins = |args: MyClosureArgs, world: &mut World| {
@@ -161,7 +174,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         )
     );
 
-    info!("created test effect 0, entity {:#?}", test.effect[0]);
+    info!("created test effect 0, entity {:?}", test.effect[0]);
 
     // simple closure that shows a supplied value or an error message
 
@@ -207,7 +220,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         &mut commands
     );
     test.computed.push(computed0);
-    info!("created test computed 0, entity {:#?}", test.computed[0]);
+    info!("created test computed 0, entity {:?}", test.computed[0]);
 
     // simple computed to store a string value from a computed, or an error, depending on the bool
     let computed1 = LazySignals.computed::<MyAuthArgs, StaticStrRef>(
@@ -232,7 +245,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         &mut commands
     );
     test.computed.push(computed1);
-    info!("created test computed 1, entity {:#?}", test.computed[1]);
+    info!("created test computed 1, entity {:?}", test.computed[1]);
 
     // set this one up to get the msg from a memo instead of a signal
     test.effect.push(
@@ -256,7 +269,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             &mut commands
         )
     );
-    info!("created test effect 1, entity {:#?}", test.effect[1]);
+    info!("created test effect 1, entity {:?}", test.effect[1]);
 
     // set up a long-running async task with triggers only and no sources (pass in unit type)
 
@@ -305,7 +318,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             &mut commands
         )
     );
-    info!("created test task 0, entity {:#?}", test.task[0]);
+    info!("created test task 0, entity {:?}", test.task[0]);
 
     info!("init complete");
 }
