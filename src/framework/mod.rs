@@ -196,6 +196,11 @@ pub struct RunningTask {
 #[component(storage = "SparseSet")]
 pub struct Triggered;
 
+/// A ValueChanged component marks a Signal or Component that actually changed.
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct ValueChanged;
+
 /// ## Utilities
 /// Set of Entity to ComponentId.
 pub type ComponentIdSet = SparseSet<Entity, ComponentId>;

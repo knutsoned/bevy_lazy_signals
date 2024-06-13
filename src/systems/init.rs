@@ -3,15 +3,25 @@ use bevy::{ ecs::world::World, prelude::* };
 use crate::{ arcane_wizardry::*, framework::* };
 
 type DerivedParam<'a> = (Entity, Option<&'a ComputedImmutable>, Option<&'a LazyEffect>);
-
-// FIXME should we actually just compute and trigger everything that is marked instead of faking it?
-pub fn init_deriveds(
+// remove ValueChanged components
+pub fn init_lazy_signals(
     world: &mut World,
-    query_deriveds: &mut QueryState<DerivedParam, With<InitDependencies>>
+    query_deriveds: &mut QueryState<DerivedParam, With<InitDependencies>>,
+    query_value_changed: &mut QueryState<Entity, With<ValueChanged>>
 ) {
-    let mut relationships = EntityRelationshipSet::new();
+    // reset the internal change tracking
+    let mut changed = empty_set();
+    for entity in query_value_changed.iter_mut(world) {
+        changed.insert(entity, ());
+    }
+    for (entity, _) in changed.iter() {
+        world.entity_mut(*entity).remove::<ValueChanged>();
+    }
 
     // build the branches of the subscriber trees
+    // FIXME should we actually just compute and trigger everything that is marked instead of faking it?
+    let mut relationships = EntityRelationshipSet::new();
+
     query_deriveds.iter(world).for_each(|(entity, computed, effect)| {
         let mut subs = Vec::<Entity>::new();
         if let Some(computed) = computed {
