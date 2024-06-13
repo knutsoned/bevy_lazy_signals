@@ -34,7 +34,7 @@ impl Command for MyToggleLoginCommand {
             // that would be an infinite loop, but only running once per tick, which may be wanted
             LazySignals.send(self.0, !status, &mut world.commands());
             world.flush_commands();
-            info!("...toggled");
+            info!("...toggled {} -> {}", status, !status);
         }
     }
 }
