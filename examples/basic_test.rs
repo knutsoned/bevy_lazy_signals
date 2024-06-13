@@ -271,13 +271,13 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             move |_args| {
                 let thread_pool = AsyncComputeTaskPool::get();
                 thread_pool.spawn(async move {
-                    info!("\nTASK0: triggered");
+                    info!("TASK0: triggered");
                     let mut command_queue = CommandQueue::default();
 
                     // stand by 10 seconds for station identification
                     sleep(Duration::from_secs(10)).await;
 
-                    info!("TASK0: done sleeping");
+                    info!("\nTASK0: done sleeping");
 
                     // even triggered continuously the task will only run once the prior task exits
 
