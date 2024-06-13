@@ -76,7 +76,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
     // (see LazySignalsPlugin)
 
-    // this will reflect a LazySignalsState<T> type based on the first parameter type
+    // this will reflect a LazySignalsState<T> type based on the provided concrete T
 
     // in this case LazySignalsState<bool> is already registered so we're cool
 
@@ -219,7 +219,6 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
     // it can add commands to a queue only and the queue will run when the system runs to check it
     // and the task has exited
-
     test.task.push(
         LazySignals.task::<()>(
             // closure to call when triggered
