@@ -19,15 +19,19 @@ See also: [Architecture](architecture.md)
 
 ## Design Questions
 
+- What's a good way to handle errors?
 - Can this work with futures_lite to create a futures-signals-like API?
 - During initialization, should computed and effect contexts actually evaluate?
-- How to best prevent infinite loops?
+- How to best prevent or detect infinite loops?
 - Can the use of get vs unwrap be more consistent?
-- Should Tasks be able to renember they were retriggered while still running and then run again immediately after finishing?
+- Should Tasks be able to renember they were retriggered while still running and then
+  run again immediately after finishing?
 - Should there be an option to run a Bevy system as an effect?
 - Should there be a commands-only version of effects?
 - Do we need a useRef equivalent to support state that is not passed around by value?
 - Same question about useCallback
+- Can the LazySignalsResource be removed? Just tracks changes currently
+- Can change detection replace some of the components we currently add manually?
 
 ## TODO
 
@@ -50,17 +54,18 @@ See also: [Architecture](architecture.md)
 - [x] Add async task management for effects
 - [x] Prevent retrigger if task still running from last time
 - [x] Process tasks to run their commands when they are complete
+- [ ] Make sure Triggered gets removed from Computeds during processing
 - [ ] Add helpers for accessing args
 - [ ] Add getter/setter tuples factory to API
 - [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 - [ ] Write a bunch of Fennel code to see how well it works to script the computeds and effects
-- [ ] Prevent infinite loops
+- [ ] Prevent or at least detect infinite loops
 
 ## General Usage
 
 The LazySignalsPlugin will register a LazySignalsResource which is the main reactive context.
-Within a system, get the resource from world scope, then create signals, updating them later.
+During init, create signals, computeds, effects, and tasks with the API, updating them later.
 For basic usage, an application specific resource may track the reactive primitive entities.
 
 (see [basic_test](examples/basic_test.rs) for working, tested code)
