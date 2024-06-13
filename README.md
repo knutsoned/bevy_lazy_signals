@@ -25,13 +25,16 @@ See also: [Architecture](architecture.md)
 - How to best prevent or detect infinite loops?
 - Can the use of get vs unwrap be more consistent?
 - Should Tasks be able to renember they were retriggered while still running and then
-  run again immediately after finishing?
+  run again immediately after finishing? (I think they currently do remember)
 - Should there be an option to run a Bevy system as an effect?
 - Should there be a commands-only version of effects?
 - Do we need a useRef equivalent to support state that is not passed around by value?
 - Same question about useCallback
 - Can the LazySignalsResource be removed? Just tracks changes currently
 - Can change detection replace some of the components we currently add manually?
+- Can a Computed and an Effect live on the same entity?
+- Do we want an API to trigger an Effect directly?
+- Find out how to get bevy_reflect types to impl clone so we can use them with LazySignalsState
 
 ## TODO
 
@@ -168,7 +171,9 @@ fn signals_setup_system(mut commands: Commands) {
         // as long as the task is still running, it will not spawn another instance
         do_something_that_takes_a_long_time(args.0, args.1);
 
-        command_queue.push(MyActionButtonCommand(action_button));
+        // when the task is complete, push the button
+        command_queue.push(MyActionButtonCommand(action_button))
+        command_queue
     };
 
     let async_task = LazySignals.task::<(f32, f32)>{
@@ -178,7 +183,7 @@ fn signals_setup_system(mut commands: Commands) {
         &mut commands
     }
 
-// store the reactive entities in a resource to use in systems
+    // store the reactive entities in a resource to use in systems
     commands.insert_resource(MyConfigResource {
         x_axis,
         y_axis,
@@ -214,7 +219,24 @@ fn signals_update_system(config: Res<ConfigResource>, mut commands: Commands) {
     // actually be sent
 }
 
-// ...configure Bevy per usual, pretty much just init ConfigResource and add the LazySignalsPlugin
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        // resource to hold the entity ID of each lazy signals primitive
+        .init_resource::<ConfigResource>()
+        // NOTE: the user application will need to register each custom LazySignalsState<T> type
+
+        // also need to register tuple types for args if they contain custom types (I think)
+        // .register_type::<LazyImmutable<MyType>>()
+
+        // f64, i32, bool, &str, and () are already registered
+
+        // add the plugin so the signal processing systems run
+        .add_plugins(LazySignalsPlugin)
+        .add_systems(Startup, signals_setup_system)
+        .add_systems(Update, signals_update_system)
+        .run();
+}
 ```
 
 # License

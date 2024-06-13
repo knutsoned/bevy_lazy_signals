@@ -13,7 +13,7 @@ use lazy_immutable::*;
 pub mod systems;
 use systems::{
     computed::compute_memos,
-    init::{ init_effects, init_computeds },
+    init::init_deriveds,
     signal::send_signals,
     effect::{ apply_deferred_effects, check_tasks },
 };
@@ -47,23 +47,21 @@ pub struct LazySignalsSystemSet;
 
 /// Convenience functions to make it easy to run the LazySignals systems when needed.
 pub fn lazy_signals_full_systems() -> SystemConfigs {
-    (
-        check_tasks,
-        init_effects,
-        init_computeds,
-        send_signals,
-        compute_memos,
-        apply_deferred_effects,
-    ).chain()
+    (check_tasks, init_deriveds, send_signals, compute_memos, apply_deferred_effects).chain()
 }
 
+/// This chain omits the effects sending system to allow the developer to
 pub fn lazy_signals_flush_systems() -> SystemConfigs {
-    (check_tasks, init_effects, init_computeds, send_signals, compute_memos).chain()
+    (check_tasks, init_deriveds, send_signals, compute_memos).chain()
 }
 
 /// Shared reactive context resource, aka global state.
+///
 /// This tracks long-running effects across ticks but otherwise should start fresh each cycle.
 /// Main purpose is to provide "stack"-like functionality across systems in the processing chain.
+///
+/// With more robust error handling and components and/or change detection replacing changes,
+/// this resource may not even be necessary.
 #[derive(Resource)]
 pub struct LazySignalsResource {
     // TODO see if changed and errors can be handled without a resource, and get rid of this struct
@@ -108,13 +106,13 @@ impl Plugin for LazySignalsPlugin {
             .register_type::<LazySignalsFloat>()
             .register_type::<LazySignalsStr>()
             .register_type::<LazySignalsUnit>()
-            /*
-            .register_type::<LazySignalsTuple>()
+            /* bevy_reflect types don't implement clone...
             .register_type::<LazySignalsArray>()
             .register_type::<LazySignalsList>()
             .register_type::<LazySignalsMap>()
             .register_type::<LazySignalsState>()
             .register_type::<LazySignalsStruct>()
+            .register_type::<LazySignalsTuple>()
             .register_type::<LazySignalsTupleStruct>()
             .register_type::<LazySignalsEnum>()
             */

@@ -2,7 +2,29 @@ use bevy::{ ecs::world::World, prelude::* };
 
 use crate::{ arcane_wizardry::*, framework::* };
 
-fn process_subs(relationships: &EntityRelationshipSet, world: &mut World) {
+type DerivedParam<'a> = (Entity, Option<&'a ComputedImmutable>, Option<&'a LazyEffect>);
+
+// FIXME should we actually just compute and trigger everything that is marked instead of faking it?
+pub fn init_deriveds(
+    world: &mut World,
+    query_deriveds: &mut QueryState<DerivedParam, With<InitDependencies>>
+) {
+    let mut relationships = EntityRelationshipSet::new();
+
+    // build the branches of the subscriber trees
+    query_deriveds.iter(world).for_each(|(entity, computed, effect)| {
+        let mut subs = Vec::<Entity>::new();
+        if let Some(computed) = computed {
+            subs.append(&mut computed.sources.clone());
+        }
+        if let Some(effect) = effect {
+            subs.append(&mut effect.sources.clone());
+            subs.append(&mut effect.triggers.clone());
+        }
+        relationships.insert(entity, subs);
+    });
+
+    // run the subscribe method on all sources and triggers
     world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
         let type_registry = type_registry.read();
         for (entity, subs) in relationships.iter() {
@@ -15,39 +37,4 @@ fn process_subs(relationships: &EntityRelationshipSet, world: &mut World) {
             world.get_entity_mut(*entity).unwrap().remove::<InitDependencies>();
         }
     });
-}
-
-// FIXME should we actually just trigger everything that is marked instead of faking it?
-pub fn init_effects(
-    world: &mut World,
-    query_effects: &mut QueryState<(Entity, &LazyEffect), With<InitDependencies>>
-) {
-    let mut relationships = EntityRelationshipSet::new();
-
-    // run the subscribe method on all LazyEffect.sources and .triggers
-    query_effects.iter(world).for_each(|(entity, effect)| {
-        let mut subs = Vec::<Entity>::new();
-        subs.append(&mut effect.sources.clone());
-        subs.append(&mut effect.triggers.clone());
-        relationships.insert(entity, subs);
-    });
-
-    process_subs(&relationships, world)
-}
-
-// FIXME should we actually just compute everything that is marked instead of faking it?
-pub fn init_computeds(
-    world: &mut World,
-    query_computeds: &mut QueryState<(Entity, &ComputedImmutable), With<InitDependencies>>
-) {
-    let mut relationships = EntityRelationshipSet::new();
-
-    // run the subscribe method on all ComputedImmutable.sources
-    query_computeds.iter(world).for_each(|(entity, computed)| {
-        let mut subs = Vec::<Entity>::new();
-        subs.append(&mut computed.sources.clone());
-        relationships.insert(entity, subs);
-    });
-
-    process_subs(&relationships, world)
 }

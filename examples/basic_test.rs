@@ -5,7 +5,7 @@ use bevy::{ ecs::world::{ Command, CommandQueue }, prelude::*, tasks::AsyncCompu
 
 use bevy_lazy_signals::{ api::LazySignals, LazySignalsPlugin, StaticStrRef };
 
-// this example toggles a loggged_in value every 10 seconds, triggering computeds and effects
+// this example toggles a loggged_in value every 10 seconds via an async task, triggering computeds and effects
 
 // simple resource to simulate a service that tracks whether a user is logged in or not
 #[derive(Resource, Default)]
@@ -29,6 +29,9 @@ impl Command for MyToggleLoginCommand {
     fn apply(self, world: &mut World) {
         info!("Toggling login");
         if let Some(Ok(status)) = LazySignals.read::<bool>(self.0, world) {
+            // it's perfectly ok to return this command in task's queue
+
+            // that would be an infinite loop, but only running once per tick, which may be wanted
             LazySignals.send(self.0, !status, &mut world.commands());
             world.flush_commands();
             info!("...toggled");
@@ -43,6 +46,7 @@ struct MyTestResource {
     pub effect: Vec<Entity>,
     pub signal: Vec<Entity>,
     pub task: Vec<Entity>,
+    pub trigger: Vec<Entity>,
 }
 
 // concrete tuple type to safely work with the DynamicTuple coming out of the LazySignals systems
@@ -58,14 +62,9 @@ fn main() {
         .init_resource::<MyExampleAuthResource>()
         // resource to hold the entity ID of each lazy signals primitive
         .init_resource::<MyTestResource>()
-        // NOTE: the user application will need to register each custom LazySignalsState<T> type
-        // .register_type::<LazyImmutable<MyType>>()
-        // also need to register tuple types for args if they contain custom types (I think)
-        // --
         // add the plugin so the signal processing systems run
         .add_plugins(LazySignalsPlugin)
-        // don't need to add systems to process signals since we're using the plugin
-        // just add the app-specific ones. LazySignals systems run on PreUpdate by default
+        // add our app-specific systems
         .add_systems(Startup, init)
         .add_systems(Update, send_some_signals)
         .add_systems(Last, status)
@@ -93,16 +92,35 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     test.signal.push(signal1);
     info!("created test signal 1, entity {:#?}", test.signal[1]);
 
-    // for an effect trigger, we don't care about the value, only that it changed
+    // for an effect trigger, we don't care about the value, only that the trigger signal was sent
+
     // we could use a regular signal but something like a button click might not need a type
 
     // for a basic trigger, we use LazySignalsState<()> as the signal component type
 
     // there's also a way to send a regular signal as a trigger but beware: that is a good recipe
     // for an update storm
-    let signal2 = LazySignals.state((), &mut commands);
-    test.signal.push(signal2);
-    info!("created test signal 2, entity {:#?}", test.signal[2]);
+
+    // it's fine if you're triggering an effect, but the send_and_trigger API call will update a
+    // Signal's value and then force every Computed down it's subscriber tree to recompute and
+    // trigger all effects in the tree
+
+    // this would be desired if a value isn't changing but the effects still need triggering
+
+    // sometimes it may be easier and beneficial to do that, but just beware that all the Computeds
+    // will run even if none of the values changed
+
+    // note the above refers to adding a signal as a source but then using send_and_trigger to send
+    // even when the data has not changed
+
+    // using a signal with data in the trigger vec already does that, although the data is not
+    // passed in as a source if it's in the trigger vec, so that won't trigger a computation unless
+    // the data actually changes and is used as a source somewhere
+
+    // TODO make sure send_and_trigger works the way we think it does
+    let trigger0 = LazySignals.state((), &mut commands);
+    test.trigger.push(trigger0);
+    info!("created test trigger 0, entity {:#?}", test.trigger[0]);
 
     // simple effect that logs its sources whenever one changes or it is triggered
     let log_logins = |args: MyClosureArgs, world: &mut World| {
@@ -129,6 +147,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
     // we can just push this into the resource since we don't need to pass it around as a dep
     test.effect.push(
+        // MyClosureArgs == args tuple type
         LazySignals.effect::<MyClosureArgs>(
             // closure to call when the effect is triggered
             log_logins,
@@ -180,6 +199,8 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     };
 
     // simple computed to store the string value or an error, depending on the bool
+
+    // MyClosureArgs == args tuple type, StaticStrRef (&'static str) == return type
     let computed0 = LazySignals.computed::<MyAuthArgs, StaticStrRef>(
         derive_login_msg,
         vec![signal0, signal1], // sending either signal triggers a recompute
@@ -188,7 +209,32 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     test.computed.push(computed0);
     info!("created test computed 0, entity {:#?}", test.computed[0]);
 
-    // set this one up to trigger from a memo instead of a signal
+    // simple computed to store a string value from a computed, or an error, depending on the bool
+    let computed1 = LazySignals.computed::<MyAuthArgs, StaticStrRef>(
+        |args| {
+            // default error message
+            let mut value = "You are not authorized to view this";
+
+            // if logged_in
+            if let Some(logged_in) = args.0 {
+                if logged_in {
+                    // show a logged in message, if one exists
+                    if let Some(msg) = args.1 {
+                        value = msg;
+                    }
+                }
+            }
+
+            info!("COMPUTED1 value: {}", value);
+            Some(Ok(value))
+        },
+        vec![signal0, computed0],
+        &mut commands
+    );
+    test.computed.push(computed1);
+    info!("created test computed 1, entity {:#?}", test.computed[1]);
+
+    // set this one up to get the msg from a memo instead of a signal
     test.effect.push(
         LazySignals.effect::<MyAuthArgs>(
             // closure to call when the effect is triggered
@@ -197,35 +243,35 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
                 // read arg 0
                 if let Some(logged_in) = args.0 {
-                    info!("EFFECT2: got logged_in: {} from args", logged_in);
+                    info!("EFFECT1: got logged_in: {}", logged_in);
                 }
 
                 // read arg 1
                 if let Some(logged_in_msg) = args.1 {
-                    info!("EFFECT2: got logged_in_msg: {} from args", logged_in_msg);
+                    info!("EFFECT1: got logged_in_msg: {}", logged_in_msg);
                 }
             },
-            vec![signal0, computed0],
+            vec![signal0, computed1],
             Vec::<Entity>::new(),
             &mut commands
         )
     );
     info!("created test effect 1, entity {:#?}", test.effect[1]);
 
-    // test a long-running async task with triggers only and no sources (pass in unit type)
+    // set up a long-running async task with triggers only and no sources (pass in unit type)
 
     // there's no reason a task can't take args. the closure fn sig is the same as an effect except
     // a task does not have direct world access
 
     // it can add commands to a queue only and the queue will run when the system runs to check it
-    // and the task has exited
+    // and the task has returned the queue
     test.task.push(
         LazySignals.task::<()>(
             // closure to call when triggered
             move |_args| {
                 let thread_pool = AsyncComputeTaskPool::get();
                 thread_pool.spawn(async move {
-                    info!("TASK0: triggered");
+                    info!("\nTASK0: triggered");
                     let mut command_queue = CommandQueue::default();
 
                     // stand by 10 seconds for station identification
@@ -235,15 +281,18 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
                     // even triggered continuously the task will only run once the prior task exits
 
-                    // simulate logging in or out each time it runs
-
                     // even if this task runs multiple times in the same tick, it is idempotent
-                    // at least within the same system, because it reads the immutable value and
+                    // at least within that tick, because it reads the immutable value and
                     // the value of the sent signal is relative to that
 
                     // all the tasks that return their commands in the same tick would then send
                     // the same signal, which would update the LazySignalsState component with a
                     // next_value several times, but only result in sending the signal once
+
+                    // signal0 could be a dependency of the task and that would be ok
+
+                    // we would get an infinite loop but no update storm because the update is
+                    // batched and not immediate
                     command_queue.push(MyToggleLoginCommand(signal0));
 
                     command_queue
@@ -251,38 +300,12 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             },
             Vec::<Entity>::new(),
             // triggering a signal will run effects without passing the signal's value as a param
-            // (it still sends the value of the sources as usual, although this effect has none)
-            vec![signal2],
+            // (it still sends the value of the sources as usual, although this task has none)
+            vec![trigger0],
             &mut commands
         )
     );
     info!("created test task 0, entity {:#?}", test.task[0]);
-
-    // simple computed to store a string value or an error, depending on the bool
-    test.computed.push(
-        LazySignals.computed::<MyAuthArgs, StaticStrRef>(
-            |args| {
-                // default error message
-                let mut value = "You are not authorized to view this";
-
-                // if logged_in
-                if let Some(logged_in) = args.0 {
-                    if logged_in {
-                        // show a logged in message, if one exists
-                        if let Some(msg) = args.1 {
-                            value = msg;
-                        }
-                    }
-                }
-
-                info!("COMPUTED1 value: {}", value);
-                Some(Ok(value))
-            },
-            vec![signal0, computed0],
-            &mut commands
-        )
-    );
-    info!("created test computed 2, entity {:#?}", test.computed[1]);
 
     info!("init complete");
 }
@@ -295,8 +318,8 @@ fn send_some_signals(test: Res<MyTestResource>, mut commands: Commands) {
 
     // even though this runs every tick, the task will trigger once, then run until it exits
     // before being eligible to run again
-    trace!("triggering {:?}", test.signal[2]);
-    LazySignals.trigger(test.signal[2], &mut commands);
+    trace!("triggering {:?}", test.trigger[0]);
+    LazySignals.trigger(test.trigger[0], &mut commands);
 }
 
 fn status(
