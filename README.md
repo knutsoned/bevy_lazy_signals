@@ -162,18 +162,18 @@ fn signals_setup_system(mut commands: Commands) {
     // unlike an Effect which gets exclusive world access and must be very brief, a Task is async
     // but only returns a CommandQueue, to be run when the system that checks async tasks notices
     // it has completed
-    let task_fn: |args: (f32, f32, Entity)| {
+    let task_fn: |args: (f32, f32)| {
         let mut command_queue = CommandQueue::default();
 
         // as long as the task is still running, it will not spawn another instance
         do_something_that_takes_a_long_time(args.0, args.1);
 
-        command_queue.push(MyActionButtonCommand);
+        command_queue.push(MyActionButtonCommand(action_button));
     };
 
     let async_task = LazySignals.task::<(f32, f32)>{
         task_fn,
-        vec![screen_x, screen_y, ],
+        vec![screen_x, screen_y],
         Vec::<Entity>::new(),
         &mut commands
     }
