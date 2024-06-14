@@ -41,8 +41,7 @@ pub enum LazySignalsError {
 
 // ## Traits
 /// An item of data for use with Immutables.
-pub trait LazySignalsData: Clone +
-    FromReflect +
+pub trait LazySignalsData: FromReflect +
     GetTypeRegistration +
     PartialEq +
     Reflect +
@@ -53,8 +52,7 @@ pub trait LazySignalsData: Clone +
 impl<T> LazySignalsData
     for T
     where
-        T: Clone +
-            FromReflect +
+        T: FromReflect +
             GetTypeRegistration +
             PartialEq +
             Reflect +

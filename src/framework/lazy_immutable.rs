@@ -1,5 +1,7 @@
 use bevy::{ prelude::*, reflect::{ reflect_trait, DynamicTuple, Reflect } };
 
+use crate::arcane_wizardry::clone_data;
+
 use super::*;
 
 /// LazySignalsImmutable is the typed part of the main trait, LazySignalsObservable is the untyped
@@ -97,7 +99,7 @@ impl<T: LazySignalsData> LazySignalsImmutable for LazySignalsState<T> {
     }
 
     fn value(&self) -> LazySignalsResult<Self::DataType> {
-        self.data.clone()
+        clone_data(&self.data)
     }
 }
 
@@ -107,20 +109,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
     }
 
     fn copy_data(&mut self, caller: Entity, args: &mut DynamicTuple) {
-        let data = match self.data.clone() {
-            Some(data) =>
-                match data {
-                    Ok(data) => { Some(data) }
-
-                    // FIXME do something else with the error
-                    Err(error) => {
-                        error!("--error: {:?}", error);
-                        None
-                    }
-                }
-            None => { None }
-        };
-        args.insert(data);
+        args.insert(clone_data(&self.data));
 
         self.subscribe(caller);
     }
@@ -145,15 +134,15 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
         let mut subs = Vec::<Entity>::new();
 
         // update the Immutable data value
-        match self.next_value.clone() {
+        match &self.next_value {
             Some(Ok(next)) => {
                 trace!("next exists");
 
                 // only fire the rest of the process if the data actually changed
-                if let Some(Ok(data)) = self.data.clone() {
+                if let Some(Ok(data)) = &self.data {
                     trace!("data exists");
 
-                    if data != next {
+                    if *data != *next {
                         trace!("data != next");
                         changed = true;
                         doo_eet = true;
@@ -181,7 +170,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
 
         // overwrite the value
         if doo_eet {
-            self.data = self.next_value.clone();
+            self.data = clone_data(&self.next_value);
             self.next_value = Some(Err(LazySignalsError::NoNextValue));
         }
 

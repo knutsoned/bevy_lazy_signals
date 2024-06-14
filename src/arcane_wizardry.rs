@@ -16,7 +16,24 @@ use crate::{
     lazy_immutable::{ LazySignalsObservable, ReflectLazySignalsObservable },
 };
 
-/// Convenience function to convert DynamicTuples into a concrete type.
+/// Convenience fn to clone the un-Clone-able.
+pub fn clone_data<T: LazySignalsData>(data: &LazySignalsResult<T>) -> LazySignalsResult<T> {
+    match data {
+        Some(data) =>
+            match data {
+                Ok(data) => { Some(Ok(*data.clone_value().downcast::<T>().unwrap())) }
+
+                // FIXME do something else with the error
+                Err(error) => {
+                    error!("--error: {:?}", error);
+                    None
+                }
+            }
+        None => { None }
+    }
+}
+
+/// Convenience fn to convert DynamicTuples into a concrete type.
 pub fn make_tuple<T: LazySignalsArgs>(tuple: &DynamicTuple) -> T {
     <T as FromReflect>::from_reflect(tuple).unwrap()
 }
