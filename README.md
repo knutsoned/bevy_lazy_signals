@@ -4,10 +4,14 @@
 
 ---
 
-Primitives and examples for implementing a lazy kind of reactive signals for Bevy.
+Primitives and examples for implementing a lazy kind of reactive signals for [Bevy](https://github.com/bevyengine/bevy).
 
 _WARNING:_ This is under active development and comes with even fewer guarantees for fitness to
 purpose than the licenses provide.
+
+## Credits
+
+The initial structure of this project is based on [bevy_rx](https://github.com/aevyrie/bevy_rx).
 
 ## [Rationale](rationale.md)
 
@@ -30,11 +34,9 @@ See also: [Architecture](architecture.md)
 - Should there be a commands-only version of effects?
 - Do we need a useRef equivalent to support state that is not passed around by value?
 - Same question about useCallback
-- Can the LazySignalsResource be removed? Just tracks changes currently
 - Can change detection replace some of the components we currently add manually?
 - Can a Computed and an Effect live on the same entity?
 - Do we want an API to trigger an Effect directly?
-- Find out how to get bevy_reflect types to impl clone so we can use them with LazySignalsState
 
 ## TODO
 
@@ -58,8 +60,15 @@ See also: [Architecture](architecture.md)
 - [x] Prevent retrigger if task still running from last time
 - [x] Process tasks to run their commands when they are complete
 - [ ] Make sure Triggered gets removed from Computeds during processing
+- [ ] Remove Clone from LazySignalsData trait bounds
+- [ ] Integrate withy bevy_mod_picking
+- [ ] Integrate with bevy_inspector_egui
+- [ ] Integrate with sickle_ui
+- [ ] Integrate with bevy_proto (schematics)
+- [ ] Make a demo of a fully wired sickle entity inspector with schematics
 - [ ] Add helpers for accessing args
 - [ ] Add getter/setter tuples factory to API
+- [ ] Support streams if the developer expects the same signal to be sent multiple times/tick
 - [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 - [ ] Write a bunch of Fennel code to see how well it works to script the computeds and effects
