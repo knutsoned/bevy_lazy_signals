@@ -21,7 +21,10 @@ pub fn clone_data<T: LazySignalsData>(data: &LazySignalsResult<T>) -> LazySignal
     match data {
         Some(data) =>
             match data {
-                Ok(data) => { Some(Ok(*data.clone_value().downcast::<T>().unwrap())) }
+                Ok(data) => {
+                    let data = data.clone_value().downcast::<T>().unwrap();
+                    Some(Ok(*data))
+                }
 
                 // FIXME do something else with the error
                 Err(error) => {
