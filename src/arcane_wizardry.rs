@@ -16,6 +16,11 @@ use crate::{
     lazy_immutable::{ LazySignalsObservable, ReflectLazySignalsObservable },
 };
 
+/// Convenience function to convert DynamicTuples into a concrete type.
+pub fn make_tuple<T: LazySignalsArgs>(tuple: &DynamicTuple) -> T {
+    <T as FromReflect>::from_reflect(tuple).unwrap()
+}
+
 /// Given mutable reference to a LazySignalsState component instance, make a LazySignalsObservable.
 pub fn ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn<'a>(
     mut_untyped: &'a mut MutUntyped,

@@ -19,7 +19,7 @@ pub mod lazy_immutable;
 /// Result type for handling error conditions in developer code.
 pub type LazySignalsResult<R> = Option<Result<R, LazySignalsError>>;
 
-/// Return type for returning an optional list of entities and some flags (changed, triggered).
+/// Return type for an optional list of entities and some flags (changed, triggered).
 pub type MaybeFlaggedEntities = Option<(Vec<Entity>, bool, bool)>;
 
 /// ## Enums

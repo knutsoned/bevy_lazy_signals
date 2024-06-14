@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
 
 use crate::{
+    arcane_wizardry::make_tuple,
     commands::LazySignalsCommandsExt,
     framework::*,
     lazy_immutable::{ LazySignalsImmutable, LazySignalsState },
@@ -51,11 +52,6 @@ pub fn make_task_with<P: LazySignalsArgs>(
             closure(make_tuple::<P>(tuple))
         })
     )
-}
-
-/// Convenience function to convert DynamicTuples into a concrete type.
-pub fn make_tuple<T: LazySignalsArgs>(tuple: &DynamicTuple) -> T {
-    <T as FromReflect>::from_reflect(tuple).unwrap()
 }
 
 /// Convenience function to store a result in an entity.
