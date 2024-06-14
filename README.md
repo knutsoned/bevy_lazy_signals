@@ -63,17 +63,19 @@ See also: [Architecture](architecture.md)
 - [x] Process tasks to run their commands when they are complete
 - [x] Make sure Triggered gets removed from Computeds during processing
 - [ ] Remove Clone from LazySignalsData trait bounds
+- [ ] Add helpers for accessing args
 - [ ] Integrate with bevy_mod_picking
 - [ ] Integrate with bevy-inspector-egui
 - [ ] Integrate with sickle_ui
+- [ ] Figure out how to get DynamicStruct to be stored in a LazySignalsState (no Clone)
 - [ ] Integrate with bevy_proto (schematics)
 - [ ] Make a demo of a fully wired sickle entity inspector with schematics
-- [ ] Add helpers for accessing args
+- [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 - [ ] Add getter/setter tuples factory to API
 - [ ] Support streams if the developer expects the same signal to be sent multiple times/tick
-- [ ] See how well this plays with aery, bevy_mod_picking, bevy_mod_scripting, and sickle
-- [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
+- [ ] See how well the demo plays with bevy_mod_scripting
 - [ ] Write a bunch of Fennel code to see how well it works to script the computeds and effects
+- [ ] See how well the demo plays with aery
 - [ ] Prevent or at least detect infinite loops
 
 ## General Usage
