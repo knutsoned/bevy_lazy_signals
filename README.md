@@ -50,7 +50,7 @@ See also: [Architecture](architecture.md)
 
 - [ ] I need someone to just review every line because I am a total n00b
 - [ ] More examples, including some integrating LazySignals with popular Bevy projects
-      such as bevy-lunex, bevy_dioxus, bevy_proto, bevy_reactor, haalka, polako, etc.
+      such as bevy-lunex, bevy_dioxus, bevy_reactor, haalka, polako, quill, etc.
 
 ### Stuff I'm Actually Going To Do
 
@@ -61,7 +61,7 @@ See also: [Architecture](architecture.md)
 - [x] Process tasks to run their commands when they are complete
 - [ ] Make sure Triggered gets removed from Computeds during processing
 - [ ] Remove Clone from LazySignalsData trait bounds
-- [ ] Integrate withy bevy_mod_picking
+- [ ] Integrate with bevy_mod_picking
 - [ ] Integrate with bevy_inspector_egui
 - [ ] Integrate with sickle_ui
 - [ ] Integrate with bevy_proto (schematics)
