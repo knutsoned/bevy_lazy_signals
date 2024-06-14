@@ -49,8 +49,10 @@ See also: [Architecture](architecture.md)
 ### Enhancements
 
 - [ ] I need someone to just review every line because I am a total n00b
+- [ ] More examples, including basic game stuff (gold health seem popular)
 - [ ] More examples, including some integrating LazySignals with popular Bevy projects
-      such as bevy-lunex, bevy_dioxus, bevy_reactor, haalka, polako, quill, etc.
+      such as bevy-lunex, bevy_dioxus, bevy_editor_pls, bevy_reactor, haalka,
+      kayak_ui, polako, quill, space_editor, etc.
 
 ### Stuff I'm Actually Going To Do
 
@@ -59,10 +61,10 @@ See also: [Architecture](architecture.md)
 - [x] Add async task management for effects
 - [x] Prevent retrigger if task still running from last time
 - [x] Process tasks to run their commands when they are complete
-- [ ] Make sure Triggered gets removed from Computeds during processing
+- [x] Make sure Triggered gets removed from Computeds during processing
 - [ ] Remove Clone from LazySignalsData trait bounds
 - [ ] Integrate with bevy_mod_picking
-- [ ] Integrate with bevy_inspector_egui
+- [ ] Integrate with bevy-inspector-egui
 - [ ] Integrate with sickle_ui
 - [ ] Integrate with bevy_proto (schematics)
 - [ ] Make a demo of a fully wired sickle entity inspector with schematics

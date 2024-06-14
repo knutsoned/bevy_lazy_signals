@@ -18,7 +18,8 @@ fn add_subs_to_running(
             let mut subscriber = world.entity_mut(subscriber);
             subscriber.insert(Dirty);
 
-            if triggered {
+            // add Triggered to Effects only
+            if triggered && subscriber.contains::<LazyEffect>() {
                 subscriber.insert(Triggered);
             }
         }
@@ -78,7 +79,7 @@ pub fn send_signals(
         for (entity, component_id) in component_id_set.iter() {
             let entity = *entity;
 
-            // here we need to access the Signal as an LazySignalsObservable
+            // here we need to access the Signal as a LazySignalsObservable
             let component_id = *component_id;
             let mut signal_to_send = world.entity_mut(entity);
 

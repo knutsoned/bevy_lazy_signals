@@ -83,7 +83,7 @@ pub fn apply_deferred_effects(
         if actually_run {
             effects.insert(effect, ());
 
-            // remove TriggeredEffect
+            // remove TriggeredEffect so we don't run this again next frame
             entity.remove::<Triggered>();
         }
 
