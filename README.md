@@ -82,8 +82,10 @@ See also: [Architecture](architecture.md)
 
 ## General Usage
 
-The LazySignalsPlugin will register a LazySignalsResource which is the main reactive context.
-During init, create signals, computeds, effects, and tasks with the API, updating them later.
+The LazySignalsPlugin will register the core types and systems.
+
+During application init, create signals, computeds, effects, and tasks with the API, reading and sending signals and memos in update systems.
+
 For basic usage, an application specific resource may track the reactive primitive entities.
 
 (see [basic_test](examples/basic_test.rs) for working, tested code)
