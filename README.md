@@ -37,6 +37,7 @@ See also: [Architecture](architecture.md)
 - Can change detection replace some of the components we currently add manually?
 - Can a Computed and an Effect live on the same entity?
 - Do we want an API to trigger an Effect directly?
+- Should there be a way to write closures that take the result struct and not Option?
 
 ## TODO
 
@@ -62,8 +63,7 @@ See also: [Architecture](architecture.md)
 - [x] Prevent retrigger if task still running from last time
 - [x] Process tasks to run their commands when they are complete
 - [x] Make sure Triggered gets removed from Computeds during processing
-- [ ] Remove Clone from LazySignalsData trait bounds
-- [ ] Add helpers for accessing args
+- [x] Remove Clone from LazySignalsData trait bounds
 - [ ] Integrate with bevy_mod_picking
 - [ ] Integrate with bevy-inspector-egui
 - [ ] Integrate with sickle_ui

@@ -1,5 +1,7 @@
 use bevy::{ prelude::*, reflect::{ reflect_trait, DynamicTuple, Reflect } };
 
+use crate::arcane_wizardry::{ clone_data, insert_data };
+
 use super::*;
 
 /// LazySignalsImmutable is the typed part of the main trait, LazySignalsObservable is the untyped
@@ -17,8 +19,11 @@ pub trait LazySignalsImmutable: Send + Sync + 'static {
     /// Immediately update a new value without triggering any subscribers (mostly used internally).
     fn update(&mut self, next: LazySignalsResult<Self::DataType>) -> bool;
 
+    /// Called by a developer to get the current error.
+    fn error(&self) -> Option<LazySignalsError>;
+
     /// Called by a developer to get the current value.
-    fn value(&self) -> LazySignalsResult<Self::DataType>;
+    fn get(&self) -> Option<Self::DataType>;
 }
 
 /// Called by a lazy update system to apply the new value of a signal, run effects, etc.
@@ -61,7 +66,7 @@ pub trait LazySignalsObservable {
 #[derive(Component, Reflect)]
 #[reflect(Component, LazySignalsObservable)]
 pub struct LazySignalsState<T: LazySignalsData> {
-    data: LazySignalsResult<T>,
+    result: LazySignalsResult<T>,
     next_value: LazySignalsResult<T>,
     triggered: bool,
     #[reflect(ignore)]
@@ -71,10 +76,13 @@ pub struct LazySignalsState<T: LazySignalsData> {
 }
 
 impl<T: LazySignalsData> LazySignalsState<T> {
-    pub fn new(data: LazySignalsResult<T>) -> Self {
+    pub fn new(result: LazySignalsResult<T>) -> Self {
         Self {
-            data,
-            next_value: Some(Err(LazySignalsError::NoNextValue)),
+            result,
+            next_value: LazySignalsResult {
+                data: None,
+                error: Some(LazySignalsError::NoNextValue),
+            },
             triggered: false,
             subscribers: empty_set(),
             next_subscribers: empty_set(),
@@ -85,19 +93,23 @@ impl<T: LazySignalsData> LazySignalsState<T> {
 impl<T: LazySignalsData> LazySignalsImmutable for LazySignalsState<T> {
     type DataType = T;
 
+    fn error(&self) -> Option<LazySignalsError> {
+        clone_data(&self.result).error
+    }
+
+    fn get(&self) -> Option<Self::DataType> {
+        clone_data(&self.result).data
+    }
+
     fn merge_next(&mut self, next_value: LazySignalsResult<T>, triggered: bool) {
         self.next_value = next_value;
         self.triggered = triggered;
     }
 
     fn update(&mut self, next: LazySignalsResult<Self::DataType>) -> bool {
-        let changed = self.data != next;
-        self.data = next;
+        let changed = self.result != next;
+        self.result = next;
         changed
-    }
-
-    fn value(&self) -> LazySignalsResult<Self::DataType> {
-        self.data.clone()
     }
 }
 
@@ -107,20 +119,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
     }
 
     fn copy_data(&mut self, caller: Entity, args: &mut DynamicTuple) {
-        let data = match self.data.clone() {
-            Some(data) =>
-                match data {
-                    Ok(data) => { Some(data) }
-
-                    // FIXME do something else with the error
-                    Err(error) => {
-                        error!("--error: {:?}", error);
-                        None
-                    }
-                }
-            None => { None }
-        };
-        args.insert(data);
+        insert_data(args, &self.result);
 
         self.subscribe(caller);
     }
@@ -138,51 +137,58 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
         let mut changed = false;
         let triggered = self.triggered;
 
-        // whether or not to overwrite the existing data
-        let mut doo_eet = triggered;
-
         // output vector for downstream subscribers to process next
         let mut subs = Vec::<Entity>::new();
 
-        // update the Immutable data value
-        match self.next_value.clone() {
-            Some(Ok(next)) => {
-                trace!("next exists");
+        // whether or not to overwrite the existing info
+        let doo_eet = match &self.next_value.error {
+            Some(err) =>
+                // always merge errors
+                match err {
+                    LazySignalsError::NoSignalError => true,
 
-                // only fire the rest of the process if the data actually changed
-                if let Some(Ok(data)) = self.data.clone() {
-                    trace!("data exists");
+                    // not a real error, nothing to merge...
+                    LazySignalsError::NoNextValue => false,
 
-                    if data != next {
-                        trace!("data != next");
-                        changed = true;
-                        doo_eet = true;
-                    }
-                } else {
-                    // if data is not a value (None), always replace
-                    changed = true;
-                    doo_eet = true;
+                    LazySignalsError::ReadError(_) => true,
                 }
-            }
-            Some(Err(LazySignalsError::NoNextValue)) => {
-                // don't clobber the data with a null placeholder (different from None)
-                doo_eet = triggered;
-            }
-            Some(Err(_)) => {
-                // do merge any actual upstream errors
-                doo_eet = true;
-            }
-            None => {
-                // None is a valid value for a state, so clobber away, if there's something
-                changed = self.next_value.is_some();
-                doo_eet = changed || triggered;
-            }
-        }
+            None =>
+                // if there is no error, then compare the data values
+                match &self.next_value.data {
+                    Some(next) => {
+                        trace!("next exists");
+                        match &self.result.data {
+                            Some(data) => {
+                                trace!("data exists");
+                                if data != next {
+                                    // the new data is different
+                                    trace!("data != next");
+                                    changed = true;
+                                    true
+                                } else {
+                                    // the new data is the same as current
+                                    false
+                                }
+                            }
+                            None => {
+                                // currently no data but there's data to merge which means changed
+                                changed = true;
+                                true
+                            }
+                        }
+                    }
+                    // there is no next value, so clear out the current value
+                    None => self.result.data.is_some(),
+                }
+        };
 
         // overwrite the value
         if doo_eet {
-            self.data = self.next_value.clone();
-            self.next_value = Some(Err(LazySignalsError::NoNextValue));
+            self.result = clone_data(&self.next_value);
+            self.next_value = LazySignalsResult {
+                data: None,
+                error: Some(LazySignalsError::NoNextValue),
+            };
         }
 
         // return a list of subscribers

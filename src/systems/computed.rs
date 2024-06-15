@@ -26,6 +26,7 @@ pub fn compute_memos(
         sources.insert(entity, computed.sources.clone());
 
         // doesn't matter what order we evaluate things in since it all has to get resolved
+
         // the value of each computed memo is deterministic since the data is immutable
         stack.push(entity);
     });

@@ -17,7 +17,11 @@ pub mod lazy_immutable;
 /// # Signals framework
 /// ## Types
 /// Result type for handling error conditions in developer code.
-pub type LazySignalsResult<R> = Option<Result<R, LazySignalsError>>;
+#[derive(PartialEq, Reflect)]
+pub struct LazySignalsResult<R: LazySignalsData> {
+    pub data: Option<R>,
+    pub error: Option<LazySignalsError>,
+}
 
 /// Return type for an optional list of entities and some flags (changed, triggered).
 pub type MaybeFlaggedEntities = Option<(Vec<Entity>, bool, bool)>;
@@ -41,8 +45,7 @@ pub enum LazySignalsError {
 
 // ## Traits
 /// An item of data for use with Immutables.
-pub trait LazySignalsData: Clone +
-    FromReflect +
+pub trait LazySignalsData: FromReflect +
     GetTypeRegistration +
     PartialEq +
     Reflect +
@@ -53,8 +56,7 @@ pub trait LazySignalsData: Clone +
 impl<T> LazySignalsData
     for T
     where
-        T: Clone +
-            FromReflect +
+        T: FromReflect +
             GetTypeRegistration +
             PartialEq +
             Reflect +

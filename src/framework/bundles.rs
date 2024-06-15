@@ -17,7 +17,10 @@ impl<R: LazySignalsData> ComputedBundle<R> {
         component_id: ComponentId
     ) -> ComputedBundle<R> {
         ComputedBundle::<R> {
-            state: LazySignalsState::<R>::new(None),
+            state: LazySignalsState::<R>::new(LazySignalsResult {
+                data: None,
+                error: None,
+            }),
             meta: ImmutableState { component_id },
             context: ComputedImmutable {
                 function,
@@ -63,7 +66,10 @@ pub struct StateBundle<T: LazySignalsData> {
 impl<T: LazySignalsData> StateBundle<T> {
     pub fn from_value(data: T, component_id: ComponentId) -> StateBundle<T> {
         StateBundle {
-            state: LazySignalsState::<T>::new(Some(Ok(data))),
+            state: LazySignalsState::<T>::new(LazySignalsResult {
+                data: Some(data),
+                error: None,
+            }),
             meta: ImmutableState { component_id },
         }
     }

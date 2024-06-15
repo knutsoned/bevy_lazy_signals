@@ -16,7 +16,32 @@ use crate::{
     lazy_immutable::{ LazySignalsObservable, ReflectLazySignalsObservable },
 };
 
-/// Convenience function to convert DynamicTuples into a concrete type.
+/// Convenience fn to clone the un-Clone-able.
+pub fn clone_data<T: LazySignalsData>(result: &LazySignalsResult<T>) -> LazySignalsResult<T> {
+    let data = match &result.data {
+        Some(data) => { <T as FromReflect>::from_reflect(&*data.clone_value()) }
+        None => None,
+    };
+    LazySignalsResult {
+        data,
+        error: result.error,
+    }
+}
+
+/// Convenience fn to add a concrete value to a tuple proxy.
+pub fn insert_data<T: LazySignalsData>(args: &mut DynamicTuple, result: &LazySignalsResult<T>) {
+    // the type inserted here has to be Option<T>
+
+    // let's look at the error and return None if it is Some, otherwise just return Some(data)
+    let cloned = clone_data::<T>(result);
+    let result = match cloned.error {
+        Some(_) => None,
+        None => cloned.data,
+    };
+    args.insert(result);
+}
+
+/// Convenience fn to convert a DynamicTuple into a concrete type.
 pub fn make_tuple<T: LazySignalsArgs>(tuple: &DynamicTuple) -> T {
     <T as FromReflect>::from_reflect(tuple).unwrap()
 }
