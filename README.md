@@ -136,7 +136,7 @@ fn signals_setup_system(mut commands: Commands) {
 
     // the actual pure function to perform the calculations
     let screen_x_fn: |args: (f32)| {
-        Some(OK(args.0.map_or(0.0, |x| (x + 1.0) * width / 2.0)))
+        LazySignals::result(args.0.map_or(0.0, |x| (x + 1.0) * width / 2.0))
     };
 
     // and the calculated memo to map the fns to sources and a place to store the result
@@ -150,7 +150,7 @@ fn signals_setup_system(mut commands: Commands) {
     let screen_y = LazySignals.computed::<(f32), f32>(
         // because we pass (f32) as the first type param, the compiler knows the type of args here
         |args| {
-            Some(Ok(args.0.map_or(0.0, |y| (y + 1.0) * height / 2.0)))
+            LazySignals::result(args.0.map_or(0.0, |y| (y + 1.0) * height / 2.0))
         },
         vec![y_axis],
         &mut commands
@@ -163,7 +163,7 @@ fn signals_setup_system(mut commands: Commands) {
     // first the closure (that is an &mut World, if needed)
     let effect_fn: |args: (f32, f32), _world| {
         let x = args.0.map_or("???", |x| format!("{:.1}", x))
-        let y = args.0.map_or("???", |y| format!("{:.1}", y))
+        let y = args.1.map_or("???", |y| format!("{:.1}", y))
         info!(format!("({}, {})"), x, y)
     };
 
