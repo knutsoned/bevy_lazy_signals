@@ -34,7 +34,7 @@ pub fn make_computed_with<P: LazySignalsArgs, R: LazySignalsData>(
         Box::new(move |tuple, entity, world| {
             trace!("-running computed context with args {:?}", tuple);
             let result = closure(make_tuple::<P>(tuple));
-            if let Some(Err(error)) = result {
+            if let Some(error) = result.error {
                 // TODO process errors
                 error!("ERROR running computed: {}", error.to_string());
             }
@@ -93,12 +93,38 @@ impl LazySignals {
         entity
     }
 
-    pub fn read<R: LazySignalsData>(
+    pub fn error<T: LazySignalsData>(error: LazySignalsError) -> LazySignalsResult<T> {
+        LazySignalsResult { data: None, error: Some(error) }
+    }
+
+    // alias for value
+    pub fn get<R: LazySignalsData>(&self, immutable: Entity, world: &World) -> Option<R> {
+        self.value(immutable, world)
+    }
+
+    pub fn get_error<R: LazySignalsData>(
         &self,
         immutable: Entity,
         world: &World
-    ) -> LazySignalsResult<R> {
+    ) -> Option<LazySignalsError> {
+        let entity = world.entity(immutable);
+        match entity.get::<LazySignalsState<R>>() {
+            Some(observable) => observable.error(),
+            None => None,
+        }
+    }
+
+    pub fn option<T: LazySignalsData>(data: Option<T>) -> LazySignalsResult<T> {
+        LazySignalsResult { data, error: None }
+    }
+
+    // alias for value
+    pub fn read<R: LazySignalsData>(&self, immutable: Entity, world: &World) -> Option<R> {
         self.value(immutable, world)
+    }
+
+    pub fn result<T: LazySignalsData>(data: T) -> LazySignalsResult<T> {
+        LazySignalsResult { data: Some(data), error: None }
     }
 
     pub fn send<T: LazySignalsData>(&self, signal: Entity, data: T, commands: &mut Commands) {
@@ -136,17 +162,11 @@ impl LazySignals {
         commands.trigger_signal::<()>(signal, ());
     }
 
-    pub fn value<R: LazySignalsData>(
-        &self,
-        immutable: Entity,
-        world: &World
-    ) -> LazySignalsResult<R> {
+    pub fn value<R: LazySignalsData>(&self, immutable: Entity, world: &World) -> Option<R> {
         let entity = world.entity(immutable);
         match entity.get::<LazySignalsState<R>>() {
-            Some(observable) => observable.value(),
-
-            // TODO maybe add some kind of config option to ignore errors and return a default
-            None => Some(Err(LazySignalsError::ReadError(immutable))),
+            Some(observable) => observable.get(),
+            None => None,
         }
     }
 }

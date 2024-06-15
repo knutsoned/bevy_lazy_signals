@@ -33,7 +33,7 @@ struct MyToggleLoginCommand(Entity);
 impl Command for MyToggleLoginCommand {
     fn apply(self, world: &mut World) {
         info!("Toggling login");
-        if let Some(Ok(status)) = LazySignals.read::<bool>(self.0, world) {
+        if let Some(status) = LazySignals.read::<bool>(self.0, world) {
             // it's perfectly ok to return this command in a task's queue
 
             // that could be an infinite loop, but only running once per tick, which may be wanted
@@ -192,23 +192,19 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         let mut value = "You are not authorized to view this";
 
         // if logged_in
-        // (Err or None will return Err or None, this block runs only if args.0 == true)
-        if args.0? {
-            // show a logged in message, if one exists
-            if let Some(msg) = args.1 {
-                value = msg;
-            } else {
-                value = "Greetings, Starfighter";
+        if let Some(logged_in) = args.0 {
+            if logged_in {
+                // show a logged in message, if one exists
+                if let Some(msg) = args.1 {
+                    value = msg;
+                } else {
+                    value = "Greetings, Starfighter";
+                }
             }
-
-            // could also just do: let value = args.1?;
-            // and bubble the error up as a None return value
-
-            // the fn would return right away and the next lines would not run
         }
 
         info!("COMPUTED0 value: {}", value);
-        Some(Ok(value))
+        LazySignals::result(value)
     };
 
     // simple computed to store the string value or an error, depending on the bool
@@ -239,7 +235,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             }
 
             info!("COMPUTED1 value: {}", value);
-            Some(Ok(value))
+            LazySignals::result(value)
         },
         vec![signal0, computed0],
         &mut commands
@@ -342,15 +338,11 @@ fn status(
 ) {
     trace!("logged in: {}", example_auth_resource.is_logged_in());
 
-    match LazySignals.read::<bool>(test.signal[0], world) {
-        Some(Ok(value)) => {
-            trace!("value: {}", value);
-        }
-        Some(Err(error)) => {
-            error!("error: {}", error);
-        }
-        None => {
-            trace!("None");
-        }
+    if let Some(value) = LazySignals.read::<bool>(test.signal[0], world) {
+        trace!("value: {}", value);
+    }
+
+    if let Some(error) = LazySignals.get_error::<bool>(test.signal[0], world) {
+        error!("error: {}", error);
     }
 }

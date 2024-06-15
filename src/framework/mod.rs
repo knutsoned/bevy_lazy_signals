@@ -17,7 +17,11 @@ pub mod lazy_immutable;
 /// # Signals framework
 /// ## Types
 /// Result type for handling error conditions in developer code.
-pub type LazySignalsResult<R> = Option<Result<R, LazySignalsError>>;
+#[derive(PartialEq, Reflect)]
+pub struct LazySignalsResult<R: LazySignalsData> {
+    pub data: Option<R>,
+    pub error: Option<LazySignalsError>,
+}
 
 /// Return type for an optional list of entities and some flags (changed, triggered).
 pub type MaybeFlaggedEntities = Option<(Vec<Entity>, bool, bool)>;

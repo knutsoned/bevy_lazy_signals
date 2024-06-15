@@ -212,7 +212,10 @@ impl<T: LazySignalsData> Command for SendSignalCommand<T> {
         // (assume the caller removed it and we don't care about it anymore)
         if let Some(mut entity) = world.get_entity_mut(self.signal) {
             if let Some(mut immutable) = entity.get_mut::<LazySignalsState<T>>() {
-                immutable.merge_next(Some(Ok(self.data)), false);
+                immutable.merge_next(
+                    LazySignalsResult { data: Some(self.data), error: None },
+                    false
+                );
                 entity.insert(SendSignal);
                 trace!("merged next and inserted SendSignal");
             } else {
@@ -237,7 +240,10 @@ impl<T: LazySignalsData> Command for TriggerSignalCommand<T> {
         // (assume the caller removed it and we don't care about it anymore)
         if let Some(mut entity) = world.get_entity_mut(self.signal) {
             if let Some(mut immutable) = entity.get_mut::<LazySignalsState<T>>() {
-                immutable.merge_next(Some(Ok(self.data)), true);
+                immutable.merge_next(
+                    LazySignalsResult { data: Some(self.data), error: None },
+                    true
+                );
                 entity.insert(SendSignal);
                 trace!("merged next and inserted SendSignal");
             } else {
