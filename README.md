@@ -28,14 +28,14 @@ See also: [Architecture](architecture.md)
 - During initialization, should computed and effect contexts actually evaluate?
 - How to best prevent or detect infinite loops?
 - Can the use of get vs unwrap be more consistent?
-- Should Tasks be able to renember they were retriggered while still running and then
-  run again immediately after finishing? (I think they currently do remember)
-- Should there be an option to run a Bevy system as an effect?
+- ✔️ Should Tasks be able to renember they were retriggered while still running and
+  then run again immediately after finishing? (I think they currently do)
+- ✔️ Should there be an option to run a Bevy system as an effect?
 - Should there be a commands-only version of effects?
 - Do we need a useRef equivalent to support state that is not passed around by value?
 - Same question about useCallback
-- Can change detection replace some of the components we currently add manually?
-- Can a Computed and an Effect live on the same entity?
+- ❌ Can change detection replace some of the components we currently add manually?
+- Can a Computed and an Effect live on the same entity? (Technically yes, but why?)
 - Do we want an API to trigger an Effect directly?
 - Should there be a way to write closures that take the result struct and not Option?
 
@@ -64,6 +64,7 @@ See also: [Architecture](architecture.md)
 - [x] Process tasks to run their commands when they are complete
 - [x] Make sure Triggered gets removed from Computeds during processing
 - [x] Remove Clone from LazySignalsData trait bounds
+- [ ] Implement effect systems
 - [ ] Integrate with bevy_mod_picking
 - [ ] Integrate with bevy-inspector-egui
 - [ ] Integrate with sickle_ui
@@ -75,6 +76,7 @@ See also: [Architecture](architecture.md)
 - [ ] Support streams if the developer expects the same signal to be sent multiple times/tick
 - [ ] See how well the demo plays with bevy_mod_scripting
 - [ ] Write a bunch of Fennel code to see how well it works to script the computeds and effects
+- [ ] Make a visual signals editor plugin
 - [ ] See how well the demo plays with aery
 - [ ] Prevent or at least detect infinite loops
 
