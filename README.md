@@ -64,12 +64,10 @@ See also: [Architecture](architecture.md)
 - [x] Process tasks to run their commands when they are complete
 - [x] Make sure Triggered gets removed from Computeds during processing
 - [x] Remove Clone from LazySignalsData trait bounds
+- [ ] Provide integration with Bevy observers
 - [ ] Implement effect systems
 - [ ] Integrate with bevy_mod_picking
 - [ ] Integrate with bevy-inspector-egui
-- [ ] Integrate with sickle_ui
-- [ ] Figure out how to get DynamicStruct to be stored in a LazySignalsState (no Clone)
-- [ ] Integrate with bevy_proto (schematics)
 - [ ] Make a demo of a fully wired sickle entity inspector with schematics
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 - [ ] Add getter/setter tuples factory to API
