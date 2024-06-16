@@ -50,7 +50,7 @@ See also: [Architecture](architecture.md)
 ### Enhancements
 
 - [ ] I need someone to just review every line because I am a total n00b
-- [ ] More examples, including basic game stuff (gold health seem popular)
+- [ ] More examples, including basic game stuff (gold and health seem popular)
 - [ ] More examples, including some integrating LazySignals with popular Bevy projects
       such as bevy-lunex, bevy_dioxus, bevy_editor_pls, bevy_reactor, haalka,
       kayak_ui, polako, quill, space_editor, etc.
