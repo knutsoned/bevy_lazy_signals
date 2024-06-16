@@ -83,7 +83,8 @@ See also: [Architecture](architecture.md)
 
 The LazySignalsPlugin will register the core types and systems.
 
-During application init, create signals, computeds, effects, and tasks with the API, reading and sending signals and memos in update systems.
+During application init, create signals, computeds, effects, and tasks with the API, reading and
+sending signals and memos in update systems.
 
 For basic usage, an application specific resource may track the reactive primitive entities.
 
@@ -255,7 +256,14 @@ fn main() {
 }
 ```
 
-# License
+## 🕊 Bevy Compatibility
+
+| bevy   | bevy_lazy_signals |
+| ------ | ----------------- |
+| 0.14.0 | 0.4.0             |
+| 0.13.2 | 0.3.0             |
+
+## License
 
 All code in this repository is dual-licensed under either:
 

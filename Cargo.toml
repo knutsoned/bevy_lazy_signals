@@ -1,6 +1,6 @@
 [package]
 name = "bevy_lazy_signals"
-version = "0.3.0"
+version = "0.3.0-alpha"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,7 +11,7 @@ thiserror = "1.0.59"
 [dependencies.bevy]
 version = "0.13.2"
 default-features = false
-features = ["bevy_core_pipeline", "bevy_pbr", "bevy_winit", "multi-threaded"]
+features = ["bevy_core_pipeline", "bevy_winit", "multi-threaded"]
 
 [dev-dependencies]
 async-std = "1.12.0"

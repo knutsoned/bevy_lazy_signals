@@ -5,8 +5,8 @@ effort to create a Signal built-in that will provide a common API to support a r
 For Bevy, such a library could help efforts to integrate UI frameworks, enable networking, support
 scripting, scene editing, file operations, and so on.
 
-Drawing on many Bevy community discussions, similar projects, and numerous other sources, the following
-(non-exhaustive) list of constraints, forces, and goals was assembled:
+Drawing on many Bevy community discussions, similar projects, and numerous other sources, the
+following (non-exhaustive) list of constraints, forces, and goals was assembled:
 
 - Provide a commands-based interface to allow both scheduling signals and triggers, and reading
   values, without needing exclusive world access.
@@ -32,8 +32,8 @@ For the purpose of the preceding:
 - One-way data flow is a signals architecture popular in ECMAScript, essentially a propagator
   network, where values are either atomic, or derived from other atomics, such that there are no
   circular dependencies. Changes to atomic values can be efficiently communicated to the extended
-  set of subscribers. Merges (updates) to values are driven by signals (events) which are handled asynchronously.
-  These are distinct from and do not use Bevy built-in events.
+  set of subscribers. Merges (updates) to values are driven by signals (events) which are handled
+  asynchronously. These are distinct from and do not use Bevy built-in events.
 - Glitch-free means the system is internally consistent at all times outside of its
   internal update cycle.
 - Do not taunt Happy Fun Ball(tm).
