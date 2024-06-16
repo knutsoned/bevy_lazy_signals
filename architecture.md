@@ -3,7 +3,7 @@
 ## Overview
 
 The LazySignals API provides convenience functions to create an ECS entity for
-each semantic structure that contains the proper components. The three mappings of valid
+each semantic structure that contains the proper components (bundles). The three mappings of valid
 combinations of components to semantic structures is enumerated in the next sections.
 
 ## Primitives
