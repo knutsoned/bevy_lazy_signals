@@ -14,7 +14,7 @@ Drawing on numerous discussions, similar projects, and numerous other sources, t
 - Minimize dependency on other internal Bevy features, except prelude, bevy_ecs, and bevy_reflect.
 - Minimize external dependencies (thiserror is probably overkill and could be removed).
 - Optimize performance at the cost of roughly doubling some of the data storage via sparse sets.
-- Avoid the use of an intrusive global state in favor of a Bevy resource that tracks the internals.
+- Avoid the use of an intrusive global state.
 - Since the data and propagator structure is immutable, the reactive mechanics can be simplified.
 - Do not allow self-referential computations.
 - Do encourage a "one-way data flow" application architecture that relies on immutable values
@@ -32,7 +32,8 @@ For the purpose of the preceding:
 - One-way data flow is a signals architecture popular in ECMAScript, essentially a propagator
   network, where values are either atomic, or derived from other atomics, such that there are no
   circular dependencies. Changes to atomic values can be efficiently communicated to the extended
-  set of subscribers. Updates to values are driven by "events" which are handled asynchronously.
+  set of subscribers. Merges (updates) to values are driven by signals (events) which are handled asynchronously.
+  These are distinct from and do not use Bevy built-in events.
 - Glitch-free means the system is internally consistent at all times outside of its
   internal update cycle.
 - Do not taunt Happy Fun Ball(tm).
