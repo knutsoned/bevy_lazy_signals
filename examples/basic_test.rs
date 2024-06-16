@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use async_std::task::sleep;
-use bevy::{ ecs::system::{ Command, CommandQueue }, prelude::*, tasks::AsyncComputeTaskPool };
+use bevy::{ ecs::world::{ Command, CommandQueue }, prelude::*, tasks::AsyncComputeTaskPool };
 
 use bevy_lazy_signals::{
     api::LazySignals,

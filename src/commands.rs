@@ -1,6 +1,6 @@
 use std::{ marker::PhantomData, sync::Mutex };
 
-use bevy::{ ecs::system::Command, prelude::* };
+use bevy::{ ecs::world::Command, prelude::* };
 
 use crate::{ bundles::*, framework::*, lazy_immutable::{ LazySignalsState, LazySignalsImmutable } };
 

@@ -1,7 +1,7 @@
 use std::{ any::TypeId, fmt::Debug, sync::Mutex };
 
 use bevy::{
-    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet, system::CommandQueue },
+    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet, world::CommandQueue },
     prelude::*,
     reflect::{ DynamicTuple, GetTypeRegistration, Tuple },
     tasks::Task,

@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::system::CommandQueue,
+    ecs::world::CommandQueue,
     prelude::*,
     reflect::DynamicTuple,
     tasks::{ block_on, futures_lite::future, Task },
@@ -11,7 +11,7 @@ type DeferredEffectsParam = (With<DeferredEffect>, Without<RunningTask>);
 
 // get all the currently running tasks
 pub fn check_tasks(mut running_tasks: Query<(Entity, &mut RunningTask)>, mut commands: Commands) {
-    for (entity, mut running) in &mut running_tasks {
+    for (entity, mut running) in running_tasks.iter_mut() {
         if let Some(mut commands_queue) = block_on(future::poll_once(&mut running.task)) {
             // append the returned command queue to have it execute later
             commands.append(&mut commands_queue);
