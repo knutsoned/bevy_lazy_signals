@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use bevy::{ prelude::*, reflect::{ DynamicTuple, GetTupleField } };
+use bevy::prelude::*;
 
 use crate::{
     arcane_wizardry::make_tuple,
@@ -10,12 +10,6 @@ use crate::{
 };
 
 /// This is the reference user API, patterned after the TC39 proposal.
-///
-/// Convenience function to get a field directly from a DynamicTuple.
-pub fn get_field<T: LazySignalsData>(tuple: &DynamicTuple, index: usize) -> Option<&T> {
-    tuple.get_field::<T>(index) // returns None if type doesn't match
-}
-
 pub fn make_effect_with<P: LazySignalsArgs>(
     mut closure: impl Effect<P>
 ) -> Mutex<Box<dyn EffectWrapper>> {

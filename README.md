@@ -38,6 +38,7 @@ See also: [Architecture](architecture.md)
 - Can a Computed and an Effect live on the same entity? (Technically yes, but why?)
 - Do we want an API to trigger an Effect directly?
 - Should there be a way to write closures that take the result struct and not Option?
+- How to send a DynamicStruct as a signal? Doesn't work now due to FromReflect bound.
 
 ## TODO
 

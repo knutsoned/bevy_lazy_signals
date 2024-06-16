@@ -28,7 +28,7 @@ pub fn clone_data<T: LazySignalsData>(result: &LazySignalsResult<T>) -> LazySign
     }
 }
 
-/// Convenience fn to add a concrete value to a tuple proxy.
+/// Convenience fn to add a concrete value to a dynamic tuple proxy.
 pub fn insert_data<T: LazySignalsData>(args: &mut DynamicTuple, result: &LazySignalsResult<T>) {
     // the type inserted here has to be Option<T>
 
@@ -93,17 +93,19 @@ pub fn run_as_observable(
     mut closure: Box<dyn ObservableFn>
 ) -> MaybeFlaggedEntities {
     // get the source LazySignalsState component as an ECS change detection handle
-    let mut mut_untyped = entity.get_mut_by_id(*component_id).unwrap();
+    if let Some(mut mut_untyped) = entity.get_mut_by_id(*component_id) {
+        // ...and convert that into a trait object
+        let observable = ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
+            &mut mut_untyped,
+            type_id,
+            type_registry
+        );
 
-    // ...and convert that into a trait object
-    let observable = ph_nglui_mglw_nafh_cthulhu_r_lyeh_wgah_nagl_fhtagn(
-        &mut mut_untyped,
-        type_id,
-        type_registry
-    );
-
-    // run the supplied fn
-    closure(Box::new(observable), args, target)
+        // run the supplied fn
+        closure(Box::new(observable), args, target)
+    } else {
+        None
+    }
 }
 
 /// Convenience fn to subscribe an entity to a source.
@@ -122,10 +124,10 @@ pub fn subscribe(
     // get a readonly reference to the source entity
     if let Some(source) = world.get_entity(*source) {
         trace!("-got source EntityRef");
-        // get the source Immutable component
+        // get the source LazySignalsImmutable component
         if let Some(immutable_state) = source.get::<ImmutableState>() {
             trace!("-got ImmutableState");
-            // ...as a SignalsObservable
+            // ...as a LazySignalsObservable
             component_id = Some(immutable_state.component_id);
             if let Some(info) = world.components().get_info(component_id.unwrap()) {
                 trace!("-got TypeId");
