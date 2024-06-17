@@ -16,10 +16,10 @@ Effect but instead of having exclusive world access, it returns a CommandQueue t
 LazySignals system when the Task completes. It uses Bevy async tasks and is the default method to
 spawn long running operations.
 
-The commands returned by a Task as well as the closures passed to Effects may send signals may
+The commands returned by a Task as well as the closures passed to Effects may
 themselves send new signals, to be evaluated during the standard LazySignals update cycle.
 
-A LazySignalsState component holds the value, bound by the traits defined byLazySignalsData. An
+A LazySignalsState component holds the value, bound by the traits defined by LazySignalsData. An
 ImmutableState component stores the type information required for reflection and is populated with
 the return value of the init_component call when the LazyImmutableState is created.
 
@@ -30,6 +30,8 @@ To form a Computed, add a ComputedImmutable component to the Signal entity.
 A LazyEffect component identifies an Effect. A LazyEffect can contain an AsyncTask instead, which
 does not have exclusive world access, but returns a CommandQueue to be applied by the LazySignals
 update system.
+
+## Exclusive Systems
 
 ### Check Tasks
 
@@ -53,7 +55,7 @@ Finally, the SendSignal component is removed.
 The initial "running" set is iterated. If the item is a Computed, then add a ComputeMemo component
 to mark it for update. If it is an Effect or AsyncTask, add a DeferredEffect component to mark it
 for scheduling. Effects may be triggered, which means sending a signal with no value, or triggering
-downstream effects and tasks for a unit or typed but possibly unchanged value (e g. to represent a
+upstream effects and tasks for a unit or typed but possibly unchanged value (e g. to represent a
 button press).
 
 Walk the subscriber tree, adding each item's subscribers to the "next_running" set and removing
@@ -66,13 +68,13 @@ finishes and the next running set is empty.
 
 The closure in the Computed component of every entity marked with a ComputeMemo component runs and
 the result is stored in the LazyImmutableState. As each value is read, the Computed is added to the
-next_subscribers of the source entity. If the value is itself a Memo, it will recompute if it's
+next_subscribers of the source entity. If the value is itself a Computed, it will recompute if it's
 marked with Dirty. Otherwise it simply returns the value. If the value is different, ValueChanged
 will be added after the closure is evaluated, which will be used to limit which effects are
-scheduled next.
+scheduled next. The Dirty component is removed whether the value changed or not.
 
 A stack is kept of all running operations. If any source is dirty, the Computed will put itself and
-its dirty sources on the stack. This avoids the use of recursion. The system exits when each item
+its dirty sources on the stack. This avoids the use of direct recursion. The system exits when each item
 in the stack finishes.
 
 ### Effect Processing
