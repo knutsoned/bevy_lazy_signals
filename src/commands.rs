@@ -6,6 +6,15 @@ use crate::{ bundles::*, framework::*, lazy_immutable::{ LazySignalsState, LazyS
 
 /// Convenience extension to use each Command directly from Commands instance.
 pub trait LazySignalsCommandsExt {
+    /// Command to create an action (effect) from the given entity as an async task.
+    fn create_action<P: LazySignalsArgs>(
+        &mut self,
+        effect: Entity,
+        function: Mutex<Box<dyn ActionWrapper>>,
+        sources: Vec<Entity>,
+        triggers: Vec<Entity>
+    );
+
     /// Command to create a computed memo from the given entity.
     fn create_computed<P: LazySignalsArgs, R: LazySignalsData>(
         &mut self,
@@ -26,15 +35,6 @@ pub trait LazySignalsCommandsExt {
     /// Command to create a state (LazyImmutable with no Effect or Propagator) from the given entity.
     fn create_state<T: LazySignalsData>(&mut self, state: Entity, data: T);
 
-    /// Command to create an effect from the given entity as an async task.
-    fn create_task<P: LazySignalsArgs>(
-        &mut self,
-        effect: Entity,
-        function: Mutex<Box<dyn TaskWrapper>>,
-        sources: Vec<Entity>,
-        triggers: Vec<Entity>
-    );
-
     // Command to send a signal if the data value is different from the current value.
     fn send_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T);
 
@@ -43,6 +43,22 @@ pub trait LazySignalsCommandsExt {
 }
 
 impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
+    fn create_action<P: LazySignalsArgs>(
+        &mut self,
+        effect: Entity,
+        function: Mutex<Box<dyn ActionWrapper>>,
+        sources: Vec<Entity>,
+        triggers: Vec<Entity>
+    ) {
+        self.add(CreateActionCommand::<P> {
+            effect,
+            function,
+            sources,
+            triggers,
+            args_type: PhantomData,
+        });
+    }
+
     fn create_computed<P: LazySignalsArgs, R: LazySignalsData>(
         &mut self,
         computed: Entity,
@@ -81,22 +97,6 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
         });
     }
 
-    fn create_task<P: LazySignalsArgs>(
-        &mut self,
-        effect: Entity,
-        function: Mutex<Box<dyn TaskWrapper>>,
-        sources: Vec<Entity>,
-        triggers: Vec<Entity>
-    ) {
-        self.add(CreateTaskCommand::<P> {
-            effect,
-            function,
-            sources,
-            triggers,
-            args_type: PhantomData,
-        });
-    }
-
     fn send_signal<T: LazySignalsData>(&mut self, signal: Entity, data: T) {
         self.add(SendSignalCommand {
             signal,
@@ -109,6 +109,30 @@ impl<'w, 's> LazySignalsCommandsExt for Commands<'w, 's> {
             signal,
             data,
         });
+    }
+}
+
+/// Command to create an action (non-blocking effect) from the given entity.
+pub struct CreateActionCommand<P: LazySignalsArgs> {
+    pub effect: Entity,
+    pub function: Mutex<Box<dyn ActionWrapper>>,
+    pub sources: Vec<Entity>,
+    pub triggers: Vec<Entity>,
+    pub args_type: PhantomData<P>,
+}
+
+impl<P: LazySignalsArgs> Command for CreateActionCommand<P> {
+    fn apply(self, world: &mut World) {
+        world
+            .get_entity_mut(self.effect)
+            .unwrap()
+            .insert(
+                EffectBundle::from_function::<P>(
+                    EffectContext::Long(self.function),
+                    self.sources,
+                    self.triggers
+                )
+            );
     }
 }
 
@@ -172,30 +196,6 @@ impl<T: LazySignalsData> Command for CreateStateCommand<T> {
             .get_entity_mut(self.state)
             .unwrap()
             .insert(StateBundle::<T>::from_value(self.data, component_id));
-    }
-}
-
-/// Command to create a task (non-blocking effect) from the given entity.
-pub struct CreateTaskCommand<P: LazySignalsArgs> {
-    pub effect: Entity,
-    pub function: Mutex<Box<dyn TaskWrapper>>,
-    pub sources: Vec<Entity>,
-    pub triggers: Vec<Entity>,
-    pub args_type: PhantomData<P>,
-}
-
-impl<P: LazySignalsArgs> Command for CreateTaskCommand<P> {
-    fn apply(self, world: &mut World) {
-        world
-            .get_entity_mut(self.effect)
-            .unwrap()
-            .insert(
-                EffectBundle::from_function::<P>(
-                    EffectContext::Long(self.function),
-                    self.sources,
-                    self.triggers
-                )
-            );
     }
 }
 

@@ -3,12 +3,7 @@ use std::time::Duration;
 use async_std::task::sleep;
 use bevy::{ ecs::world::{ Command, CommandQueue }, prelude::*, tasks::AsyncComputeTaskPool };
 
-use bevy_lazy_signals::{
-    api::LazySignals,
-    commands::SendSignalCommand,
-    LazySignalsPlugin,
-    StaticStrRef,
-};
+use bevy_lazy_signals::{ api::LazySignals, LazySignalsPlugin, StaticStrRef };
 
 // this example toggles a loggged_in value every 10 seconds via an async task, triggering computeds and effects
 
@@ -38,16 +33,10 @@ impl Command for MyToggleLoginCommand {
 
             // that could be an infinite loop, but only running once per tick, which may be wanted
 
-            // with bevy 0.13, can't just create commands so we have to do this manually
-            (SendSignalCommand { signal: self.0, data: !status }).apply(world);
-
             // even though we are sending it right away, it doesn't mutate the state yet
-
-            /* bevy 0.14.0
             LazySignals.send(self.0, !status, &mut world.commands());
             world.flush_commands();
             info!("...toggled {} -> {}", status, !status);
-            */
         }
     }
 }
@@ -55,10 +44,10 @@ impl Command for MyToggleLoginCommand {
 // this just keeps track of all the LazySignals primitives. just need the entity.
 #[derive(Resource, Default)]
 struct MyTestResource {
+    pub action: Vec<Entity>,
     pub computed: Vec<Entity>,
     pub effect: Vec<Entity>,
     pub signal: Vec<Entity>,
-    pub task: Vec<Entity>,
     pub trigger: Vec<Entity>,
 }
 
@@ -274,8 +263,8 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
 
     // it can add commands to a queue only and the queue will run when the system runs to check it
     // and the task has returned the queue
-    test.task.push(
-        LazySignals.task::<()>(
+    test.action.push(
+        LazySignals.action::<()>(
             // closure to call when triggered
             move |_args| {
                 let thread_pool = AsyncComputeTaskPool::get();
@@ -314,7 +303,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
             &mut commands
         )
     );
-    info!("created test task 0, entity {:?}", test.task[0]);
+    info!("created test task 0, entity {:?}", test.action[0]);
 
     info!("init complete");
 }

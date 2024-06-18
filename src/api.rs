@@ -37,9 +37,9 @@ pub fn make_computed_with<P: LazySignalsArgs, R: LazySignalsData>(
     )
 }
 
-pub fn make_task_with<P: LazySignalsArgs>(
-    closure: impl AsyncTask<P>
-) -> Mutex<Box<dyn TaskWrapper>> {
+pub fn make_action_with<P: LazySignalsArgs>(
+    closure: impl Action<P>
+) -> Mutex<Box<dyn ActionWrapper>> {
     Mutex::new(
         Box::new(move |tuple| {
             trace!("-running task context with args {:?}", tuple);
@@ -64,6 +64,18 @@ pub fn store_result<T: LazySignalsData>(
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
 pub struct LazySignals;
 impl LazySignals {
+    pub fn action<P: LazySignalsArgs>(
+        &self,
+        task_closure: impl Action<P>,
+        sources: Vec<Entity>,
+        triggers: Vec<Entity>,
+        commands: &mut Commands
+    ) -> Entity {
+        let entity = commands.spawn_empty().id();
+        commands.create_action::<P>(entity, make_action_with(task_closure), sources, triggers);
+        entity
+    }
+
     pub fn computed<P: LazySignalsArgs, R: LazySignalsData>(
         &self,
         propagator_closure: impl Computed<P, R>,
@@ -138,18 +150,6 @@ impl LazySignals {
         let state = commands.spawn_empty().id();
         commands.create_state::<T>(state, data);
         state
-    }
-
-    pub fn task<P: LazySignalsArgs>(
-        &self,
-        task_closure: impl AsyncTask<P>,
-        sources: Vec<Entity>,
-        triggers: Vec<Entity>,
-        commands: &mut Commands
-    ) -> Entity {
-        let entity = commands.spawn_empty().id();
-        commands.create_task::<P>(entity, make_task_with(task_closure), sources, triggers);
-        entity
     }
 
     pub fn trigger(&self, signal: Entity, commands: &mut Commands) {

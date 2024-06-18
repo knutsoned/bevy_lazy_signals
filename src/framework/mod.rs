@@ -103,16 +103,15 @@ impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World)> EffectWrapper for T {}
 pub trait Effect<P: LazySignalsArgs>: Send + Sync + 'static + FnMut(P, &mut World) {}
 impl<P: LazySignalsArgs, T: Send + Sync + 'static + FnMut(P, &mut World)> Effect<P> for T {}
 
-pub trait TaskWrapper: Send + Sync + Fn(&DynamicTuple) -> Task<CommandQueue> {}
-impl<T: Send + Sync + Fn(&DynamicTuple) -> Task<CommandQueue>> TaskWrapper for T {}
+pub trait ActionWrapper: Send + Sync + Fn(&DynamicTuple) -> Task<CommandQueue> {}
+impl<T: Send + Sync + Fn(&DynamicTuple) -> Task<CommandQueue>> ActionWrapper for T {}
 
-pub trait AsyncTask<P: LazySignalsArgs>: Send + Sync + 'static + Fn(P) -> Task<CommandQueue> {}
-impl<P: LazySignalsArgs, T: Send + Sync + 'static + Fn(P) -> Task<CommandQueue>> AsyncTask<P>
-for T {}
+pub trait Action<P: LazySignalsArgs>: Send + Sync + 'static + Fn(P) -> Task<CommandQueue> {}
+impl<P: LazySignalsArgs, T: Send + Sync + 'static + Fn(P) -> Task<CommandQueue>> Action<P> for T {}
 
 pub enum EffectContext {
     Short(Mutex<Box<dyn EffectWrapper>>),
-    Long(Mutex<Box<dyn TaskWrapper>>),
+    Long(Mutex<Box<dyn ActionWrapper>>),
 }
 
 /// Catch-all fn signature for LazySignalsObservable operations.
