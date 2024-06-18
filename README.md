@@ -91,8 +91,8 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 
 The LazySignalsPlugin will register the core types and systems.
 
-During application init, create signals, computeds, effects, and tasks with the API, reading and
-sending signals and memos in update systems.
+Create signals, computeds, effects, and tasks with the API during application init. Read and send
+signals and read memoized computeds in update systems.
 
 For basic usage, an application specific resource may track the reactive primitive entities.
 
