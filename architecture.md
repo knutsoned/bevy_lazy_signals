@@ -5,6 +5,8 @@
 The LazySignals API provides convenience functions to create an ECS entity for
 each semantic structure that contains the proper components (bundles). The overall design is
 inspired by similar structures in functional programming, such as the infamous Haskell monad.
+The specifics of the developer API are inspired by the
+[TC 39 Signals proposal](https://github.com/tc39/proposal-signals).
 
 The mappings of valid combinations of components to bundles is enumerated in the next sections.
 
