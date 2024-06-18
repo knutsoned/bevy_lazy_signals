@@ -64,6 +64,7 @@ pub fn store_result<T: LazySignalsData>(
 /// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
 pub struct LazySignals;
 impl LazySignals {
+    /// Create an Action that will run as an AsyncTask.
     pub fn action<P: LazySignalsArgs>(
         &self,
         task_closure: impl Action<P>,
@@ -76,6 +77,7 @@ impl LazySignals {
         entity
     }
 
+    /// Create a Computed that passes its sources to and evaluate a closure, memoizing the result.
     pub fn computed<P: LazySignalsArgs, R: LazySignalsData>(
         &self,
         propagator_closure: impl Computed<P, R>,
@@ -87,6 +89,7 @@ impl LazySignals {
         entity
     }
 
+    /// Create an Effect that passes its sources to and evaluate a closure that runs side-effects.
     pub fn effect<P: LazySignalsArgs>(
         &self,
         effect_closure: impl Effect<P>,
@@ -99,15 +102,17 @@ impl LazySignals {
         entity
     }
 
+    /// Return an error from a computed closure.
     pub fn error<T: LazySignalsData>(error: LazySignalsError) -> LazySignalsResult<T> {
         LazySignalsResult { data: None, error: Some(error) }
     }
 
-    // alias for value
+    /// Alias for value.
     pub fn get<R: LazySignalsData>(&self, immutable: Entity, world: &World) -> Option<R> {
         self.value(immutable, world)
     }
 
+    /// Check the given entity for an error.
     pub fn get_error<R: LazySignalsData>(
         &self,
         immutable: Entity,
@@ -120,23 +125,27 @@ impl LazySignals {
         }
     }
 
+    /// Return an optional value from a computed closure.
     pub fn option<T: LazySignalsData>(data: Option<T>) -> LazySignalsResult<T> {
         LazySignalsResult { data, error: None }
     }
 
-    // alias for value
+    /// Alias for value.
     pub fn read<R: LazySignalsData>(&self, immutable: Entity, world: &World) -> Option<R> {
         self.value(immutable, world)
     }
 
+    /// Return a value from a computed closure.
     pub fn result<T: LazySignalsData>(data: T) -> LazySignalsResult<T> {
         LazySignalsResult { data: Some(data), error: None }
     }
 
+    /// Send a signal to be applied during the next batch.
     pub fn send<T: LazySignalsData>(&self, signal: Entity, data: T, commands: &mut Commands) {
         commands.send_signal::<T>(signal, data);
     }
 
+    /// Send a signal to be applied during the next batch regardless of whether the data changed.
     pub fn send_and_trigger<T: LazySignalsData>(
         &self,
         signal: Entity,
@@ -146,16 +155,19 @@ impl LazySignals {
         commands.trigger_signal::<T>(signal, data);
     }
 
+    /// Create a Signal state that is the entrypoint for data into the structure.
     pub fn state<T: LazySignalsData>(&self, data: T, commands: &mut Commands) -> Entity {
         let state = commands.spawn_empty().id();
         commands.create_state::<T>(state, data);
         state
     }
 
+    /// Trigger a Signal that takes the unit type as its generic param..
     pub fn trigger(&self, signal: Entity, commands: &mut Commands) {
         commands.trigger_signal::<()>(signal, ());
     }
 
+    /// Get the value from the given World.
     pub fn value<R: LazySignalsData>(&self, immutable: Entity, world: &World) -> Option<R> {
         let entity = world.entity(immutable);
         match entity.get::<LazySignalsState<R>>() {

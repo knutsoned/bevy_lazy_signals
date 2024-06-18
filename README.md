@@ -52,10 +52,10 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 
 - [ ] Testing
 - [ ] Error handling and general resiliency
-- [ ] API documentation
 
 ### Enhancements
 
+- [ ] More API documentation
 - [ ] I need someone to just review every line because I am a total n00b
 - [ ] More examples, including basic game stuff (gold and health seem popular)
 - [ ] More examples, including some integrating LazySignals with popular Bevy projects
