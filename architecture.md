@@ -8,17 +8,22 @@ inspired by similar structures in functional programming, such as the infamous H
 The specifics of the developer API are inspired by the
 [TC 39 Signals proposal](https://github.com/tc39/proposal-signals).
 
+It is lossy by default, which means if multiple signals are sent in the same tick, which every
+signal is applied most recently contains the value that will be propagated to the Computeds,
+Effects, and Actions. The prior signal values within the tick are overwritten before they are sent
+on as each command calls the merge_next function.
+
 The mappings of valid combinations of components to bundles is enumerated in the next sections.
 
 ## Primitives
 
 A propagator aggregates data from its dependencies. For a Computed, the data is merged into its
-LazySignalsState. An Effect may uses its source values to perform some side effects. A Task is an
-Effect but instead of having exclusive world access, it returns a CommandQueue to be evaluated by a
-LazySignals system when the Task completes. It uses Bevy async tasks and is the default method to
-spawn long running operations.
+LazySignalsState. An Effect may uses its source values to perform some side effects. An Action
+is an Effect but instead of having exclusive world access, it returns a CommandQueue to be
+evaluated by a LazySignals system when the Action completes. It uses Bevy async tasks and is the
+default method to spawn long running operations.
 
-The commands returned by a Task as well as the closures passed to Effects may
+The commands returned by an Action as well as the closures passed to Effects may
 themselves send new signals, to be evaluated during the standard LazySignals update cycle.
 
 A LazySignalsState component holds the value, bound by the traits defined by LazySignalsData. An
@@ -29,7 +34,7 @@ To send a signal, merge the next_value and add a SendSignal component.
 
 To form a Computed, add a ComputedImmutable component to the Signal entity.
 
-A LazyEffect component identifies an Effect. A LazyEffect can contain an AsyncTask instead, which
+A LazyEffect component identifies an Effect. A LazyEffect can contain an Action instead, which
 does not have exclusive world access, but returns a CommandQueue to be applied by the LazySignals
 update system.
 
@@ -37,12 +42,12 @@ update system.
 
 ### Check Tasks
 
-The task checking system checks the status of each AsyncTask marked with RunningTask. If a task is
+The task checking system checks the status of each Action marked with RunningTask. If a task is
 completed, RunningTask is removed and any commands in the returned CommandQueue are applied.
 
 ### Init System
 
-The init system runs every tick. Newly added Computed, Effect, and AsyncTask entities will have an
+The init system runs every tick. Newly added Computed, Effect, and Action components will have an
 InitDependencies component to mark them. These systems just run subscribe for each of the sources
 and triggers so that the relevant entities are notified at the proper time.
 
@@ -55,7 +60,7 @@ Subscribers are added to a "running" set and removed from the LazySignalsState's
 Finally, the SendSignal component is removed.
 
 The initial "running" set is iterated. If the item is a Computed, then add a ComputeMemo component
-to mark it for update. If it is an Effect or AsyncTask, add a DeferredEffect component to mark it
+to mark it for update. If it is an Effect or Action, add a DeferredEffect component to mark it
 for scheduling. Effects may be triggered, which means sending a signal with no value, or triggering
 upstream effects and tasks for a unit or typed but possibly unchanged value (e g. to represent a
 button press).
@@ -76,8 +81,8 @@ will be added after the closure is evaluated, which will be used to limit which 
 scheduled next. The Dirty component is removed whether the value changed or not.
 
 A stack is kept of all running operations. If any source is dirty, the Computed will put itself and
-its dirty sources on the stack. This avoids the use of direct recursion. The system exits when each item
-in the stack finishes.
+its dirty sources on the stack. This avoids the use of direct recursion. The system exits when each
+item in the stack finishes.
 
 ### Effect Processing
 
@@ -90,5 +95,5 @@ between them. It is recommended to only run the effects once per tick to avoid r
 effects if triggered more than once. Alternatively, care must be taken to make sure effects can be
 triggered safely repeatedly or else that the situation is avoided.
 
-The system exits when each item in the "running" set finishes. AsyncTasks are processed like
+The system exits when each item in the "running" set finishes. Actions are processed like
 Effects, but their closures do not receive a &mut World and instead must return a CommandQueue.

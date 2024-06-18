@@ -13,9 +13,13 @@ purpose than the licenses provide.
 
 The initial structure of this project is based on [bevy_rx](https://github.com/aevyrie/bevy_rx).
 
-## [Rationale](rationale.md)
+## Architecture
 
-See also: [Architecture](architecture.md)
+This library is basically Haskell monads under the hood with a TC39 Signals developer API inspired
+by ECMAScript so-called reactive libraries. It is also influenced by the MIT Propagator model.
+Well, at least a [YouTube video](https://www.youtube.com/watch?v=HB5TrK7A4pI) that mentions it.
+
+See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 
 ## Dependencies
 
@@ -39,6 +43,8 @@ See also: [Architecture](architecture.md)
 - Do we want an API to trigger an Effect directly?
 - Should there be a way to write closures that take the result struct and not Option?
 - How to send a DynamicStruct as a signal? Doesn't work now due to FromReflect bound.
+- Lots of reactive libraries distinguish Actions from Effects. Should AsyncTask be renamed to
+  Action?
 
 ## TODO
 
@@ -65,8 +71,10 @@ See also: [Architecture](architecture.md)
 - [x] Process tasks to run their commands when they are complete
 - [x] Make sure Triggered gets removed from Computeds during processing
 - [x] Remove Clone from LazySignalsData trait bounds
+- [ ] Make sure we can convert the result struct into a regular Option<Result<>>
 - [ ] Provide integration with Bevy observers
 - [ ] Implement effect systems
+- [ ] Support undo/redo
 - [ ] Integrate with bevy_mod_picking
 - [ ] Integrate with bevy-inspector-egui
 - [ ] Make a demo of a fully wired sickle entity inspector with schematics
