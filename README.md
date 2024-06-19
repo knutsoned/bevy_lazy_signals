@@ -115,7 +115,7 @@ struct ConfigResource {
     screen_x: Entity,
     screen_y: Entity,
     log_effect: Entity,
-    async_task: Entity,
+    action: Entity,
 }
 
 struct MyActionButtonCommand(Entity);
@@ -134,7 +134,7 @@ fn signals_setup_system(mut commands: Commands) {
 
     let y_axis = LazySignals.state::<f32>(0.0, commands);
 
-    // here we start with an empty Entity (more useful if we already spawned the entity elsewhere)
+    // here we start with a new Entity (more useful if we already spawned it elsewhere)
     let action_button = commands.spawn_empty().id();
 
     // then we use the custom command form directly instead
@@ -142,7 +142,7 @@ fn signals_setup_system(mut commands: Commands) {
 
     // let's define 2 computed values for screen_x and screen_y
 
-    // say our x and y axis are mapped to normalized -1.0 to 1.0 OpenGL units and we want 1080p...
+    // say x and y are mapped to normalized -1.0 to 1.0 OpenGL units and we want 1080p...
     let width = 1920.0;
     let height = 1080.0;
 
@@ -160,7 +160,7 @@ fn signals_setup_system(mut commands: Commands) {
 
     // or just declare the closure in the API call if it won't be reused
     let screen_y = LazySignals.computed::<(f32), f32>(
-        // because we pass (f32) as the first type param, the compiler knows the type of args here
+        // because we pass (f32) as the first type param, the compiler knows type of args here
         |args| {
             LazySignals::result(args.0.map_or(0.0, |y| (y + 1.0) * height / 2.0))
         },
@@ -168,7 +168,7 @@ fn signals_setup_system(mut commands: Commands) {
         &mut commands
     );
 
-    // at this point screen coordinates will update every time the x or y axis is sent a new signal
+    // at this point screen coords will update every time the x or y axis is sent a new signal
     // ...so how do we run an effect?
 
     // similar in form to making a computed, but we get exclusive world access
@@ -179,18 +179,18 @@ fn signals_setup_system(mut commands: Commands) {
         info!(format!("({}, {})"), x, y)
     };
 
-    // then the reactive primitive entity, which logs the screen position every time the HID moves
+    // then the reactive primitive entity, which logs screen position every time the HID moves
     let log_effect = LazySignals.effect::<(f32, f32)>{
         effect_fn,
         vec![screen_x, screen_y], // sources (passed to the args tuple)
-        Vec::<Entity>::new(), // triggers (will fire the effect but we don't care about the value)
+        Vec::<Entity>::new(), // triggers (will fire an effect but don't care about the value)
         &mut commands
     };
 
-    // unlike an Effect which gets exclusive world access and must be very brief, a Task is async
-    // but only returns a CommandQueue, to be run when the system that checks async tasks notices
+    // unlike a brief Effect which gets exclusive world access, an Action is an async task
+    // but only returns a CommandQueue, to run when the system that checks Bevy tasks notices
     // it has completed
-    let task_fn: |args: (f32, f32)| {
+    let action_fn: |args: (f32, f32)| {
         let mut command_queue = CommandQueue::default();
 
         // as long as the task is still running, it will not spawn another instance
@@ -201,8 +201,8 @@ fn signals_setup_system(mut commands: Commands) {
         command_queue
     };
 
-    let async_task = LazySignals.task::<(f32, f32)>{
-        task_fn,
+    let action = LazySignals.action::<(f32, f32)>{
+        action_fn,
         vec![screen_x, screen_y],
         Vec::<Entity>::new(),
         &mut commands
@@ -216,21 +216,21 @@ fn signals_setup_system(mut commands: Commands) {
         screen_x,
         screen_y,
         log_effect,
-        async_task,
+        action,
     });
 }
 
 fn signals_update_system(config: Res<ConfigResource>, mut commands: Commands) {
-    // assume we have somehow read x and y values of the gamepad stick and assigned them to x and y
+    // assume we have read x and y values of the gamepad stick and assigned them to x and y
     let x = ...
     let y = ...
 
-    LazySignal.send(config.x_axis, x, commands);
-    LazySignal.send(config.y_axis, y, commands);
+    LazySignals.send(config.x_axis, x, commands);
+    LazySignals.send(config.y_axis, y, commands);
 
     // signals aren't processed right away, so the signals are still the original value
-    let prev_x = LazySignal.read::<f32>(config.x_axis, world);
-    let prev_y = LazySignal.read::<f32>(config.y_axis, world);
+    let prev_x = LazySignals.read::<f32>(config.x_axis, world);
+    let prev_y = LazySignals.read::<f32>(config.y_axis, world);
 
     // let's simulate pressing the action button but use custom send_signal command
     commands.send_signal::<bool>(config.action_button, true);
@@ -242,6 +242,23 @@ fn signals_update_system(config: Res<ConfigResource>, mut commands: Commands) {
     // update the next_value multiple times, but we're lazy, so the signal itself only runs once
     // using whatever value is in next_value when it gets evaluated, i.e. the last signal to
     // actually be sent
+
+    // this is referred to as lossy
+
+    // TODO provide a stream version of signals that provides a Vec<T> instead of Option<T>
+    // to the closures
+
+    // in the mean time, if we read x and y and send the signals in the First schedule
+    // we can use them to position a sprite during the Update schedule
+
+    // the screen_x and screen_y are only recomputed if the value of x and/or y changed
+
+    // LazySignals.read just returns the data value of the LazySignalsState<f32> component
+
+    // for a Computed, this updates during PreUpdate by default and is otherwise immutable
+    // (unless you modify the component directly, which voids the warranty)
+
+    // TODO concrete example using bevy_mod_picking
 }
 
 fn main() {
@@ -249,7 +266,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         // resource to hold the entity ID of each lazy signals primitive
         .init_resource::<ConfigResource>()
-        // NOTE: the user application will need to register each custom LazySignalsState<T> type
+        // NOTE: the developer will need to register each custom LazySignalsState<T> type
 
         // also need to register tuple types for args if they contain custom types (I think)
         // .register_type::<LazyImmutable<MyType>>()
