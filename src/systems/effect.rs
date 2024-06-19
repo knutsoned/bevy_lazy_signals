@@ -45,7 +45,7 @@ pub fn apply_deferred_effects(
     let mut triggered = empty_set();
     query_effects.iter(world).for_each(|(entity, effect, triggered_effect)| {
         // only add the effect if it isn't already running
-        let mut deps = Vec::<Entity>::new();
+        let mut deps = LazySignalsVec::new();
         deps.append(&mut effect.sources.clone());
         deps.append(&mut effect.triggers.clone());
         relationships.insert(entity, deps);
@@ -70,9 +70,9 @@ pub fn apply_deferred_effects(
             trace!("-triggering effect {:#?}", effect);
             actually_run = true;
         } else {
-            for source in sources {
+            for source in sources.clone().into_iter() {
                 trace!("-checking changed set for source {:#?}", source);
-                if changed.contains(*source) {
+                if changed.contains(source) {
                     trace!("-running effect {:#?} with sources {:?}", effect, sources);
                     actually_run = true;
                 }
@@ -94,15 +94,15 @@ pub fn apply_deferred_effects(
         // otherwise they will not be notified next time
         world.resource_scope(|world, type_registry: Mut<AppTypeRegistry>| {
             let type_registry = type_registry.read();
-            for source in sources {
-                subscribe(&effect, source, &type_registry, world);
+            for source in sources.clone().into_iter() {
+                subscribe(&effect, &source, &type_registry, world);
             }
         });
     }
 
     // write
     for effect in effects.indices() {
-        let sources = relationships.get(effect).map_or(Vec::<Entity>::new(), |s| s.to_vec());
+        let sources = relationships.get(effect).map_or(Vec::<Entity>::new(), |s| s.0.to_vec());
         trace!("-found effect with sources {:#?}", sources);
 
         // add the source component ID to the set (probably could be optimized)

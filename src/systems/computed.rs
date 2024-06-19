@@ -42,9 +42,8 @@ pub fn compute_memos(
 
         let sources = sources.get(computed).unwrap();
         let mut dirty_sources = Vec::<Entity>::new();
-        for source in sources {
+        for source in sources.clone().into_iter() {
             trace!("-checking source for dirt: {:?}", source);
-            let source = *source;
             if world.entity(source).contains::<Dirty>() {
                 trace!("- - - durrrrty - - -");
                 dirty_sources.push(source);
@@ -60,11 +59,11 @@ pub fn compute_memos(
             // otherwise, if all sources are up to date, then recompute
             trace!("***COMPUTE***");
             // build component id -> info map (might already have some but be on the safe side)
-            for source in sources.iter() {
-                let immutable = world.entity(*source).get::<ImmutableState>().unwrap();
+            for source in sources.clone().into_iter() {
+                let immutable = world.entity(source).get::<ImmutableState>().unwrap();
                 let component_id = immutable.component_id;
                 trace!("-found a computed source with component ID {:#?}", component_id);
-                component_id_set.insert(*source, component_id);
+                component_id_set.insert(source, component_id);
                 if let Some(info) = world.components().get_info(component_id) {
                     component_info_set.insert(component_id, info.clone());
                 }
@@ -78,15 +77,15 @@ pub fn compute_memos(
 
                 // prepare the args
                 let mut args = DynamicTuple::default();
-                for source in sources.iter() {
+                for source in sources.clone().into_iter() {
                     trace!("Processing source {:?}", source);
-                    let component_id = component_id_set.get(*source).unwrap();
+                    let component_id = component_id_set.get(source).unwrap();
                     let type_id = component_info_set.get(*component_id).unwrap().type_id().unwrap();
 
                     // call the copy_data method via reflection
                     // this will append the source data to the args tuple
                     // FIXME indicate an error if the args don't line up?
-                    if let Some(mut source) = world.get_entity_mut(*source) {
+                    if let Some(mut source) = world.get_entity_mut(source) {
                         // insert arcane wizardry here
                         run_as_observable(
                             &mut source,
@@ -103,7 +102,7 @@ pub fn compute_memos(
                     }
 
                     // make sure computeds refresh so they will be notified next time
-                    subscribe(&computed, source, &type_registry, world);
+                    subscribe(&computed, &source, &type_registry, world);
                 }
 
                 let mut changed = false;

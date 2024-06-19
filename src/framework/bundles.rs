@@ -13,7 +13,7 @@ pub struct ComputedBundle<R: LazySignalsData> {
 impl<R: LazySignalsData> ComputedBundle<R> {
     pub fn from_function<P: LazySignalsArgs>(
         function: Mutex<Box<dyn ComputedContext>>,
-        sources: Vec<Entity>,
+        sources: LazySignalsVec,
         component_id: ComponentId
     ) -> ComputedBundle<R> {
         ComputedBundle::<R> {
@@ -42,8 +42,8 @@ pub struct EffectBundle {
 impl EffectBundle {
     pub fn from_function<P: LazySignalsArgs>(
         function: EffectContext,
-        sources: Vec<Entity>,
-        triggers: Vec<Entity>
+        sources: LazySignalsVec,
+        triggers: LazySignalsVec
     ) -> EffectBundle {
         EffectBundle {
             context: LazyEffect {

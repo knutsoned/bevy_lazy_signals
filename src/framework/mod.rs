@@ -1,4 +1,4 @@
-use std::{ any::TypeId, fmt::Debug, sync::Mutex };
+use std::{ any::TypeId, fmt::Debug, marker::PhantomData, sync::Mutex };
 
 use bevy::{
     ecs::{
@@ -29,7 +29,7 @@ pub struct LazySignalsResult<R: LazySignalsData> {
 }
 
 /// Return type for an optional list of entities and some flags (changed, triggered).
-pub type MaybeFlaggedEntities = Option<(Vec<Entity>, bool, bool)>;
+pub type MaybeFlaggedEntities = Option<(LazySignalsVec, bool, bool)>;
 
 /// ## Enums
 /// Read error.
@@ -74,6 +74,56 @@ impl<T> LazySignalsData
 pub trait LazySignalsArgs: LazySignalsData + Tuple {}
 impl<T> LazySignalsArgs for T where T: LazySignalsData + Tuple {}
 
+pub trait LazySignalsSources<P: LazySignalsArgs>: LazySignalsData + Tuple {}
+impl<P: LazySignalsArgs, T> LazySignalsSources<P> for T where T: LazySignalsData + Tuple {}
+
+impl<P: LazySignalsArgs> From<P> for LazySignalsVec {
+    fn from(value: P) -> Self {
+        todo!()
+    }
+}
+
+// #[derive(Copy)]
+pub struct LazySignalsVec(pub Vec<Entity>);
+
+impl LazySignalsVec {
+    pub fn new() -> Self {
+        Self(Vec::<Entity>::new())
+    }
+
+    pub fn append(&mut self, other: &mut LazySignalsVec) {
+        self.0.append(&mut other.0);
+    }
+}
+
+impl Clone for LazySignalsVec {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl Debug for LazySignalsVec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<LazySignalsVec> for Vec<Entity> {
+    fn from(value: LazySignalsVec) -> Self {
+        value.0
+    }
+}
+
+impl IntoIterator for LazySignalsVec {
+    type Item = Entity;
+
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 /// A Propagator function aggregates (merges) data from multiple cells to store in a bound cell.
 /// Compared to the MIT model, the Computed pulls data into a cell they are bound to.
 /// MIT Propagators are conceptually more independent and closer to a push-based flow.
@@ -100,7 +150,7 @@ impl<
     T: Send + Sync + 'static + Fn(P) -> LazySignalsResult<R>
 > Computed<P, R> for T {}
 
-/// This is the same basic thing but this fn just runs side-effects so no value is returned.
+/// This is the same basic thing but the fn just runs side-effects so it may return a system to run.
 pub trait EffectWrapper: Send + Sync + FnMut(&DynamicTuple, &mut World) -> Option<BoxedSystem> {}
 impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World) -> Option<BoxedSystem>> EffectWrapper
 for T {}
@@ -144,6 +194,13 @@ impl<
         ) -> MaybeFlaggedEntities
 > ObservableFn for T {}
 
+/// Wrap an input to a Computed or Effect as an entity with a LazySignalsState of a certain type.
+/// This would generally be obtained from an API factory object.
+pub struct Src<T: LazySignalsData> {
+    pub entity: Entity,
+    arg_type: PhantomData<T>,
+}
+
 /// ## Component Structs
 ///
 /// An ImmutableState stores the ComponentId of a LazySignalsState<T> with concrete T.
@@ -161,7 +218,7 @@ pub struct SendSignal;
 #[derive(Component)]
 pub struct ComputedImmutable {
     pub function: Mutex<Box<dyn ComputedContext>>,
-    pub sources: Vec<Entity>,
+    pub sources: LazySignalsVec,
     pub args_type: TypeId,
     pub result_type: TypeId,
 }
@@ -175,8 +232,8 @@ pub struct ComputeMemo;
 #[derive(Component)]
 pub struct LazyEffect {
     pub function: EffectContext,
-    pub sources: Vec<Entity>,
-    pub triggers: Vec<Entity>,
+    pub sources: LazySignalsVec,
+    pub triggers: LazySignalsVec,
     pub args_type: TypeId,
 }
 
@@ -222,7 +279,7 @@ pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
 pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
 
 /// Set of Entity to child Entities.
-pub type EntityRelationshipSet = SparseSet<Entity, Vec<Entity>>;
+pub type EntityRelationshipSet = SparseSet<Entity, LazySignalsVec>;
 
 /// Set of unique Entities
 pub type EntitySet = SparseSet<Entity, ()>;

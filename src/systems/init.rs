@@ -23,7 +23,7 @@ pub fn init_lazy_signals(
     let mut relationships = EntityRelationshipSet::new();
 
     query_deriveds.iter(world).for_each(|(entity, computed, effect)| {
-        let mut subs = Vec::<Entity>::new();
+        let mut subs = LazySignalsVec::new();
         if let Some(computed) = computed {
             subs.append(&mut computed.sources.clone());
         }
@@ -39,8 +39,8 @@ pub fn init_lazy_signals(
         let type_registry = type_registry.read();
         for (entity, subs) in relationships.iter() {
             // loop through the sources
-            for source in subs.iter() {
-                subscribe(entity, source, &type_registry, world);
+            for source in subs.clone().into_iter() {
+                subscribe(entity, &source, &type_registry, world);
             }
 
             // mark as processed

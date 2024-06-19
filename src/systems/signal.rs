@@ -4,16 +4,16 @@ use crate::{ arcane_wizardry::*, framework::* };
 
 // add subscribers to the next running set
 fn add_subs_to_running(
-    subs: &[Entity],
+    subs: &LazySignalsVec,
     changed: bool,
     triggered: bool,
     next_running: &mut EntitySet,
     world: &mut World
 ) {
-    for subscriber in subs.iter() {
+    for subscriber in subs.clone().into_iter() {
         if changed || triggered {
             trace!("-adding subscriber {:?} to running set", subscriber);
-            let subscriber = *subscriber;
+            let subscriber = subscriber;
             next_running.insert(subscriber, ());
             let mut subscriber = world.entity_mut(subscriber);
             subscriber.insert(Dirty);

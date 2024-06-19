@@ -93,6 +93,20 @@ impl LazySignals {
         entity
     }
 
+    /// TODO have this return a tuple of getter fn and Src object.
+    pub fn computed_tuple<P: LazySignalsArgs, R: LazySignalsData>(
+        &self,
+        propagator_closure: impl Computed<P, R>,
+        sources: Box<impl LazySignalsSources<P>>,
+        commands: &mut Commands
+    ) -> Entity {
+        let entity = commands.spawn_empty().id();
+        // FIXME I think this requires a macro
+        // but how do we pass in a tuple type and convert that to tuple(Option<EachType>, ...) elsewhere then???
+        commands.create_computed::<P, R>(entity, make_computed_with(propagator_closure), sources);
+        entity
+    }
+
     /// Create an Effect that passes its sources to and evaluate a closure that runs side-effects.
     pub fn effect<P: LazySignalsArgs>(
         &self,
@@ -161,6 +175,13 @@ impl LazySignals {
 
     /// Create a Signal state that is the entrypoint for data into the structure.
     pub fn state<T: LazySignalsData>(&self, data: T, commands: &mut Commands) -> Entity {
+        let state = commands.spawn_empty().id();
+        commands.create_state::<T>(state, data);
+        state
+    }
+
+    /// TODO have this return a tuple of getter/setter fns and a Src object.
+    pub fn state_tuple<T: LazySignalsData>(&self, data: T, commands: &mut Commands) -> Entity {
         let state = commands.spawn_empty().id();
         commands.create_state::<T>(state, data);
         state

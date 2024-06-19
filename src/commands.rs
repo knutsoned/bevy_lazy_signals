@@ -118,7 +118,7 @@ pub struct CreateActionCommand<P: LazySignalsArgs> {
     pub function: Mutex<Box<dyn ActionWrapper>>,
     pub sources: Vec<Entity>,
     pub triggers: Vec<Entity>,
-    pub args_type: PhantomData<P>,
+    args_type: PhantomData<P>,
 }
 
 impl<P: LazySignalsArgs> Command for CreateActionCommand<P> {
@@ -129,8 +129,8 @@ impl<P: LazySignalsArgs> Command for CreateActionCommand<P> {
             .insert(
                 EffectBundle::from_function::<P>(
                     EffectContext::Long(self.function),
-                    self.sources,
-                    self.triggers
+                    LazySignalsVec(self.sources),
+                    LazySignalsVec(self.triggers)
                 )
             );
     }
@@ -141,8 +141,8 @@ pub struct CreateComputedCommand<P: LazySignalsArgs, R: LazySignalsData> {
     pub computed: Entity,
     pub function: Mutex<Box<dyn ComputedContext>>,
     pub sources: Vec<Entity>,
-    pub args_type: PhantomData<P>,
-    pub result_type: PhantomData<R>,
+    args_type: PhantomData<P>,
+    result_type: PhantomData<R>,
 }
 
 impl<P: LazySignalsArgs, R: LazySignalsData> Command for CreateComputedCommand<P, R> {
@@ -153,7 +153,11 @@ impl<P: LazySignalsArgs, R: LazySignalsData> Command for CreateComputedCommand<P
             .get_entity_mut(self.computed)
             .unwrap()
             .insert(
-                ComputedBundle::<R>::from_function::<P>(self.function, self.sources, component_id)
+                ComputedBundle::<R>::from_function::<P>(
+                    self.function,
+                    LazySignalsVec(self.sources),
+                    component_id
+                )
             );
     }
 }
@@ -164,7 +168,7 @@ pub struct CreateEffectCommand<P: LazySignalsArgs> {
     pub function: Mutex<Box<dyn EffectWrapper>>,
     pub sources: Vec<Entity>,
     pub triggers: Vec<Entity>,
-    pub args_type: PhantomData<P>,
+    args_type: PhantomData<P>,
 }
 
 impl<P: LazySignalsArgs> Command for CreateEffectCommand<P> {
@@ -175,8 +179,8 @@ impl<P: LazySignalsArgs> Command for CreateEffectCommand<P> {
             .insert(
                 EffectBundle::from_function::<P>(
                     EffectContext::Short(self.function),
-                    self.sources,
-                    self.triggers
+                    LazySignalsVec(self.sources),
+                    LazySignalsVec(self.triggers)
                 )
             );
     }

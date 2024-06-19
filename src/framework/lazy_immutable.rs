@@ -39,7 +39,7 @@ pub trait LazySignalsObservable {
     fn copy_data(&mut self, caller: Entity, args: &mut DynamicTuple);
 
     /// Get the list of subscriber Entities that may need notification.
-    fn get_subscribers(&self) -> Vec<Entity>;
+    fn get_subscribers(&self) -> LazySignalsVec;
 
     /// This method merges the next_value and returns get_subscribers().
     fn merge(&mut self) -> MaybeFlaggedEntities;
@@ -124,13 +124,13 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
         self.subscribe(caller);
     }
 
-    fn get_subscribers(&self) -> Vec<Entity> {
+    fn get_subscribers(&self) -> LazySignalsVec {
         let mut subs = Vec::<Entity>::new();
 
         // copy the subscribers into the output vector
         subs.extend(self.subscribers.indices());
         trace!("-found subs {:?}", self.subscribers);
-        subs
+        LazySignalsVec(subs)
     }
 
     fn merge(&mut self) -> MaybeFlaggedEntities {
@@ -138,7 +138,7 @@ impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
         let triggered = self.triggered;
 
         // output vector for downstream subscribers to process next
-        let mut subs = Vec::<Entity>::new();
+        let mut subs = LazySignalsVec::new();
 
         // whether or not to overwrite the existing info
         let doo_eet = match &self.next_value.error {
