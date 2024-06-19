@@ -55,6 +55,7 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 
 ### Enhancements
 
+- [ ] See if there is a way to register effect systems during init and retain SystemId
 - [ ] More API documentation
 - [ ] I need someone to just review every line because I am a total n00b
 - [ ] More examples, including basic game stuff (gold and health seem popular)
@@ -71,13 +72,15 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 - [x] Process tasks to run their commands when they are complete
 - [x] Make sure Triggered gets removed from Computeds during processing
 - [x] Remove Clone from LazySignalsData trait bounds
-- [ ] Make sure we can convert the result struct into a regular Option<Result<>>
-- [ ] Provide integration with Bevy observers
-- [ ] Implement effect systems
-- [ ] Support undo/redo
+- [x] Implement effect systems
+- [ ] Add Source fields for sources Vecs
 - [ ] Integrate with bevy_mod_picking
-- [ ] Integrate with bevy-inspector-egui
 - [ ] Make a demo of a fully wired sickle entity inspector with schematics
+- [ ] Make sure we can convert the result struct into a regular Option<Result<>>
+- [ ] See if there is a way to schedule a system using an Action's CommandQueue
+- [ ] Provide integration with Bevy observers
+- [ ] Support undo/redo
+- [ ] Integrate with bevy-inspector-egui
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
 - [ ] Add getter/setter tuples factory to API
 - [ ] Support streams if the developer expects the same signal to be sent multiple times/tick
@@ -92,7 +95,8 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 The LazySignalsPlugin will register the core types and systems.
 
 Create signals, computeds, effects, and tasks with the API during application init. Read and send
-signals and read memoized computeds in update systems.
+signals and read memoized computeds in update systems. Trigger actions and effects when source or
+trigger signals are sent or source computeds change value.
 
 For basic usage, an application specific resource may track the reactive primitive entities.
 
@@ -147,7 +151,7 @@ fn signals_setup_system(mut commands: Commands) {
     let height = 1080.0;
 
     // the actual pure function to perform the calculations
-    let screen_x_fn: |args: (f32)| {
+    let screen_x_fn = |args: (f32)| {
         LazySignals::result(args.0.map_or(0.0, |x| (x + 1.0) * width / 2.0))
     };
 
@@ -173,7 +177,7 @@ fn signals_setup_system(mut commands: Commands) {
 
     // similar in form to making a computed, but we get exclusive world access
     // first the closure (that is an &mut World, if needed)
-    let effect_fn: |args: (f32, f32), _world| {
+    let effect_fn = |args: (f32, f32), _world| {
         let x = args.0.map_or("???", |x| format!("{:.1}", x))
         let y = args.1.map_or("???", |y| format!("{:.1}", y))
         info!(format!("({}, {})"), x, y)
@@ -190,7 +194,7 @@ fn signals_setup_system(mut commands: Commands) {
     // unlike a brief Effect which gets exclusive world access, an Action is an async task
     // but only returns a CommandQueue, to run when the system that checks Bevy tasks notices
     // it has completed
-    let action_fn: |args: (f32, f32)| {
+    let action_fn = |args: (f32, f32)| {
         let mut command_queue = CommandQueue::default();
 
         // as long as the task is still running, it will not spawn another instance

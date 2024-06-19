@@ -115,7 +115,7 @@ impl<T: LazySignalsData> LazySignalsImmutable for LazySignalsState<T> {
 
 impl<T: LazySignalsData> LazySignalsObservable for LazySignalsState<T> {
     fn append_none(&mut self, args: &mut DynamicTuple) {
-        args.insert::<Option<T>>(None);
+        args.insert(Option::<T>::None);
     }
 
     fn copy_data(&mut self, caller: Entity, args: &mut DynamicTuple) {

@@ -73,6 +73,14 @@ fn main() {
         .run();
 }
 
+// can be boxed and chained to the end of an effect by returning the box from the closure
+fn effect_system(example_auth_resource: Res<MyExampleAuthResource>) {
+    info!(
+        "running effect syste with current resource logged_in: {}",
+        example_auth_resource.is_logged_in()
+    )
+}
+
 fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
     // create a signal (you need to register data types if not bool, i32, f64, or &'static str)
     // (see LazySignalsPlugin)
@@ -145,6 +153,9 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         if let Some(logged_in_msg) = args.1 {
             info!("EFFECT0: got {} from args.1", logged_in_msg);
         }
+
+        // you can return an BoxedSystem to be run directly after the closure exits (see below)
+        None
     };
 
     // we can just push this into the resource since we don't need to pass it around as a dep
@@ -248,6 +259,9 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
                 if let Some(logged_in_msg) = args.1 {
                     info!("EFFECT1: got logged_in_msg: {}", logged_in_msg);
                 }
+
+                // example effect system
+                LazySignals.box_system(effect_system)
             },
             vec![signal0, computed1],
             Vec::<Entity>::new(),

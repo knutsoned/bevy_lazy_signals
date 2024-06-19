@@ -1,7 +1,12 @@
 use std::{ any::TypeId, fmt::Debug, sync::Mutex };
 
 use bevy::{
-    ecs::{ component::{ ComponentId, ComponentInfo }, storage::SparseSet, world::CommandQueue },
+    ecs::{
+        component::{ ComponentId, ComponentInfo },
+        storage::SparseSet,
+        system::BoxedSystem,
+        world::CommandQueue,
+    },
     prelude::*,
     reflect::{ DynamicTuple, GetTypeRegistration, Tuple },
     tasks::Task,
@@ -96,12 +101,19 @@ impl<
 > Computed<P, R> for T {}
 
 /// This is the same basic thing but this fn just runs side-effects so no value is returned.
-pub trait EffectWrapper: Send + Sync + FnMut(&DynamicTuple, &mut World) {}
-impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World)> EffectWrapper for T {}
+pub trait EffectWrapper: Send + Sync + FnMut(&DynamicTuple, &mut World) -> Option<BoxedSystem> {}
+impl<T: Send + Sync + FnMut(&DynamicTuple, &mut World) -> Option<BoxedSystem>> EffectWrapper
+for T {}
 
 /// Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as args.
-pub trait Effect<P: LazySignalsArgs>: Send + Sync + 'static + FnMut(P, &mut World) {}
-impl<P: LazySignalsArgs, T: Send + Sync + 'static + FnMut(P, &mut World)> Effect<P> for T {}
+pub trait Effect<P: LazySignalsArgs>: Send +
+    Sync +
+    'static +
+    FnMut(P, &mut World) -> Option<BoxedSystem> {}
+impl<
+    P: LazySignalsArgs,
+    T: Send + Sync + 'static + FnMut(P, &mut World) -> Option<BoxedSystem>
+> Effect<P> for T {}
 
 pub trait ActionWrapper: Send + Sync + Fn(&DynamicTuple) -> Task<CommandQueue> {}
 impl<T: Send + Sync + Fn(&DynamicTuple) -> Task<CommandQueue>> ActionWrapper for T {}

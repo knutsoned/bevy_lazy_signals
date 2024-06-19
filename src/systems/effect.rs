@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::world::CommandQueue,
+    ecs::{ system::BoxedSystem, world::CommandQueue },
     prelude::*,
     reflect::DynamicTuple,
     tasks::{ block_on, futures_lite::future, Task },
@@ -150,6 +150,7 @@ pub fn apply_deferred_effects(
             }
 
             // actually run the effect
+            let mut effect_system = Option::<BoxedSystem>::None;
             let mut new_task = false;
 
             // drop the UnsafeWorldCell after this block so we can access the real world again
@@ -165,7 +166,7 @@ pub fn apply_deferred_effects(
                         match function {
                             EffectContext::Short(effect) => {
                                 // I think this world must not be used to mutate the effect, not sure
-                                effect.lock().unwrap()(&args, world.world_mut());
+                                effect_system = effect.lock().unwrap()(&args, world.world_mut());
                             }
                             EffectContext::Long(_) => {
                                 trace!("Running task {:?}", effect);
@@ -187,6 +188,18 @@ pub fn apply_deferred_effects(
                         }
                     }
                 }
+            }
+
+            // run the effect system
+            if let Some(effect_system) = effect_system {
+                // FIXME this seems horribly inefficient
+                // is there a way
+                let id = world.register_boxed_system(effect_system);
+                match world.run_system(id) {
+                    Ok(_) => {}
+                    Err(_) => error!("error running effect system"),
+                }
+                world.despawn(id.entity());
             }
         });
     }

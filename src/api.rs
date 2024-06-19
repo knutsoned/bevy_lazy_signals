@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use bevy::prelude::*;
+use bevy::{ ecs::system::BoxedSystem, prelude::* };
 
 use crate::{
     arcane_wizardry::make_tuple,
@@ -16,7 +16,7 @@ pub fn make_effect_with<P: LazySignalsArgs>(
     Mutex::new(
         Box::new(move |tuple, world| {
             trace!("-running effect context with args {:?}", tuple);
-            closure(make_tuple::<P>(tuple), world);
+            closure(make_tuple::<P>(tuple), world)
         })
     )
 }
@@ -54,7 +54,6 @@ pub fn store_result<T: LazySignalsData>(
     entity: &Entity,
     world: &mut World
 ) -> bool {
-    //info!("Storing result {:?} in {:#?}", data, world.inspect_entity(*entity));
     let mut entity = world.entity_mut(*entity);
     let mut component = entity.get_mut::<LazySignalsState<T>>().unwrap();
     component.update(data)
@@ -75,6 +74,11 @@ impl LazySignals {
         let entity = commands.spawn_empty().id();
         commands.create_action::<P>(entity, make_action_with(task_closure), sources, triggers);
         entity
+    }
+
+    /// Create a BoxedSystem to be chained after the Effect that returns it.
+    pub fn box_system<M>(&self, effect_system: impl IntoSystem<(), (), M>) -> Option<BoxedSystem> {
+        Some(Box::new(IntoSystem::into_system(effect_system)))
     }
 
     /// Create a Computed that passes its sources to and evaluate a closure, memoizing the result.
