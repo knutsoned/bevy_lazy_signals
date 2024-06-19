@@ -73,16 +73,17 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 - [x] Make sure Triggered gets removed from Computeds during processing
 - [x] Remove Clone from LazySignalsData trait bounds
 - [x] Implement effect systems
+- [ ] Add getter/setter tuples factory to API
 - [ ] Add Source fields for sources Vecs
 - [ ] Integrate with bevy_mod_picking
 - [ ] Make a demo of a fully wired sickle entity inspector with schematics
 - [ ] Make sure we can convert the result struct into a regular Option<Result<>>
+- [ ] Find a better way to manage the Effect systems (at init time)
 - [ ] See if there is a way to schedule a system using an Action's CommandQueue
 - [ ] Provide integration with Bevy observers
 - [ ] Support undo/redo
 - [ ] Integrate with bevy-inspector-egui
 - [ ] Do the [Ten Challenges](https://github.com/bevyengine/bevy/discussions/11100)
-- [ ] Add getter/setter tuples factory to API
 - [ ] Support streams if the developer expects the same signal to be sent multiple times/tick
 - [ ] See how well the demo plays with bevy_mod_scripting
 - [ ] Write a bunch of Fennel code to see how well it works to script the computeds and effects
