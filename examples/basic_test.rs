@@ -73,10 +73,11 @@ fn main() {
         .run();
 }
 
-// can be boxed and chained to the end of an effect by returning the box from the closure
+// this can be any system and it can be boxed and chained to the end of an Effect by returning the
+// box from the Effect closure
 fn effect_system(example_auth_resource: Res<MyExampleAuthResource>) {
     info!(
-        "running effect syste with current resource logged_in: {}",
+        "running effect system with current resource logged_in: {}",
         example_auth_resource.is_logged_in()
     )
 }
