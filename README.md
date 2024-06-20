@@ -21,10 +21,6 @@ Well, at least a [YouTube video](https://www.youtube.com/watch?v=HB5TrK7A4pI) th
 
 See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 
-## Dependencies
-
-- [thiserror](https://github.com/dtolnay/thiserror)
-
 ## Design Questions
 
 - What's a good way to handle errors?
@@ -290,7 +286,7 @@ fn main() {
 
 | bevy   | bevy_lazy_signals |
 | ------ | ----------------- |
-| 0.14.0 | 0.4.0-alpha       |
+| 0.14.0 | 0.4.0-alpha+      |
 | 0.13.2 | 0.3.0-alpha       |
 
 ## License
