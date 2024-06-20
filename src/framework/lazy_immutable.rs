@@ -4,11 +4,11 @@ use crate::arcane_wizardry::{ clone_data, insert_data };
 
 use super::*;
 
-/// LazySignalsImmutable is the typed part of the main trait, LazySignalsObservable is the untyped
-/// part, and LazySignalsState is the component struct.
+/// `LazySignalsImmutable` is the typed part of the main trait, `LazySignalsObservable` is the untyped
+/// part, and `LazySignalsState` is the component struct.
 ///
-/// A LazySignalsImmutable is an item of data backed by a Bevy entity with a set of subscribers.
-/// Additional methods in LazySignalsObservable would be here but you can't have generic trait
+/// A `LazySignalsImmutable` is an item of data backed by a Bevy entity with a set of subscribers.
+/// Additional methods in `LazySignalsObservable` would be here but you can't have generic trait
 /// objects.
 pub trait LazySignalsImmutable: Send + Sync + 'static {
     type DataType: LazySignalsData;
@@ -28,41 +28,41 @@ pub trait LazySignalsImmutable: Send + Sync + 'static {
 
 /// Called by a lazy update system to apply the new value of a signal, run effects, etc.
 /// This is a main thing to implement if you're trying to use reflection.
-/// The ref impl uses this to update the LazySignalsImmutable values without knowing the type.
+/// The ref impl uses this to update the `LazySignalsImmutable` values without knowing the type.
 /// These are also part of sending a Signal.
 #[reflect_trait]
 pub trait LazySignalsObservable {
-    /// Add None to the args.
+    /// Add `None` to the args.
     fn append_none(&mut self, args: &mut DynamicTuple);
 
-    /// Copy the data into a dynamic tuple of args for the Effect or Propagator to consume.
+    /// Copy the data into a dynamic tuple of args for the `Effect` or `Computed` to consume.
     fn copy_data(&mut self, caller: Entity, args: &mut DynamicTuple);
 
-    /// Get the list of subscriber Entities that may need notification.
+    /// Get the list of subscribers that may need notification.
     fn get_subscribers(&self) -> Vec<Entity>;
 
-    /// This method merges the next_value and returns get_subscribers().
+    /// This method merges the `next_value` and returns `get_subscribers()`.
     fn merge(&mut self) -> MaybeFlaggedEntities;
 
     /// Called by a lazy update system to refresh the subscribers.
     fn merge_subscribers(&mut self);
 
-    /// Called by an Effect or Memo indirectly by reading the current value.
+    /// Called by an `Effect` or `Memo` indirectly by reading the current value.
     fn subscribe(&mut self, entity: Entity);
 }
 
-/// A LazySignalsState is known as a cell in a propagator network. It may also be referred to as
-/// state. Using the label LazySignalsState because Cell often means another thing.
-/// Mutable is used by futures-signals for the same data-wrapping purpose, but in our case, the
-/// cells are mutated by sending signal explicitly (i.e. calling merge_next and adding SendSignal).
+/// A `LazySignalsState` is known as a cell in a propagator network. It may also be referred to as
+/// state. Using the label `LazySignalsState` because `Cell` often means another thing.
+/// `Mutable` is used by `futures-signals` for the same data-wrapping purpose, but in our case, the
+/// cells are mutated by sending signal explicitly (i.e. calling `merge_next` and adding `SendSignal`).
 ///
 /// Some convenience types provided:
-/// LazyImmutableBool, LazyImmutableInt, LazyImmutableFloat, LazyImmutableStr, LazyImmutableUnit.
+/// `LazyImmutableBool`, `LazyImmutableInt`, `LazyImmutableFloat`, `LazyImmutableStr`, `LazyImmutableUnit`.
 ///
-/// The subscriber set is built from the sources/triggers of computed memos and effects, so it does
-/// not have to be serialized, which is good because the SparseSet doesn't seem to do Reflect.
+/// The subscriber set is built from the `sources`/`triggers` of computed memos and effects, so it does
+/// not have to be serialized, which is good because the `SparseSet` doesn't seem to do `Reflect`.
 ///
-/// This LazySignalsState component is lazy. Other forms are left as an exercise for the reader.
+/// This `LazySignalsState` component is lazy. Other forms are left as an exercise for the reader.
 #[derive(Component, Reflect)]
 #[reflect(Component, LazySignalsObservable)]
 pub struct LazySignalsState<T: LazySignalsData> {

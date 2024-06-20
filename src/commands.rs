@@ -4,7 +4,7 @@ use bevy::{ ecs::world::Command, prelude::* };
 
 use crate::{ bundles::*, framework::*, lazy_immutable::{ LazySignalsState, LazySignalsImmutable } };
 
-/// Convenience extension to use each Command directly from Commands instance.
+/// Convenience extension to use each `Command` directly from `Commands` instance.
 pub trait LazySignalsCommandsExt {
     /// Command to create an action (effect) from the given entity as an async task.
     fn create_action<P: LazySignalsArgs>(
@@ -32,7 +32,7 @@ pub trait LazySignalsCommandsExt {
         triggers: Vec<Entity>
     );
 
-    /// Command to create a state (LazyImmutable with no Effect or Propagator) from the given entity.
+    /// Command to create a state (`LazyImmutable` with no `Effect` or `Computed`) from the given entity.
     fn create_state<T: LazySignalsData>(&mut self, state: Entity, data: T);
 
     // Command to send a signal if the data value is different from the current value.
@@ -136,7 +136,7 @@ impl<P: LazySignalsArgs> Command for CreateActionCommand<P> {
     }
 }
 
-/// Command to create a computed memo (Immutable plus Propagator) from the given entity.
+/// Command to create a computed memo (`LazySignalsState` plus `ImmutableState` plus `ComputedImmutable`) from the given entity.
 pub struct CreateComputedCommand<P: LazySignalsArgs, R: LazySignalsData> {
     pub computed: Entity,
     pub function: Mutex<Box<dyn ComputedContext>>,
@@ -147,7 +147,7 @@ pub struct CreateComputedCommand<P: LazySignalsArgs, R: LazySignalsData> {
 
 impl<P: LazySignalsArgs, R: LazySignalsData> Command for CreateComputedCommand<P, R> {
     fn apply(self, world: &mut World) {
-        // once init runs once for a concrete R, it just returns the existing ComponentId next time
+        // once init runs once for a concrete `R`, it just returns the existing `ComponentId` next time
         let component_id = world.init_component::<LazySignalsState<R>>();
         world
             .get_entity_mut(self.computed)
@@ -158,7 +158,7 @@ impl<P: LazySignalsArgs, R: LazySignalsData> Command for CreateComputedCommand<P
     }
 }
 
-/// Command to create an effect (Propagator with no memo) from the given entity.
+/// Command to create a `LazyEffect` from the given entity.
 pub struct CreateEffectCommand<P: LazySignalsArgs> {
     pub effect: Entity,
     pub function: Mutex<Box<dyn EffectWrapper>>,
@@ -182,7 +182,7 @@ impl<P: LazySignalsArgs> Command for CreateEffectCommand<P> {
     }
 }
 
-/// Command to create a state (LazyImmutableImmutable) from the given entity.
+/// Command to create a `LazyImmutableState` from the given entity.
 pub struct CreateStateCommand<T: LazySignalsData> {
     pub state: Entity,
     pub data: T,
@@ -190,7 +190,7 @@ pub struct CreateStateCommand<T: LazySignalsData> {
 
 impl<T: LazySignalsData> Command for CreateStateCommand<T> {
     fn apply(self, world: &mut World) {
-        // store the ComponentId so we can reflect the LazyImmutable later
+        // store the `ComponentId`` so we can reflect the `LazySignalsState` later
         let component_id = world.init_component::<LazySignalsState<T>>();
         world
             .get_entity_mut(self.state)
@@ -227,7 +227,7 @@ impl<T: LazySignalsData> Command for SendSignalCommand<T> {
     }
 }
 
-/// Command to trigger a Signal (i.e. send signal even if value unchanged) to the given entity.
+/// Command to trigger a `Signal` (i.e. send signal even if value unchanged) to the given entity.
 pub struct TriggerSignalCommand<T: LazySignalsData> {
     pub signal: Entity,
     pub data: T,

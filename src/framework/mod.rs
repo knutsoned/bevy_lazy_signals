@@ -35,7 +35,7 @@ pub type MaybeFlaggedEntities = Option<(Vec<Entity>, bool, bool)>;
 /// Read error.
 #[derive(Error, Clone, Copy, PartialEq, Reflect, Debug)]
 pub enum LazySignalsError {
-    /// An attempt was made to reference a LazySignals entity that does not exist.
+    /// An attempt was made to reference a `LazySignals` entity that does not exist.
     #[error["Signal does not exist"]]
     NoSignalError,
 
@@ -74,13 +74,13 @@ impl<T> LazySignalsData
 pub trait LazySignalsArgs: LazySignalsData + Tuple {}
 impl<T> LazySignalsArgs for T where T: LazySignalsData + Tuple {}
 
-/// A Propagator function aggregates (merges) data from multiple cells to store in a bound cell.
-/// Compared to the MIT model, the Computed pulls data into a cell they are bound to.
-/// MIT Propagators are conceptually more independent and closer to a push-based flow.
-/// This Computed merges the values of cells denoted by the entity vector into the target entity.
+/// A propagator function aggregates (merges) data from multiple cells to store in a bound cell.
+/// Compared to the MIT model, the `Computed` pulls data into a cell they are bound to.
+/// MIT propagators are conceptually more independent and closer to a push-based, async flow.
+/// This `Computed` merges the values of cells denoted by the entity vector into the target entity.
 ///
-/// The DynamicTuple is an argument list whose internal types match the Option<T> of each source.
-/// (i.e. SignalsResult<T> becomes Option<T> with any Err becoming None)
+/// The `DynamicTuple` is an argument list whose internal types match the `Option<T>` of each source.
+/// (i.e. `SignalsResult` with no error and some data becomes `Option<T>` with any `Err` becoming `None`)
 ///
 /// The entity is where the result will be stored, where this instance of the function lives.
 ///
@@ -89,7 +89,7 @@ pub trait ComputedContext: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut Worl
 impl<T: Send + Sync + FnMut(&DynamicTuple, &Entity, &mut World) -> bool> ComputedContext for T {}
 
 /// Let the developer pass in a regular Rust closure that borrows a concrete typed tuple as args.
-/// The return type is a LazySignalsResult which can then be memoized.
+/// The return type is a `LazySignalsResult` which can then be memoized.
 pub trait Computed<P: LazySignalsArgs, R: LazySignalsData>: Send +
     Sync +
     'static +
@@ -126,7 +126,7 @@ pub enum EffectContext {
     Long(Mutex<Box<dyn ActionWrapper>>),
 }
 
-/// Catch-all fn signature for LazySignalsObservable operations.
+/// Catch-all fn signature for `LazySignalsObservable` operations.
 pub trait ObservableFn: Send +
     Sync +
     FnMut(
@@ -146,18 +146,18 @@ impl<
 
 /// ## Component Structs
 ///
-/// An ImmutableState stores the ComponentId of a LazySignalsState<T> with concrete T.
+/// An `ImmutableState` stores the `ComponentId` of a `LazySignalsState<T>` with concrete `T`.
 #[derive(Component)]
 pub struct ImmutableState {
     pub component_id: ComponentId,
 }
 
-/// A SendSignal component marks a LazySignalsState cell as having a next_value.
+/// A `SendSignal` component marks a `LazySignalsState` cell as having a `next_value`.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct SendSignal;
 
-/// A ComputedImmutable is a Computed that memoizes its result in a LazySignalsState.
+/// A `ComputedImmutable` is a `Computed` that memoizes its result in a `LazySignalsState`.
 #[derive(Component)]
 pub struct ComputedImmutable {
     pub function: Mutex<Box<dyn ComputedContext>>,
@@ -166,12 +166,12 @@ pub struct ComputedImmutable {
     pub result_type: TypeId,
 }
 
-/// A ComputeMemo component marks a Computed function that needs computin.
+/// A `ComputeMemo` component marks a `Computed` function that needs computin.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct ComputeMemo;
 
-/// A LazyEffect returns no value and just runs side-effects.
+/// A `LazyEffect` returns no value and just runs side-effects.
 #[derive(Component)]
 pub struct LazyEffect {
     pub function: EffectContext,
@@ -185,52 +185,52 @@ pub struct LazyEffect {
 #[component(storage = "SparseSet")]
 pub struct DeferredEffect;
 
-/// A Dirty component means that a value _may_ have changed and needs to be evaluated.
+/// A `Dirty` component means that a value _may_ have changed and needs to be evaluated.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Dirty;
 
-/// Marks a ComputedImmutable or LazyEffect as needing to subscribe to its dependencies.
+/// Marks a `ComputedImmutable` or `LazyEffect` as needing to subscribe to its dependencies.
 /// This normally only happens within the framework internals on create.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct InitDependencies;
 
-/// A RunningTask component marks an Effect function that may still be running.
+/// A `RunningTask` component marks an `Effect` function that may still be running.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct RunningTask {
     pub task: Task<CommandQueue>,
 }
 
-/// A Triggered component marks a Computed triggers any effect anywhere down its subscriber tree.
-/// It also marks any Effect that has been triggered this way.
+/// A `Triggered` component marks a `Computed` triggers any effect anywhere down its subscriber tree.
+/// It also marks any `Effect` that has been triggered this way.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Triggered;
 
-/// A ValueChanged component marks a Signal or Component that actually changed.
+/// A `ValueChanged` component marks a `Signal` or `Component` that actually changed.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct ValueChanged;
 
 /// ## Utilities
-/// Set of Entity to ComponentId.
+/// Set of `Entity` to `ComponentId`.
 pub type ComponentIdSet = SparseSet<Entity, ComponentId>;
 
-/// Set of ComponentId to ComponentInfo.
+/// Set of `ComponentId` to `ComponentInfo`.
 pub type ComponentInfoSet = SparseSet<ComponentId, ComponentInfo>;
 
-/// Set of Entity to child Entities.
+/// Set of `Entity` to child `Entity`.
 pub type EntityRelationshipSet = SparseSet<Entity, Vec<Entity>>;
 
-/// Set of unique Entities
+/// Unique `Entity` set.
 pub type EntitySet = SparseSet<Entity, ()>;
 
-/// Set of internal errors when running computed (propagator) and effect functions.
+/// Set of internal errors when running computed and effect functions.
 pub type ErrorSet = SparseSet<Entity, LazySignalsError>;
 
-/// Create an empty sparse set for storing Entities by ID.
+/// Create an empty sparse set for storing `Entity` by ID.
 pub fn empty_set() -> EntitySet {
     EntitySet::new()
 }

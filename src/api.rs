@@ -60,10 +60,10 @@ pub fn store_result<T: LazySignalsData>(
 }
 
 /// ## Main Signal primitive factory.
-/// Convenience functions for Signal creation and manipulation inspired by the TC39 proposal.
+/// Convenience functions for `Signal` creation and manipulation inspired by the TC39 proposal.
 pub struct LazySignals;
 impl LazySignals {
-    /// Create an Action that will run as an AsyncTask.
+    /// Create an `Action` that will run as an `AsyncTask`.
     pub fn action<P: LazySignalsArgs>(
         &self,
         task_closure: impl Action<P>,
@@ -76,12 +76,12 @@ impl LazySignals {
         entity
     }
 
-    /// Create a BoxedSystem to be chained after the Effect that returns it.
+    /// Create a `BoxedSystem` to be chained after the `Effect` that returns it.
     pub fn box_system<M>(&self, effect_system: impl IntoSystem<(), (), M>) -> Option<BoxedSystem> {
         Some(Box::new(IntoSystem::into_system(effect_system)))
     }
 
-    /// Create a Computed that passes its sources to and evaluate a closure, memoizing the result.
+    /// Create a `Computed` that passes its sources to and evaluate a closure, memoizing the result.
     pub fn computed<P: LazySignalsArgs, R: LazySignalsData>(
         &self,
         propagator_closure: impl Computed<P, R>,
@@ -93,7 +93,7 @@ impl LazySignals {
         entity
     }
 
-    /// Create an Effect that passes its sources to and evaluate a closure that runs side-effects.
+    /// Create an `Effect` that passes its sources to and evaluate a closure that runs side-effects.
     pub fn effect<P: LazySignalsArgs>(
         &self,
         effect_closure: impl Effect<P>,
@@ -159,7 +159,7 @@ impl LazySignals {
         commands.trigger_signal::<T>(signal, data);
     }
 
-    /// Create a Signal state that is the entrypoint for data into the structure.
+    /// Create a `Signal` state that is the entrypoint for data into the structure.
     pub fn state<T: LazySignalsData>(&self, data: T, commands: &mut Commands) -> Entity {
         let state = commands.spawn_empty().id();
         commands.create_state::<T>(state, data);
@@ -171,7 +171,7 @@ impl LazySignals {
         commands.trigger_signal::<()>(signal, ());
     }
 
-    /// Get the value from the given World.
+    /// Get the value from the given `World`.
     pub fn value<R: LazySignalsData>(&self, immutable: Entity, world: &World) -> Option<R> {
         let entity = world.entity(immutable);
         match entity.get::<LazySignalsState<R>>() {
