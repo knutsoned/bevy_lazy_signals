@@ -24,23 +24,23 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 ## Design Questions
 
 - What's a good way to handle errors?
-- Can this work with futures_lite to create a futures-signals-like API?
+- Can this work with `futures_lite` to create a `futures-signals`-like API?
 - During initialization, should computed and effect contexts actually evaluate?
 - How to best prevent or detect infinite loops?
 - Can the use of get vs unwrap be more consistent?
-- ✔️ Should Tasks be able to renember they were retriggered while still running and
+- ✔️ Should `Tasks` be able to renember they were retriggered while still running and
   then run again immediately after finishing? (I think they currently do)
 - ✔️ Should there be an option to run a Bevy system as an effect?
 - Should there be a commands-only version of effects?
-- Do we need a useRef equivalent to support state that is not passed around by value?
-- Same question about useCallback
+- Do we need a `useRef` equivalent to support state that is not passed around by value?
+- Same question about `useCallback`
 - ❌ Can change detection replace some of the components we currently add manually?
-- Can a Computed and an Effect live on the same entity? (Technically yes, but why?)
-- Do we want an API to trigger an Effect directly?
-- Should there be a way to write closures that take the result struct and not Option?
-- How to send a DynamicStruct as a signal? Doesn't work now due to FromReflect bound.
-- Lots of reactive libraries distinguish Actions from Effects. Should AsyncTask be renamed to
-  Action?
+- Can a `Computed` and an `Effect` live on the same entity? (Technically yes, but why?)
+- Do we want an API to trigger an `Effect` directly?
+- Should there be a way to write closures that take the result struct and not `Option`?
+- How to send a `DynamicStruct` as a signal? Doesn't work now due to `FromReflect` bound.
+- ✔️ Lots of reactive libraries distinguish `Actions` from `Effects`. Should `AsyncTask` be renamed to
+  `Action`?
 
 ## TODO
 
@@ -51,27 +51,27 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 
 ### Enhancements
 
-- [ ] See if there is a way to register effect systems during init and retain SystemId
+- [ ] See if there is a way to register effect systems during init and retain `SystemId`
 - [ ] More API documentation
 - [ ] I need someone to just review every line because I am a total n00b
 - [ ] More examples, including basic game stuff (gold and health seem popular)
-- [ ] More examples, including some integrating LazySignals with popular Bevy projects
-      such as bevy-lunex, bevy_dioxus, bevy_editor_pls, bevy_reactor, haalka,
-      kayak_ui, polako, quill, space_editor, etc.
+- [ ] More examples, including some integrating `LazySignals` with popular `Bevy` projects
+      such as `bevy-lunex`, `bevy_dioxus`, `bevy_editor_pls`, `bevy_reactor`, `haalka`,
+      `kayak_ui`, `polako`, `quill`, `space_editor`, etc.
 
 ### Stuff I'm Actually Going To Do
 
 - [x] Define bundles for the signals primitives
-- [x] Support bevy_reflect types out of the box
+- [x] Support `bevy_reflect` types out of the box
 - [x] Add async task management for effects
 - [x] Prevent retrigger if task still running from last time
 - [x] Process tasks to run their commands when they are complete
-- [x] Make sure Triggered gets removed from Computeds during processing
-- [x] Remove Clone from LazySignalsData trait bounds
+- [x] Make sure `Triggered` gets removed from `Computed`s during processing
+- [x] Remove `Clone` from `LazySignalsData` trait bounds
 - [x] Implement effect systems
-- [ ] Integrate with bevy_mod_picking
-- [ ] Make a demo of a fully wired sickle entity inspector with schematics
-- [ ] Make sure we can convert the result struct into a regular Option<Result<>>
+- [ ] Integrate with `bevy_mod_picking`
+- [ ] Make a demo of a fully wired `sickle_ui` entity inspector
+- [ ] Make sure we can convert the result struct into a regular `Option<Result<>>`
 - [ ] Find a better way to manage the Effect systems (at init time)
 - [ ] See if there is a way to schedule a system using an Action's CommandQueue
 - [ ] Provide integration with Bevy observers
