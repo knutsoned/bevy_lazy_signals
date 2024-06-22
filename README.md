@@ -23,7 +23,7 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 
 ## Design Questions
 
-- What's a good way to handle errors?
+- ✔️ What's a good way to handle errors? anyhow
 - Can this work with `futures_lite` to create a `futures-signals`-like API?
 - During initialization, should computed and effect contexts actually evaluate?
 - How to best prevent or detect infinite loops?
@@ -69,6 +69,10 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 - [x] Make sure `Triggered` gets removed from `Computed`s during processing
 - [x] Remove `Clone` from `LazySignalsData` trait bounds
 - [x] Implement effect systems
+- [ ] Retain effect SystemId and call if set instead of closure
+- [ ] Implement anyhow
+- [ ] Remote control breakout
+- [ ] Export compatible API for bevy_rx and demo swapping when implementing beverage
 - [ ] Integrate with `bevy_mod_picking`
 - [ ] Make a demo of a fully wired `sickle_ui` entity inspector
 - [ ] Make sure we can convert the result struct into a regular `Option<Result<>>`
