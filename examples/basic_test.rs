@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use async_std::task::sleep;
-use bevy::{ ecs::world::{ Command, CommandQueue }, prelude::*, tasks::AsyncComputeTaskPool };
+use bevy::{ ecs::world::{ Command, CommandQueue }, prelude::*, tasks::IoTaskPool };
 
 use bevy_lazy_signals::{ api::LazySignals, LazySignalsPlugin, StaticStrRef };
 
@@ -276,7 +276,7 @@ fn init(mut test: ResMut<MyTestResource>, mut commands: Commands) {
         LazySignals.action::<()>(
             // closure to call when triggered
             move |_args| {
-                let thread_pool = AsyncComputeTaskPool::get();
+                let thread_pool = IoTaskPool::get();
                 thread_pool.spawn(async move {
                     info!("TASK0: triggered");
                     let mut command_queue = CommandQueue::default();
