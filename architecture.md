@@ -8,7 +8,7 @@ inspired by similar structures in functional programming, such as the infamous H
 The specifics of the developer API are inspired by the
 [TC 39 Signals proposal](https://github.com/tc39/proposal-signals).
 
-It is lossy by default, which means if multiple signals are sent in the same tick, which every
+It is lossy by default, which means if multiple signals are sent in the same tick, whichever
 signal is applied most recently contains the value that will be propagated to the Computeds,
 Effects, and Actions. The prior signal values within the tick are overwritten before they are sent
 on as each command calls the merge_next function.
@@ -20,7 +20,7 @@ The mappings of valid combinations of components to bundles is enumerated in the
 A propagator aggregates data from its dependencies. For a Computed, the data is merged into its
 LazySignalsState. An Effect may uses its source values to perform some side effects. An Action
 is an Effect but instead of having exclusive world access, it returns a CommandQueue to be
-evaluated by a LazySignals system when the Action completes. It uses Bevy async tasks and is the
+evaluated by a LazySignals system when the Action completes. It uses Bevy async tasks (bevy_tasks) and is the
 default method to spawn long running operations.
 
 The commands returned by an Action as well as the closures passed to Effects may
@@ -36,7 +36,7 @@ To form a Computed, add a ComputedImmutable component to the Signal entity.
 
 A LazyEffect component identifies an Effect. A LazyEffect can contain an Action instead, which
 does not have exclusive world access, but returns a CommandQueue to be applied by the LazySignals
-update system.
+update system. An Effect can also return a closure that defines a system function.
 
 ## Exclusive Systems
 
@@ -49,20 +49,20 @@ completed, RunningTask is removed and any commands in the returned CommandQueue 
 
 The init system runs every tick. Newly added Computed, Effect, and Action components will have an
 InitDependencies component to mark them. These systems just run subscribe for each of the sources
-and triggers so that the relevant entities are notified at the proper time.
+and triggers so that the relevant LazySignals components are notified at the proper time.
 
 ### Signal Processing
 
 During processing, a (should be brief) write lock for the world is obtained. If the value of a
-signal is unchanged, the SendSignal for each sent signal is simply discarded. Otherwise, each
-Signal's data field is replaced with next_value. The Signal is marked with ValueChanged.
-Subscribers are added to a "running" set and removed from the LazySignalsState's subscribers.
+signal is unchanged, the SendSignal for each sent signal is simply discarded. The next_value is also set with a special default error to disambiguate it from None as an intentional data value. Otherwise, each
+Signal's data field is replaced with next_value. The Signal is marked with ValueChanged to avoid having to constantly override Bevy's internal change detection during the exclusive systems.
+Subscribers are added to a "running" set and removed from the LazySignalsState's subscribers, which is cleared. This prevents to need to manage subscriptions manually when LazySignals entities are despawned.
 Finally, the SendSignal component is removed.
 
 The initial "running" set is iterated. If the item is a Computed, then add a ComputeMemo component
 to mark it for update. If it is an Effect or Action, add a DeferredEffect component to mark it
-for scheduling. Effects may be triggered, which means sending a signal with no value, or triggering
-upstream effects and tasks for a unit or typed but possibly unchanged value (e g. to represent a
+for scheduling. Effects may be triggered, which possibly means sending a signal with a None value, or triggering
+upstream effects and tasks with a unit or typed but possibly unchanged value (e g. to represent a
 button press).
 
 Walk the subscriber tree, adding each item's subscribers to the "next_running" set and removing
@@ -81,7 +81,7 @@ will be added after the closure is evaluated, which will be used to limit which 
 scheduled next. The Dirty component is removed whether the value changed or not.
 
 A stack is kept of all running operations. If any source is dirty, the Computed will put itself and
-its dirty sources on the stack. This avoids the use of direct recursion. The system exits when each
+its dirty sources on the stack (TODO verify sources are filtered by Dirty). This avoids the use of direct recursion and stack overflows. The system exits when each
 item in the stack finishes.
 
 ### Effect Processing
@@ -96,4 +96,4 @@ effects if triggered more than once. Alternatively, care must be taken to make s
 triggered safely repeatedly or else that the situation is avoided.
 
 The system exits when each item in the "running" set finishes. Actions are processed like
-Effects, but their closures do not receive a &mut World and instead must return a CommandQueue.
+Effects, but their closures do not receive a &mut World and instead must return a CommandQueue. Also an Action spawns an async Bevy task instead of evaluating its closure during the system.
