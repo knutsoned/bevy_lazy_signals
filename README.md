@@ -71,6 +71,7 @@ See also in-depth [Architecture](architecture.md) and [Rationale](rationale.md)
 - [x] Implement effect systems
 - [ ] Retain effect SystemId and call if set instead of closure
 - [ ] Implement anyhow
+- [ ] See if there is a way to implement FromReflect manually for LazySignalsData
 - [ ] Remote control breakout
 - [ ] Export compatible API for bevy_rx and demo swapping when implementing beverage
 - [ ] Integrate with `bevy_mod_picking`
