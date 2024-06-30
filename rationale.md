@@ -44,6 +44,8 @@ exclusive world access. The consumer of the API provides all static type informa
 compile-time, and is responsible for ensuring the concrete types of sources and triggers match up
 with the type signatures provided for the closure arguments.
 
+The computed and effect closures require the developer to pass in a heterogeneous tuple of Option<T> which matches the signature of the closure when the computed or effect is spawned. This means when the closure is defined inside the call to spawn the computed or effect, `rust-analyzer` can provide the type information to editor tooling.
+
 Should be able to run systems to send signals and recompute memos as often as needed. If there is
 nothing to process, the systems exit quickly. Otherwise, everything but the effects system can run
 over and over in between systems that need to send signals and have the next one have the updates
